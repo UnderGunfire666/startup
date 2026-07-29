@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://vksjgk4ij6wn"]
+
+[ext_resource type="Script" uid="uid://bhjmf0qq6lke8" path="res://scenes/panels/OperationPanel.gd" id="1"]
+
+[node name="OperationPanel" type="PanelContainer" unique_id=1393748888]
+script = ExtResource("1")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=254169138]
+layout_mode = 2
+
+[node name="DayLabel" type="Label" parent="VBox" unique_id=1212767472]
+layout_mode = 2
+text = "第 1 天"
+
+[node name="SlotLabel" type="Label" parent="VBox" unique_id=430824251]
+layout_mode = 2
+text = "当前时段：清晨"
+
+[node name="OpenStatusLabel" type="Label" parent="VBox" unique_id=112195888]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="StatsGrid" type="GridContainer" parent="VBox" unique_id=1124590502]
+layout_mode = 2
+columns = 2
+
+[node name="CashLabel" type="Label" parent="VBox/StatsGrid" unique_id=587286512]
+layout_mode = 2
+text = "现金：0 元"
+
+[node name="InventoryLabel" type="Label" parent="VBox/StatsGrid" unique_id=233992879]
+layout_mode = 2
+text = "库存：0 单位"
+
+[node name="ReputationLabel" type="Label" parent="VBox/StatsGrid" unique_id=370684207]
+layout_mode = 2
+text = "口碑：50.0 / 100"
+
+[node name="StressLabel" type="Label" parent="VBox/StatsGrid" unique_id=460075995]
+layout_mode = 2
+text = "压力：20.0 / 100"
+
+[node name="AdvanceButton" type="Button" parent="VBox" unique_id=1890488765]
+layout_mode = 2
+text = "推进到下一时段并结算"

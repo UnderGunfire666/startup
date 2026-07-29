@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://c7gjxg6qgpxh2"]
+
+[ext_resource type="Script" uid="uid://d20c5gakw0yd2" path="res://scenes/debug/DebugPanel.gd" id="1"]
+
+[node name="DebugPanel" type="PanelContainer" unique_id=1883207971]
+script = ExtResource("1")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=405605009]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="VBox" unique_id=1982977498]
+layout_mode = 2
+text = "调试 / 验收场景"
+
+[node name="ScenarioGrid" type="GridContainer" parent="VBox" unique_id=1269228001]
+layout_mode = 2
+columns = 2
+
+[node name="ScenarioA" type="Button" parent="VBox/ScenarioGrid" unique_id=1420987480]
+layout_mode = 2
+text = "A 东环+快餐+有厨师"
+
+[node name="ScenarioB" type="Button" parent="VBox/ScenarioGrid" unique_id=146064581]
+layout_mode = 2
+text = "B 南城+饮品+有烘焙"
+
+[node name="ScenarioC" type="Button" parent="VBox/ScenarioGrid" unique_id=1890383309]
+layout_mode = 2
+text = "C 东环+饮品(跨区)"
+
+[node name="ScenarioD" type="Button" parent="VBox/ScenarioGrid" unique_id=233080005]
+layout_mode = 2
+text = "D 南城+早餐"
+
+[node name="ScenarioE" type="Button" parent="VBox/ScenarioGrid" unique_id=542208296]
+layout_mode = 2
+text = "E 快餐+无厨师"
+
+[node name="ScenarioF" type="Button" parent="VBox/ScenarioGrid" unique_id=2073278961]
+layout_mode = 2
+text = "F 库存不足"
+
+[node name="IgnoreCategoryCheck" type="CheckBox" parent="VBox" unique_id=2034235629]
+layout_mode = 2
+text = "忽略门面品类适配限制"
+
+[node name="AdvanceRow" type="HBoxContainer" parent="VBox" unique_id=1448282020]
+layout_mode = 2
+
+[node name="AdvanceDaysLabel" type="Label" parent="VBox/AdvanceRow" unique_id=274446580]
+layout_mode = 2
+text = "连续推进天数："
+
+[node name="AdvanceDaysSpin" type="SpinBox" parent="VBox/AdvanceRow" unique_id=1048240528]
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+value = 7.0
+
+[node name="AdvanceDaysButton" type="Button" parent="VBox/AdvanceRow" unique_id=2029418972]
+layout_mode = 2
+text = "执行"
+
+[node name="ResetButton" type="Button" parent="VBox" unique_id=711969960]
+layout_mode = 2
+text = "重置门店状态"
+
+[node name="StatusLabel" type="Label" parent="VBox" unique_id=1215875868]
+layout_mode = 2
+autowrap_mode = 3

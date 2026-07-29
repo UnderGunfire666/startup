@@ -1,0 +1,84 @@
+[gd_scene load_steps=2 format=3 uid="uid://config_panel"]
+
+[ext_resource type="Script" path="res://scenes/panels/ConfigPanel.gd" id="1"]
+
+[node name="ConfigPanel" type="PanelContainer"]
+script = ExtResource("1")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+
+[node name="TitleLabel" type="Label" parent="VBox"]
+text = "配置面板"
+
+[node name="RegionRow" type="HBoxContainer" parent="VBox"]
+
+[node name="RegionLabel" type="Label" parent="VBox/RegionRow"]
+text = "区域："
+
+[node name="RegionOption" type="OptionButton" parent="VBox/RegionRow"]
+custom_minimum_size = Vector2(260, 0)
+
+[node name="StorefrontRow" type="HBoxContainer" parent="VBox"]
+
+[node name="StorefrontLabel" type="Label" parent="VBox/StorefrontRow"]
+text = "门面："
+
+[node name="StorefrontOption" type="OptionButton" parent="VBox/StorefrontRow"]
+custom_minimum_size = Vector2(260, 0)
+
+[node name="CategoryRow" type="HBoxContainer" parent="VBox"]
+
+[node name="CategoryLabel" type="Label" parent="VBox/CategoryRow"]
+text = "品类："
+
+[node name="CategoryOption" type="OptionButton" parent="VBox/CategoryRow"]
+custom_minimum_size = Vector2(200, 0)
+
+[node name="ProductRow" type="HBoxContainer" parent="VBox"]
+
+[node name="ProductLabel" type="Label" parent="VBox/ProductRow"]
+text = "主产品："
+
+[node name="ProductOption" type="OptionButton" parent="VBox/ProductRow"]
+custom_minimum_size = Vector2(220, 0)
+
+[node name="StaffRow" type="HBoxContainer" parent="VBox"]
+
+[node name="StaffLabel" type="Label" parent="VBox/StaffRow"]
+text = "关键员工："
+
+[node name="KeyStaffCheck" type="CheckBox" parent="VBox/StaffRow"]
+text = "已雇佣"
+
+[node name="StrategyRow" type="HBoxContainer" parent="VBox"]
+
+[node name="StrategyLabel" type="Label" parent="VBox/StrategyRow"]
+text = "营业策略："
+
+[node name="StrategyOption" type="OptionButton" parent="VBox/StrategyRow"]
+custom_minimum_size = Vector2(180, 0)
+
+[node name="InventoryRow" type="HBoxContainer" parent="VBox"]
+
+[node name="InventoryLabel" type="Label" parent="VBox/InventoryRow"]
+text = "初始库存："
+
+[node name="InventorySpin" type="SpinBox" parent="VBox/InventoryRow"]
+min_value = 0
+max_value = 999
+value = 100
+
+[node name="OwnerRow" type="HBoxContainer" parent="VBox"]
+
+[node name="OwnerLabel" type="Label" parent="VBox/OwnerRow"]
+text = "本时段坐镇："
+
+[node name="OwnerPresentCheck" type="CheckBox" parent="VBox/OwnerRow"]
+text = "亲自坐镇"
+
+[node name="ApplyButton" type="Button" parent="VBox"]
+text = "应用配置"
+
+[node name="StatusLabel" type="Label" parent="VBox"]
+text = ""
+autowrap_mode = 3

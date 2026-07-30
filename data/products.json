@@ -3,7 +3,8 @@
 	"id": "P001", "category_id": "breakfast", "name": "豆浆油条",
 	"target_groups": ["worker", "student", "commute"],
 	"preferred_slots": ["dawn"], "price_tier": "low", "average_price": 8.0,
-	"ingredient_cost_per_unit": 2.8, "suggested_margin_rate": 0.65,
+	"ingredient_cost_per_unit": 2.8, "utility_cost_per_unit": 0.15,
+	"suggested_margin_rate": 0.65,
 	"complexity": "simple", "differentiation": "normal",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -16,7 +17,8 @@
 	"id": "P002", "category_id": "breakfast", "name": "煎饼卷饼",
 	"target_groups": ["worker", "student", "office_worker"],
 	"preferred_slots": ["dawn"], "price_tier": "low", "average_price": 11.0,
-	"ingredient_cost_per_unit": 4.2, "suggested_margin_rate": 0.62,
+	"ingredient_cost_per_unit": 4.2, "utility_cost_per_unit": 0.25,
+	"suggested_margin_rate": 0.62,
 	"complexity": "normal", "differentiation": "special",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -29,7 +31,8 @@
 	"id": "P003", "category_id": "snack", "name": "炸串",
 	"target_groups": ["student", "worker", "night_shift_worker"],
 	"preferred_slots": ["night"], "price_tier": "low", "average_price": 16.0,
-	"ingredient_cost_per_unit": 6.4, "suggested_margin_rate": 0.60,
+	"ingredient_cost_per_unit": 6.4, "utility_cost_per_unit": 0.40,
+	"suggested_margin_rate": 0.60,
 	"complexity": "normal", "differentiation": "normal",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -41,7 +44,8 @@
 	"id": "P004", "category_id": "snack", "name": "麻辣拌",
 	"target_groups": ["student", "worker"],
 	"preferred_slots": ["noon", "night"], "price_tier": "medium", "average_price": 24.0,
-	"ingredient_cost_per_unit": 10.1, "suggested_margin_rate": 0.58,
+	"ingredient_cost_per_unit": 10.1, "utility_cost_per_unit": 0.20,
+	"suggested_margin_rate": 0.58,
 	"complexity": "normal", "differentiation": "special",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -53,7 +57,8 @@
 	"id": "P005", "category_id": "fast_food", "name": "盖浇饭",
 	"target_groups": ["worker", "student", "office_worker"],
 	"preferred_slots": ["noon", "night"], "price_tier": "medium", "average_price": 22.0,
-	"ingredient_cost_per_unit": 8.8, "suggested_margin_rate": 0.60,
+	"ingredient_cost_per_unit": 8.8, "utility_cost_per_unit": 0.35,
+	"suggested_margin_rate": 0.60,
 	"complexity": "normal", "differentiation": "normal",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -65,7 +70,8 @@
 	"id": "P006", "category_id": "fast_food", "name": "卤味饭",
 	"target_groups": ["worker", "student", "family"],
 	"preferred_slots": ["noon", "night"], "price_tier": "medium", "average_price": 26.0,
-	"ingredient_cost_per_unit": 10.9, "suggested_margin_rate": 0.58,
+	"ingredient_cost_per_unit": 10.9, "utility_cost_per_unit": 0.35,
+	"suggested_margin_rate": 0.58,
 	"complexity": "normal", "differentiation": "special",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -78,7 +84,8 @@
 	"id": "P007", "category_id": "beverage_dessert", "name": "奶茶",
 	"target_groups": ["student", "family"],
 	"preferred_slots": ["noon", "night"], "price_tier": "medium", "average_price": 18.0,
-	"ingredient_cost_per_unit": 5.4, "suggested_margin_rate": 0.70,
+	"ingredient_cost_per_unit": 5.4, "utility_cost_per_unit": 0.10,
+	"suggested_margin_rate": 0.70,
 	"complexity": "simple", "differentiation": "normal",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [
@@ -91,7 +98,8 @@
 	"id": "P008", "category_id": "beverage_dessert", "name": "现烤面包",
 	"target_groups": ["student", "family", "office_worker"],
 	"preferred_slots": ["dawn", "noon"], "price_tier": "medium", "average_price": 15.0,
-	"ingredient_cost_per_unit": 5.25, "suggested_margin_rate": 0.65,
+	"ingredient_cost_per_unit": 5.25, "utility_cost_per_unit": 0.45,
+	"suggested_margin_rate": 0.65,
 	"complexity": "normal", "differentiation": "special",
 	"extra_service_speed_modifier": 1.0, "notes": "",
 	"recipe": [

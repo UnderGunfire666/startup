@@ -1,8 +1,16 @@
 extends PanelContainer
 ## 经营控制面板：显示当前天/时段/门店内各品类营业状态/现金/库存/口碑/压力
 ## 提供"推进到下一时段并结算"按钮。结算结果现在是数组（门店可含多个品类）。
+## 当推进的是一天的最后一个时段（night）时，额外触发 day_ended 信号，
+## 供 Main.gd 弹出日结面板。
 
 signal settlement_done(results: Array)
+signal day_ended(day: int, summary: Dictionary)
+
+@onready var opening_checklist: VBoxContainer = $VBox/OpeningPrepBox/OpeningChecklist
+@onready var open_store_button: Button = $VBox/OpeningPrepBox/OpenStoreButton
+@onready var opening_status_label: Label = $VBox/OpeningPrepBox/OpeningStatusLabel
+@onready var opening_prep_box: VBoxContainer = $VBox/OpeningPrepBox
 
 @onready var day_label: Label         = $VBox/DayLabel
 @onready var slot_label: Label        = $VBox/SlotLabel
@@ -16,6 +24,7 @@ signal settlement_done(results: Array)
 
 func _ready() -> void:
 	advance_button.pressed.connect(_on_advance_pressed)
+	open_store_button.pressed.connect(_on_open_store_pressed)
 	owner_present_check.button_pressed = GameManager.store_state.owner_present
 	owner_present_check.toggled.connect(_on_owner_present_toggled)
 	refresh_display()
@@ -23,18 +32,34 @@ func _ready() -> void:
 func _on_owner_present_toggled(pressed: bool) -> void:
 	GameManager.store_state.owner_present = pressed
 
+func _on_open_store_pressed() -> void:
+	var result := GameManager.open_store()
+	opening_status_label.text = ("✅ " if result.success else "⚠ ") + result.reason
+	refresh_display()
+
 func _on_advance_pressed() -> void:
 	var results: Array = GameManager.run_settlement()
 	if results.is_empty() and GameManager.last_settlement_error != "":
 		open_status_label.text = "⚠ 结算失败：%s" % GameManager.last_settlement_error
 		settlement_done.emit([])
 		return
+
+	var ended_day := GameManager.store_state.current_day
+	var was_last_slot_of_day := GameManager.store_state.is_last_slot_of_day()
+
 	GameManager.advance_time_only()
 	refresh_display()
 	settlement_done.emit(results)
 
+	if was_last_slot_of_day:
+		var summary := GameManager.store_state.get_day_summary(ended_day)
+		day_ended.emit(ended_day, summary)
+
 func refresh_display() -> void:
 	var state := GameManager.store_state
+
+	_refresh_opening_prep()
+
 	day_label.text  = "第 %d 天" % state.current_day
 	slot_label.text = "当前时段：%s" % SettlementConfig.SLOT_NAMES.get(
 		state.get_current_slot(), state.get_current_slot())
@@ -67,7 +92,34 @@ func refresh_display() -> void:
 			t += "⛔ 不营业：%s" % ", ".join(closed_names)
 		open_status_label.text = t
 
-	cash_label.text       = "现金：%.0f 元" % state.cash
+	cash_label.text       = "现金：%.0f 元" % GameManager.player_state.cash
 	inventory_label.text = "库存：%d 单位" % state.get_total_inventory_across_slots()
 	reputation_label.text = "口碑：%.1f / 100" % state.reputation
-	stress_label.text     = "压力：%.1f / 100" % state.stress
+	stress_label.text     = "压力：%.1f / 100" % GameManager.player_state.stress
+
+	advance_button.disabled = not state.is_open
+
+func _refresh_opening_prep() -> void:
+	var state := GameManager.store_state
+
+	for child in opening_checklist.get_children():
+		child.queue_free()
+
+	if state.is_open:
+		opening_prep_box.visible = false
+		return
+
+	opening_prep_box.visible = true
+
+	var readiness := GameManager.get_open_readiness()
+	for check in readiness.checks:
+		var row := HBoxContainer.new()
+		var mark := Label.new()
+		mark.text = "✅" if check.passed else "⬜"
+		row.add_child(mark)
+		var text_label := Label.new()
+		text_label.text = check.label
+		row.add_child(text_label)
+		opening_checklist.add_child(row)
+
+	open_store_button.disabled = not readiness.can_open

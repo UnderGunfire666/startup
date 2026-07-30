@@ -20,7 +20,7 @@ func refresh() -> void:
 	_quantity_inputs.clear()
 	_line_totals.clear()
 
-	cash_label.text = "当前现金：¥%.0f" % GameManager.store_state.cash
+	cash_label.text = "当前现金：¥%.0f" % GameManager.player_state.cash
 	status_label.text = ""
 
 	var ingredients := GameManager.get_ingredients_in_use()
@@ -145,7 +145,7 @@ func _update_total_label() -> void:
 	var total: float = GameManager.calculate_purchase_total(cart)
 	total_label.text = "本次采购合计：¥%.2f" % total
 
-	if total > GameManager.store_state.cash:
+	if total > GameManager.player_state.cash:
 		total_label.text += "  （现金不足）"
 
 func _on_purchase_pressed() -> void:

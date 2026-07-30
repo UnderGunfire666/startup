@@ -9,6 +9,7 @@ extends Resource
 @export var price_tier: String
 @export var average_price: float
 @export var ingredient_cost_per_unit: float = 3.0
+@export var utility_cost_per_unit: float = 0.5
 @export var suggested_margin_rate: float = 0.6
 @export var complexity: String
 @export var differentiation: String
@@ -19,4 +20,4 @@ extends Resource
 func get_actual_margin_rate(price: float) -> float:
 	if price <= 0.0:
 		return 0.0
-	return (price - ingredient_cost_per_unit) / price
+	return (price - ingredient_cost_per_unit - utility_cost_per_unit) / price

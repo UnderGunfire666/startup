@@ -21,7 +21,7 @@ func refresh(history: Array[Dictionary]) -> void:
 		var d: Dictionary = daily[key]
 		d.revenue    += entry.revenue
 		d.cost       += entry.ingredient_cost + entry.staff_cost \
-					 + entry.rent_cost + entry.waste_cost
+					 + entry.rent_cost + entry.get("utility_cost", 0.0) + entry.waste_cost
 		d.profit     += entry.profit
 		d.orders     += entry.actual_orders
 		d.rep_delta  += entry.reputation_delta

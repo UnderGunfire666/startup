@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://dmvtdi23pfj6m"]
+
+[ext_resource type="Script" uid="uid://cjf7fiauc17mn" path="res://scenes/panels/SaveLoadBar.gd" id="1"]
+
+[node name="SaveLoadBar" type="HBoxContainer" unique_id=799528406]
+script = ExtResource("1")
+
+[node name="SaveButton" type="Button" parent="." unique_id=1978812202]
+layout_mode = 2
+text = "保存进度"
+
+[node name="LoadButton" type="Button" parent="." unique_id=82970182]
+layout_mode = 2
+text = "读取存档"
+
+[node name="NewGameButton" type="Button" parent="." unique_id=1455957774]
+layout_mode = 2
+text = "新开局"
+
+[node name="StatusLabel" type="Label" parent="." unique_id=400413622]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="NewGameConfirmDialog" type="ConfirmationDialog" parent="." unique_id=287958991]
+title = "确认新开局"
+dialog_text = "新开局将清空当前所有进度（出身、区域、门面、品类、库存、现金等），且不会自动保存。确定要继续吗？"

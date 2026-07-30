@@ -1,7 +1,7 @@
 extends Node
 
 var store_state: StoreState = StoreState.new()
-var debug_ignore_category_restriction: bool = false
+var player_state: PlayerState = PlayerState.new()
 var last_settlement_error: String = ""
 
 var all_origins: Array[OriginData] = []
@@ -83,6 +83,9 @@ func get_ingredient_purchase_price(ingredient_id: String) -> float:
 		return 0.0
 	return ingredient.base_purchase_price
 
+func get_product_unit_utility_cost(product: ProductData) -> float:
+	return product.utility_cost_per_unit
+
 func select_origin(origin_id: String) -> Dictionary:
 	var origin := get_origin(origin_id)
 	if origin == null:
@@ -92,9 +95,9 @@ func select_origin(origin_id: String) -> Dictionary:
 		return {"success": false, "reason": "门店已开业，不能更换出身"}
 
 	store_state.selected_origin_id = origin.id
-	store_state.cash = origin.starting_cash
+	player_state.cash = origin.starting_cash
+	player_state.stress = origin.initial_stress
 	store_state.reputation = origin.initial_reputation
-	store_state.stress = origin.initial_stress
 
 	store_state.selected_region_id = ""
 	store_state.selected_storefront_id = ""
@@ -129,10 +132,10 @@ func research_region(region_id: String) -> Dictionary:
 
 	var cost: float = region.research_cost * (1.0 - discount)
 
-	if store_state.cash < cost:
+	if player_state.cash < cost:
 		return {"success": false, "reason": "现金不足，调研需要¥%.0f" % cost}
 
-	store_state.cash -= cost
+	player_state.cash -= cost
 	store_state.researched_region_ids.append(region_id)
 
 	return {
@@ -182,7 +185,6 @@ func select_storefront(storefront_id: String) -> Dictionary:
 	if sf.region_id != store_state.selected_region_id:
 		return {"success": false, "reason": "该门面不属于当前选定区域"}
 
-	# 更换门面会导致原有品类的面积分配失效，清空重来
 	store_state.selected_storefront_id = storefront_id
 	store_state.category_slots.clear()
 	_sync_data_objects()
@@ -208,11 +210,11 @@ func purchase_ingredients(cart: Dictionary) -> Dictionary:
 	if total_cost <= 0.0:
 		return {"success": false, "reason": "采购数量必须大于0"}
 
-	if store_state.cash < total_cost:
+	if player_state.cash < total_cost:
 		return {
 			"success": false,
 			"reason": "现金不足，需要%.0f元，当前仅有%.0f元"
-				% [total_cost, store_state.cash]
+				% [total_cost, player_state.cash]
 		}
 
 	for ingredient_id in cart:
@@ -231,7 +233,7 @@ func purchase_ingredients(cart: Dictionary) -> Dictionary:
 			unit_price
 		)
 
-	store_state.cash -= total_cost
+	player_state.cash -= total_cost
 
 	return {
 		"success": true,
@@ -259,15 +261,13 @@ func _sync_data_objects() -> void:
 
 # ── 品类添加/管理 ───────────────────────────────────────
 
-## 返回当前门面支持的全部品类及是否可添加的判定，供UI展示。
 func get_category_options_for_current_store() -> Array[Dictionary]:
 	var options: Array[Dictionary] = []
 	if current_storefront == null:
 		return options
 	var available_area := store_state.get_available_area(current_storefront)
 	for cat in all_categories:
-		var supported: bool = debug_ignore_category_restriction \
-			or cat.id in current_storefront.supported_categories
+		var supported: bool = cat.id in current_storefront.supported_categories
 		if not supported:
 			continue
 		var already_added := store_state.has_category(cat.id)
@@ -297,13 +297,13 @@ func add_category_to_store(category_id: String, product_ids: Array[String],
 		return {"success": false, "reason": "该品类已添加"}
 	if product_ids.is_empty():
 		return {"success": false, "reason": "请至少选择一个商品"}
-	if not debug_ignore_category_restriction and category_id not in current_storefront.supported_categories:
+	if category_id not in current_storefront.supported_categories:
 		return {"success": false, "reason": "门面不支持该品类"}
 	var available := store_state.get_available_area(current_storefront)
 	if cat.required_area > available:
 		return {"success": false, "reason": "面积不足（需%.0f㎡，剩余%.0f㎡）" % [cat.required_area, available]}
 	var setup_cost := cat.setup_cost_wan * 10000.0
-	if store_state.cash < setup_cost:
+	if player_state.cash < setup_cost:
 		return {"success": false, "reason": "现金不足，开设需要%.0f元装修/设备投入" % setup_cost}
 
 	var slot := StoreCategorySlot.new()
@@ -317,7 +317,7 @@ func add_category_to_store(category_id: String, product_ids: Array[String],
 		pc.inventory_units = SettlementConfig.INITIAL_INVENTORY
 		slot.product_configs.append(pc)
 	store_state.category_slots.append(slot)
-	store_state.cash -= setup_cost
+	player_state.cash -= setup_cost
 	return {"success": true, "reason": ""}
 
 func add_product_to_slot(category_id: String, product_id: String) -> bool:
@@ -398,6 +398,45 @@ func set_category_area(category_id: String, new_area: float) -> Dictionary:
 	slot.allocated_area = clamped
 	return {"success": true, "reason": "", "clamped_area": clamped}
 
+# ── 开业 ────────────────────────────────────────────────
+
+func get_open_readiness() -> Dictionary:
+	var checks: Array[Dictionary] = []
+
+	var has_storefront := current_storefront != null
+	checks.append({
+		"label": "已签约门面",
+		"passed": has_storefront,
+	})
+
+	var has_category := not store_state.category_slots.is_empty()
+	checks.append({
+		"label": "已添加至少一个经营品类",
+		"passed": has_category,
+	})
+
+	var has_inventory := store_state.get_total_inventory_across_slots() > 0
+	checks.append({
+		"label": "已备货（至少一个商品有库存）",
+		"passed": has_inventory,
+	})
+
+	var can_open: bool = has_storefront and has_category and has_inventory
+
+	return {
+		"can_open": can_open,
+		"checks": checks,
+	}
+
+func open_store() -> Dictionary:
+	if store_state.is_open:
+		return {"success": false, "reason": "门店已经开业"}
+	var readiness := get_open_readiness()
+	if not readiness.can_open:
+		return {"success": false, "reason": "开业条件尚未全部满足，请查看开业清单"}
+	store_state.is_open = true
+	return {"success": true, "reason": "门店已开业！"}
+
 # ── 结算（现在遍历门店内所有品类实例） ──────────────────
 
 func run_settlement() -> Array[SettlementResult]:
@@ -439,6 +478,7 @@ func run_settlement() -> Array[SettlementResult]:
 
 			var available_units := store_state.get_max_produceable_by_ingredients(product_template)
 			var unit_ingredient_cost := get_product_unit_ingredient_cost(product_template)
+			var unit_utility_cost := get_product_unit_utility_cost(product_template)
 
 			var result := SettlementEngine.calculate(
 				current_region,
@@ -446,13 +486,14 @@ func run_settlement() -> Array[SettlementResult]:
 				category,
 				product_instance,
 				store_state,
+				player_state,
 				store_state.get_current_slot(),
 				store_state.current_day,
 				slot.has_key_staff,
 				slot.strategy,
 				available_units,
 				unit_ingredient_cost,
-				debug_ignore_category_restriction
+				unit_utility_cost,
 				)
 
 			var extra_upkeep: float = (category.extra_rent_wan * 10000.0) \
@@ -462,67 +503,17 @@ func run_settlement() -> Array[SettlementResult]:
 
 			store_state.consume_ingredients(product_template, result.actual_orders)
 			store_state.apply_settlement(result)
+			player_state.apply_settlement(result)
 			results.append(result)
-			
-			
 
 	return results
 
 func advance_time_only() -> void:
 	store_state.advance_slot()
 
-
-# ── 调试场景（改为直接构造品类实例列表） ────────────────
-
-func apply_debug_scenario(scenario_id: String) -> void:
-	store_state.reset_to_defaults()
-	debug_ignore_category_restriction = false
-
-	match scenario_id:
-		"A":
-			store_state.selected_region_id = "A001"
-			store_state.selected_storefront_id = "S003"
-			_add_debug_slot("fast_food", ["P005"], true, "standard", 15.0)
-		"B":
-			store_state.selected_region_id = "A002"
-			store_state.selected_storefront_id = "S001"
-			_add_debug_slot("beverage_dessert", ["P007"], true, "standard", 10.0)
-		"C":
-			store_state.selected_region_id = "A001"
-			store_state.selected_storefront_id = "S003"
-			debug_ignore_category_restriction = true
-			_add_debug_slot("beverage_dessert", ["P008"], false, "standard", 10.0)
-		"D":
-			store_state.selected_region_id = "A002"
-			store_state.selected_storefront_id = "S001"
-			_add_debug_slot("breakfast", ["P001"], false, "standard", 8.0)
-		"E":
-			store_state.selected_region_id = "A001"
-			store_state.selected_storefront_id = "S003"
-			_add_debug_slot("fast_food", ["P005"], false, "standard", 15.0)
-		"F":
-			store_state.selected_region_id = "A001"
-			store_state.selected_storefront_id = "S003"
-			_add_debug_slot("fast_food", ["P005"], true, "standard", 15.0)
-			store_state.inventory_units = 5
-		"G":  # 新增：验证多品类同店经营
-			store_state.selected_region_id = "A002"
-			store_state.selected_storefront_id = "S002"
-			_add_debug_slot("fast_food", ["P005"], true, "standard", 15.0)
-			_add_debug_slot("beverage_dessert", ["P007"], true, "standard", 10.0)
-
-	_sync_data_objects()
-
-func _add_debug_slot(category_id: String, product_ids: Array[String],
-		has_staff: bool, strategy: String, area: float) -> void:
-	var slot := StoreCategorySlot.new()
-	slot.category_id = category_id
-	slot.has_key_staff = has_staff
-	slot.strategy = strategy
-	slot.allocated_area = area
-	for pid in product_ids:
-		var pc := StoreProductConfig.new()
-		pc.product_id = pid
-		pc.inventory_units = SettlementConfig.INITIAL_INVENTORY
-		slot.product_configs.append(pc)
-	store_state.category_slots.append(slot)
+## 开始全新一局：完全重建门店与玩家状态，不保留任何选择/进度/存档影响。
+func start_new_game() -> void:
+	store_state = StoreState.new()
+	player_state = PlayerState.new()
+	current_region = null
+	current_storefront = null

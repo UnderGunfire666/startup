@@ -8,6 +8,28 @@ script = ExtResource("1")
 [node name="VBox" type="VBoxContainer" parent="." unique_id=254169138]
 layout_mode = 2
 
+[node name="OpeningPrepBox" type="VBoxContainer" parent="VBox" unique_id=2001000001]
+layout_mode = 2
+
+[node name="OpeningTitleLabel" type="Label" parent="VBox/OpeningPrepBox" unique_id=2001000002]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "开业准备"
+
+[node name="OpeningChecklist" type="VBoxContainer" parent="VBox/OpeningPrepBox" unique_id=2001000003]
+layout_mode = 2
+
+[node name="OpenStoreButton" type="Button" parent="VBox/OpeningPrepBox" unique_id=2001000004]
+layout_mode = 2
+text = "确认开业"
+
+[node name="OpeningStatusLabel" type="Label" parent="VBox/OpeningPrepBox" unique_id=2001000005]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="OpeningSeparator" type="HSeparator" parent="VBox/OpeningPrepBox" unique_id=2001000006]
+layout_mode = 2
+
 [node name="DayLabel" type="Label" parent="VBox" unique_id=1212767472]
 layout_mode = 2
 text = "第 1 天"

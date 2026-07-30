@@ -14,6 +14,7 @@ func refresh() -> void:
 	status_label.text = ""
 
 	var state := GameManager.store_state
+	var player := GameManager.player_state
 	var current_origin := GameManager.get_origin(state.selected_origin_id)
 
 	if current_origin == null:
@@ -23,9 +24,9 @@ func refresh() -> void:
 			"当前出身：%s ｜ 现金：¥%.0f ｜ 口碑：%.0f ｜ 压力：%.0f"
 			% [
 				current_origin.name,
-				state.cash,
+				player.cash,
 				state.reputation,
-				state.stress
+				player.stress
 			]
 		)
 

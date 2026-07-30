@@ -16,11 +16,9 @@ var inspected_storefront_ids: Array[String] = []
 var signed_storefront_id: String = ""
 var is_open: bool = false
 
-var cash: float = SettlementConfig.INITIAL_CASH
 var inventory_units: int = SettlementConfig.INITIAL_INVENTORY
 var inventory_capacity: int = 200
 var reputation: float = SettlementConfig.INITIAL_REPUTATION
-var stress: float = SettlementConfig.INITIAL_STRESS
 var current_day: int = 1
 var current_slot_index: int = 0
 
@@ -43,6 +41,9 @@ var daily_history: Array[Dictionary] = []
 
 func get_current_slot() -> String:
 	return SettlementConfig.SLOT_ORDER[current_slot_index]
+
+func is_last_slot_of_day() -> bool:
+	return current_slot_index == SettlementConfig.SLOT_ORDER.size() - 1
 
 func advance_slot() -> void:
 	current_slot_index += 1
@@ -130,10 +131,8 @@ func consume_ingredients(product: ProductData, units_sold: int) -> void:
 		ingredient_stock[r.ingredient_id] = maxf(0.0, current - r.quantity * units_sold)
 
 func reset_to_defaults() -> void:
-	cash = SettlementConfig.INITIAL_CASH
 	inventory_units = SettlementConfig.INITIAL_INVENTORY
 	reputation = SettlementConfig.INITIAL_REPUTATION
-	stress = SettlementConfig.INITIAL_STRESS
 	current_day = 1
 	current_slot_index = 0
 	category_slots.clear()
@@ -145,15 +144,15 @@ func reset_to_defaults() -> void:
 	missing_key_staff_penalty_count = 0
 	daily_history.clear()
 	ingredient_stock.clear()
-	ingredient_stock.clear()
 	ingredient_avg_cost.clear()
 
+## 结算后应用店铺层面的变化：口碑、累计统计、历史记录。
+## 财务（cash）与压力（stress）已改由 PlayerState.apply_settlement() 处理。
 func apply_settlement(result: SettlementResult) -> void:
-	cash += result.profit
 	reputation = clampf(reputation + result.reputation_delta, 0.0, 100.0)
-	stress = clampf(stress + result.stress_delta, 0.0, 100.0)
 	total_revenue += result.revenue
-	total_cost += result.ingredient_cost + result.staff_cost + result.rent_cost + result.waste_cost
+	total_cost += result.ingredient_cost + result.staff_cost + result.rent_cost \
+		+ result.utility_cost + result.waste_cost
 	total_orders += result.actual_orders
 	total_lost_inventory += result.lost_inventory
 	total_lost_capacity += result.lost_capacity
@@ -163,23 +162,56 @@ func apply_settlement(result: SettlementResult) -> void:
 		"day": result.day, "slot": result.slot, "is_open": result.is_open,
 		"revenue": result.revenue, "ingredient_cost": result.ingredient_cost,
 		"staff_cost": result.staff_cost, "rent_cost": result.rent_cost,
+		"utility_cost": result.utility_cost,
 		"waste_cost": result.waste_cost, "profit": result.profit,
 		"actual_orders": result.actual_orders,
 		"reputation_delta": result.reputation_delta,
+		"stress_delta": result.stress_delta,
 		"lost_inventory": result.lost_inventory,
 		"lost_capacity": result.lost_capacity,
 	})
 
-# ── 存档序列化 ──────────────────────────────────────────
+func get_day_summary(day: int) -> Dictionary:
+	var s := {
+		"revenue": 0.0, "ingredient_cost": 0.0, "staff_cost": 0.0,
+		"rent_cost": 0.0, "utility_cost": 0.0, "waste_cost": 0.0,
+		"profit": 0.0, "actual_orders": 0,
+		"reputation_delta": 0.0, "stress_delta": 0.0,
+		"lost_inventory": 0, "lost_capacity": 0,
+	}
+	for entry in daily_history:
+		if entry.get("day", -1) != day:
+			continue
+		s.revenue += entry.get("revenue", 0.0)
+		s.ingredient_cost += entry.get("ingredient_cost", 0.0)
+		s.staff_cost += entry.get("staff_cost", 0.0)
+		s.rent_cost += entry.get("rent_cost", 0.0)
+		s.utility_cost += entry.get("utility_cost", 0.0)
+		s.waste_cost += entry.get("waste_cost", 0.0)
+		s.profit += entry.get("profit", 0.0)
+		s.actual_orders += entry.get("actual_orders", 0)
+		s.reputation_delta += entry.get("reputation_delta", 0.0)
+		s.stress_delta += entry.get("stress_delta", 0.0)
+		s.lost_inventory += entry.get("lost_inventory", 0)
+		s.lost_capacity += entry.get("lost_capacity", 0)
+	return s
+
+# ── 存档序列化（version 4：移除 cash/stress，转由 PlayerState 序列化） ──
 func to_save_dict() -> Dictionary:
 	var slots_data: Array = []
 	for slot in category_slots:
 		slots_data.append(slot.to_dict())
 	return {
-		"version": 2,
-		"cash": cash, "inventory_units": inventory_units,
+		"version": 4,
+		"pre_open_stage": pre_open_stage,
+		"selected_origin_id": selected_origin_id,
+		"researched_region_ids": researched_region_ids,
+		"inspected_storefront_ids": inspected_storefront_ids,
+		"signed_storefront_id": signed_storefront_id,
+		"is_open": is_open,
+		"inventory_units": inventory_units,
 		"inventory_capacity": inventory_capacity,
-		"reputation": reputation, "stress": stress,
+		"reputation": reputation,
 		"current_day": current_day, "current_slot_index": current_slot_index,
 		"selected_region_id": selected_region_id,
 		"selected_storefront_id": selected_storefront_id,
@@ -197,11 +229,27 @@ func to_save_dict() -> Dictionary:
 
 static func from_save_dict(data: Dictionary) -> StoreState:
 	var s := StoreState.new()
-	s.cash = data.get("cash", SettlementConfig.INITIAL_CASH)
+	s.pre_open_stage = data.get("pre_open_stage", PreOpenStage.ORIGIN_SELECTION) as PreOpenStage
+	s.selected_origin_id = data.get("selected_origin_id", "")
+
+	var researched_raw: Array = data.get("researched_region_ids", [])
+	var researched_typed: Array[String] = []
+	for r in researched_raw:
+		researched_typed.append(r)
+	s.researched_region_ids = researched_typed
+
+	var inspected_raw: Array = data.get("inspected_storefront_ids", [])
+	var inspected_typed: Array[String] = []
+	for i in inspected_raw:
+		inspected_typed.append(i)
+	s.inspected_storefront_ids = inspected_typed
+
+	s.signed_storefront_id = data.get("signed_storefront_id", "")
+	s.is_open = data.get("is_open", false)
+
 	s.inventory_units = data.get("inventory_units", SettlementConfig.INITIAL_INVENTORY)
 	s.inventory_capacity = data.get("inventory_capacity", 200)
 	s.reputation = data.get("reputation", SettlementConfig.INITIAL_REPUTATION)
-	s.stress = data.get("stress", SettlementConfig.INITIAL_STRESS)
 	s.current_day = data.get("current_day", 1)
 	s.current_slot_index = data.get("current_slot_index", 0)
 	s.selected_region_id = data.get("selected_region_id", "")
@@ -218,7 +266,7 @@ static func from_save_dict(data: Dictionary) -> StoreState:
 	s.missing_key_staff_penalty_count = data.get("missing_key_staff_penalty_count", 0)
 	s.ingredient_stock = data.get("ingredient_stock", {})
 	s.ingredient_avg_cost = data.get("ingredient_avg_cost", {})
-	
+
 	var history_raw: Array = data.get("daily_history", [])
 	var history_typed: Array[Dictionary] = []
 	for h in history_raw:

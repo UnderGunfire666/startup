@@ -7,10 +7,14 @@ var is_open: bool = true
 var not_open_reason: String = ""
 var missing_key_staff_active: bool = false
 
+## 标记该记录是否为门店级固定成本合成记录（非具体商品结算）
+var is_store_overhead: bool = false
+
 # ── 归属标识（新增，供多品类门店的报告区分显示） ──────────
 var category_id: String = ""
 var category_name: String = ""
 var product_id: String = ""
+var product_name: String = ""
 
 # ── 漏斗 ────────────────────────────────────────────────
 var slot_foot_traffic: float = 0.0
@@ -34,6 +38,7 @@ var revenue: float = 0.0
 var ingredient_cost: float = 0.0
 var staff_cost: float = 0.0
 var rent_cost: float = 0.0
+var utility_cost: float = 0.0
 var waste_cost: float = 0.0
 var profit: float = 0.0
 
@@ -52,13 +57,15 @@ func to_summary_dict() -> Dictionary:
 	return {
 		"day": day, "slot": slot,
 		"category_id": category_id, "category_name": category_name,
-		"product_id": product_id,
+		"product_id": product_id, "product_name": product_name,
 		"is_open": is_open,
+		"is_store_overhead": is_store_overhead,
 		"actual_orders": actual_orders,
 		"revenue": revenue,
 		"ingredient_cost": ingredient_cost,
 		"staff_cost": staff_cost,
 		"rent_cost": rent_cost,
+		"utility_cost": utility_cost,
 		"waste_cost": waste_cost,
 		"profit": profit,
 		"reputation_delta": reputation_delta,

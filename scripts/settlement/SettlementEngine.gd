@@ -4,20 +4,24 @@ class_name SettlementEngine
 ## 注：has_key_staff 与 strategy 现在由调用方（GameManager）针对每个品类实例
 ## 显式传入，不再从 state 上读取，因为一个门店可以同时经营多个品类，
 ## 每个品类的关键员工配置和营业策略是独立的。
+## 门面基础租金与基础水电已改由 GameManager 每时段统一结算一次，
+## 此处不再计入商品级结算，避免多商品/多品类时被重复扣除。
 
 static func calculate(
 		region: RegionData,
 		storefront: StorefrontData,
 		category: CategoryData,
 		product: ProductData,
-		state: StoreState,
+		store_state: StoreState,
+		player_state: PlayerState,
 		slot: String,
 		day: int,
 		has_key_staff: bool,
 		strategy: String,
 		product_inventory: int,
 		unit_ingredient_cost: float,
-		debug_ignore_category_restriction: bool = false
+		unit_utility_cost: float,
+
 ) -> SettlementResult:
 
 	var r := SettlementResult.new()
@@ -28,11 +32,10 @@ static func calculate(
 	r.product_id = product.id
 
 	# ── 0. 品类适配检查 ─────────────────────────────────────
-	if not debug_ignore_category_restriction:
-		if category.id not in storefront.supported_categories:
-			r.is_open = false
-			r.not_open_reason = "门面[%s]不支持品类[%s]" % [storefront.name, category.name]
-			return r
+	if category.id not in storefront.supported_categories:
+		r.is_open = false
+		r.not_open_reason = "门面[%s]不支持品类[%s]" % [storefront.name, category.name]
+		return r
 
 	# ── 1. 营业时段判断 ──────────────────────────────────────
 	var active_slots := _get_active_slots(category, strategy)
@@ -59,9 +62,9 @@ static func calculate(
 
 	# ── 4. 到店率 ────────────────────────────────────────────
 	var entry_result := _calc_entry_rate(
-		region, storefront, category, product, state, slot,
-		is_non_default_slot, debug_ignore_category_restriction
-	)
+		region, storefront, category, product, store_state, slot,
+		is_non_default_slot
+		)
 	r.entry_rate = entry_result.rate
 	r.modifiers.append_array(entry_result.mods)
 
@@ -69,7 +72,7 @@ static func calculate(
 	r.visitors = floori(r.reachable_traffic * r.entry_rate)
 
 	# ── 6. 成交率 ────────────────────────────────────────────
-	var conv_result := _calc_conversion_rate(category, state, has_key_staff)
+	var conv_result := _calc_conversion_rate(category, store_state, player_state, has_key_staff)
 	r.conversion_rate = conv_result.rate
 	r.missing_key_staff_active = conv_result.missing_key_staff_active
 	r.modifiers.append_array(conv_result.mods)
@@ -95,17 +98,18 @@ static func calculate(
 	r.revenue = r.actual_orders * product.average_price
 	r.ingredient_cost = r.actual_orders * unit_ingredient_cost
 	r.staff_cost = _calc_staff_cost(has_key_staff, strategy, is_non_default_slot)
-	r.rent_cost = storefront.get_monthly_rent_yuan() / 30.0 / 3.0
+	r.rent_cost = 0.0  # 门面基础租金已改为由 GameManager 每时段统一结算一次
+	r.utility_cost = r.actual_orders * unit_utility_cost  # 商品制作产生的额外水电消耗
 	r.waste_cost = _calc_waste_cost(
 		unit_ingredient_cost,
 		product_inventory,
 		r.actual_orders
 	)
 	r.profit = r.revenue - r.ingredient_cost - r.staff_cost \
-		- r.rent_cost - r.waste_cost
+		- r.rent_cost - r.utility_cost - r.waste_cost
 
 	# ── 10. 口碑与压力 ───────────────────────────────────────
-	_calc_reputation_stress(r, category, state)
+	_calc_reputation_stress(r, category, store_state, player_state)
 
 	# ── 11. 原因摘要 ─────────────────────────────────────────
 	_build_summary(r)
@@ -146,10 +150,9 @@ static func _calc_entry_rate(
 		storefront: StorefrontData,
 		category: CategoryData,
 		product: ProductData,
-		state: StoreState,
+		store_state: StoreState,
 		slot: String,
 		is_non_default_slot: bool,
-		debug_ignore_cat: bool
 ) -> Dictionary:
 
 	var mods: Array[Dictionary] = []
@@ -226,9 +229,9 @@ static func _calc_entry_rate(
 	rate += margin_mod
 	
 	# 口碑
-	var rep_mod: float = (state.reputation - 50.0) / 50.0 \
+	var rep_mod: float = (store_state.reputation - 50.0) / 50.0 \
 					   * SettlementConfig.REPUTATION_MAX_ENTRY_MOD
-	mods.append({label="口碑影响(%.0f)" % state.reputation,
+	mods.append({label="口碑影响(%.0f)" % store_state.reputation,
 				 value=rep_mod, is_positive=rep_mod >= 0, phase="entry"})
 	rate += rep_mod
 
@@ -240,7 +243,7 @@ static func _calc_entry_rate(
 		rate += dwell_pen
 
 	# 品类不适配（调试模式强行开店时加惩罚）
-	if debug_ignore_cat and category.id not in storefront.supported_categories:
+	if category.id not in storefront.supported_categories:
 		var cat_pen := -0.010
 		mods.append({label="门面设备/品类不适配惩罚(调试)",
 					 value=cat_pen, is_positive=false, phase="entry"})
@@ -262,7 +265,7 @@ static func _calc_entry_rate(
 
 # ── 私有：成交率计算 ──────────────────────────────────────
 static func _calc_conversion_rate(
-		cat: CategoryData, state: StoreState, has_key_staff: bool
+		cat: CategoryData, store_state: StoreState, player_state: PlayerState, has_key_staff: bool
 ) -> Dictionary:
 	var mods: Array[Dictionary] = []
 	var rate: float = SettlementConfig.BASE_CONVERSION_RATE
@@ -277,15 +280,15 @@ static func _calc_conversion_rate(
 		rate += pen
 
 	# 亲自坐镇小加成（增加压力）
-	if state.owner_present:
+	if store_state.owner_present:
 		mods.append({label="亲自坐镇加成", value=0.03,
 					 is_positive=true, phase="conversion"})
 		rate += 0.03
 
 	# 高压力惩罚
-	if state.stress >= SettlementConfig.STRESS_HIGH_THRESHOLD:
+	if player_state.stress >= SettlementConfig.STRESS_HIGH_THRESHOLD:
 		var pen := -SettlementConfig.STRESS_CONVERSION_PENALTY
-		mods.append({label="高压力(%.0f)影响服务质量" % state.stress,
+		mods.append({label="高压力(%.0f)影响服务质量" % player_state.stress,
 					 value=pen, is_positive=false, phase="conversion"})
 		rate += pen
 
@@ -307,18 +310,14 @@ static func _calc_hourly_capacity(
 
 
 # ── 私有：员工成本 ────────────────────────────────────────
+## 当前尚未实现员工系统（雇佣、工资、人数完全由玩家决定），
+## 暂时不计入任何员工成本，返回0。has_key_staff/strategy 参数
+## 保留供未来员工系统读取（例如判断该时段是否有对应岗位在岗），
+## 但成本计算将改由员工系统的雇佣列表驱动，与此函数解耦。
 static func _calc_staff_cost(
-		has_key_staff: bool, strategy: String, is_non_default: bool
+		_has_key_staff: bool, _strategy: String, _is_non_default: bool
 ) -> float:
-	var base: float = SettlementConfig.BASE_STAFF_COST_PER_SLOT
-	if has_key_staff:
-		base += SettlementConfig.KEY_STAFF_EXTRA_COST_PER_SLOT
-	if strategy == "extend" and is_non_default:
-		base *= SettlementConfig.STRATEGY_EXTEND_COST_MULTIPLIER
-	elif strategy == "shorten":
-		base *= SettlementConfig.STRATEGY_SHORTEN_COST_MULTIPLIER
-	return base
-
+	return 0.0
 
 # ── 私有：损耗成本 ────────────────────────────────────────
 static func _calc_waste_cost(
@@ -336,7 +335,7 @@ static func _calc_waste_cost(
 
 # ── 私有：口碑与压力 ──────────────────────────────────────
 static func _calc_reputation_stress(r: SettlementResult,
-		cat: CategoryData, state: StoreState) -> void:
+		cat: CategoryData, store_state: StoreState, _player_state: PlayerState) -> void:
 
 	var order_completion_rate: float = 0.0
 	if r.theoretical_orders > 0:
@@ -363,7 +362,7 @@ static func _calc_reputation_stress(r: SettlementResult,
 	if r.lost_capacity > 0:
 		stress_delta += SettlementConfig.STRESS_OVERLOAD_PER_SLOT * \
 						minf(float(r.lost_capacity) / maxf(float(r.slot_capacity), 1.0), 1.0)
-	if state.owner_present:
+	if store_state.owner_present:
 		stress_delta += 2.0
 	if r.missing_key_staff_active:
 		stress_delta += 1.5

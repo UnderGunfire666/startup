@@ -113,10 +113,6 @@ const STRATEGY_SHORTEN_COST_MULTIPLIER: float  =  0.80
 const WASTE_THRESHOLD_RATIO: float  = 1.20   # 库存 > 销量×1.20 才计损耗
 const WASTE_COST_RATIO_OF_INGREDIENT: float = 0.10  # 超量部分×食材成本×10%
 
-# ── 员工成本（元/时段） ───────────────────────────────────
-const BASE_STAFF_COST_PER_SLOT: float      = 80.0
-const KEY_STAFF_EXTRA_COST_PER_SLOT: float = 120.0
-
 # ── 压力阈值与成交率惩罚 ──────────────────────────────────
 const STRESS_HIGH_THRESHOLD: float    = 70.0
 const STRESS_CONVERSION_PENALTY: float = 0.05
@@ -143,3 +139,6 @@ const INITIAL_CASH: float      = 100000.0
 const INITIAL_REPUTATION: float = 50.0
 const INITIAL_STRESS: float     = 20.0
 const INITIAL_INVENTORY: int    = 100
+
+# ── 门面基础水电（与面积相关，每时段仅结算一次） ─────────────
+const BASE_UTILITY_COST_PER_AREA_PER_SLOT: float = 0.8  # 元/㎡/时段

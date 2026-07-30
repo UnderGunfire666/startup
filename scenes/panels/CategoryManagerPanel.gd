@@ -7,7 +7,6 @@ signal category_changed
 @onready var product_checklist: VBoxContainer = $VBox/ProductCheckList
 @onready var add_button: Button = $VBox/AddRow/AddButton
 @onready var status_label: Label = $VBox/StatusLabel
-@onready var ingredient_list: VBoxContainer = $VBox/IngredientList
 
 var _pending_options: Array[Dictionary] = []
 var _product_checkboxes: Array[CheckBox] = []
@@ -32,7 +31,10 @@ func refresh() -> void:
 	if not _pending_options.is_empty():
 		_on_category_dropdown_changed(0)
 	_refresh_category_list()
-	_refresh_ingredient_section()
+
+	var is_open := GameManager.store_state.is_open
+	add_dropdown.disabled = is_open
+	add_button.disabled = is_open
 
 
 func _on_category_dropdown_changed(idx: int) -> void:
@@ -57,11 +59,17 @@ func _on_category_dropdown_changed(idx: int) -> void:
 		if already_in_slot:
 			cb.button_pressed = true
 			cb.disabled = true
+		if GameManager.store_state.is_open:
+			cb.disabled = true
 		product_checklist.add_child(cb)
 		_product_checkboxes.append(cb)
 
 
 func _on_add_pressed() -> void:
+	if GameManager.store_state.is_open:
+		status_label.text = "⚠ 门店已开业，品类与商品配置已锁定"
+		return
+
 	var idx := add_dropdown.selected
 	if idx < 0 or idx >= _pending_options.size():
 		return
@@ -130,42 +138,6 @@ func _refresh_category_list() -> void:
 		category_list.add_child(_build_category_block(cat, slot))
 
 
-func _refresh_ingredient_section() -> void:
-	for child in ingredient_list.get_children():
-		child.queue_free()
-	var ingredients := GameManager.get_ingredients_in_use()
-	if ingredients.is_empty():
-		return
-	var title := Label.new()
-	title.text = "原材料库存（门店共享）"
-	ingredient_list.add_child(title)
-	for ing in ingredients:
-		ingredient_list.add_child(_build_ingredient_row(ing))
-
-
-func _build_ingredient_row(ing: IngredientData) -> Control:
-	var row := HBoxContainer.new()
-
-	var name_label := Label.new()
-	name_label.text = "%s（%s）" % [ing.name, ing.unit]
-	name_label.custom_minimum_size = Vector2(100, 0)
-	row.add_child(name_label)
-
-	var stock_edit := SpinBox.new()
-	stock_edit.custom_minimum_size = Vector2(90, 0)
-	stock_edit.min_value = 0.0
-	stock_edit.max_value = 999.0
-	stock_edit.step = 0.5
-	stock_edit.value = GameManager.store_state.get_ingredient_stock(ing.id)
-	stock_edit.value_changed.connect(func(v):
-		GameManager.set_ingredient_stock(ing.id, v)
-		category_changed.emit()
-	)
-	row.add_child(stock_edit)
-
-	return row
-
-
 func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Control:
 	var block := VBoxContainer.new()
 
@@ -182,6 +154,9 @@ func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Contro
 	var remove_cat_btn := Button.new()
 	remove_cat_btn.text = "移除整个品类"
 	remove_cat_btn.size_flags_horizontal = 0
+	if GameManager.store_state.is_open:
+		remove_cat_btn.disabled = true
+		remove_cat_btn.text = "门店已开业，无法移除"
 	remove_cat_btn.pressed.connect(func():
 		GameManager.remove_category_from_store(cat.id)
 		refresh()
@@ -224,13 +199,11 @@ func _build_product_row(cat: CategoryData, product: ProductData,
 		category_changed.emit()
 	)
 
-	var inv_label := Label.new()
-	inv_label.text = "库存"
-	row.add_child(inv_label)
-
 	var remove_btn := Button.new()
 	remove_btn.text = "移除商品"
 	remove_btn.size_flags_horizontal = 0
+	if GameManager.store_state.is_open:
+		remove_btn.disabled = true
 	remove_btn.pressed.connect(func():
 		GameManager.remove_product_from_slot(cat.id, product.id)
 		refresh()

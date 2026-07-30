@@ -1,0 +1,44 @@
+[
+  {
+	"id": "S001",
+	"name": "晨光街角档口",
+	"region_id": "A002",
+	"monthly_rent_wan": 0.85,
+	"area": 12,
+	"decoration_level": "good",
+	"storefront_flow": "main",
+	"flow_share": 0.50,
+	"supported_categories": ["breakfast", "snack", "beverage_dessert"],
+	"equipment_condition": "normal",
+	"hourly_capacity_base": 15,
+	"notes": "适合早餐与低油烟产品；主动线但面积小"
+  },
+  {
+	"id": "S002",
+	"name": "旧影院后巷小馆",
+	"region_id": "A002",
+	"monthly_rent_wan": 1.15,
+	"area": 38,
+	"decoration_level": "poor",
+	"storefront_flow": "hidden",
+	"flow_share": 0.25,
+	"supported_categories": ["snack", "fast_food", "beverage_dessert"],
+	"equipment_condition": "good",
+	"hourly_capacity_base": 30,
+	"notes": "容量高但动线低；适合快餐或夜间小吃"
+  },
+  {
+	"id": "S003",
+	"name": "工业园区路边摊",
+	"region_id": "A001",
+	"monthly_rent_wan": 0.45,
+	"area": 18,
+	"decoration_level": "normal",
+	"storefront_flow": "secondary",
+	"flow_share": 0.40,
+	"supported_categories": ["breakfast", "snack", "fast_food"],
+	"equipment_condition": "normal",
+	"hourly_capacity_base": 22,
+	"notes": "靠近园区主出入口；午间和夜班交接有稳定客流；不适合饮品甜点"
+  }
+]

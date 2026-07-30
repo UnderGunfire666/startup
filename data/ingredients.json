@@ -1,0 +1,13 @@
+[
+  {"id": "flour", "name": "面粉", "unit": "kg", "base_purchase_price": 4.0, "notes": ""},
+  {"id": "oil", "name": "食用油", "unit": "kg", "base_purchase_price": 12.0, "notes": ""},
+  {"id": "soybean", "name": "黄豆", "unit": "kg", "base_purchase_price": 6.0, "notes": ""},
+  {"id": "egg", "name": "鸡蛋", "unit": "个", "base_purchase_price": 1.0, "notes": ""},
+  {"id": "meat", "name": "肉类", "unit": "kg", "base_purchase_price": 28.0, "notes": ""},
+  {"id": "veggie", "name": "蔬菜", "unit": "kg", "base_purchase_price": 5.0, "notes": ""},
+  {"id": "rice", "name": "大米", "unit": "kg", "base_purchase_price": 5.5, "notes": ""},
+  {"id": "sauce", "name": "调味料", "unit": "份", "base_purchase_price": 1.5, "notes": ""},
+  {"id": "tea_base", "name": "茶底", "unit": "L", "base_purchase_price": 15.0, "notes": ""},
+  {"id": "milk", "name": "牛奶", "unit": "L", "base_purchase_price": 8.0, "notes": ""},
+  {"id": "sugar", "name": "糖", "unit": "kg", "base_purchase_price": 4.5, "notes": ""}
+]

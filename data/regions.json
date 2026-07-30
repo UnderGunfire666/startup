@@ -1,0 +1,34 @@
+[
+  {
+	"id": "A001",
+	"name": "东环智造园",
+	"radiation_population": 50000,
+	"population_density": "medium",
+	"primary_groups": ["worker", "logistics_driver"],
+	"secondary_groups": ["night_shift_worker", "resident"],
+	"spending_power": "low",
+	"dwell_time": "low",
+	"traffic_sources": ["work", "commute", "transit"],
+	"competition_level": "medium",
+	"rent_baseline": "low",
+	"hourly_foot_traffic_by_slot": {"dawn": 600, "noon": 1200, "night": 700},
+	"weekend_modifier": 1.0,
+	"notes": "平价快餐、小吃更适配；高客单饮品甜点较弱；低停留性"
+  },
+  {
+	"id": "A002",
+	"name": "南城大学生活圈",
+	"radiation_population": 50000,
+	"population_density": "high",
+	"primary_groups": ["student", "family"],
+	"secondary_groups": ["teacher", "office_worker"],
+	"spending_power": "medium",
+	"dwell_time": "medium",
+	"traffic_sources": ["study", "residence", "shopping", "commute"],
+	"competition_level": "high",
+	"rent_baseline": "medium_high",
+	"hourly_foot_traffic_by_slot": {"dawn": 450, "noon": 1100, "night": 1400},
+	"weekend_modifier": 1.0,
+	"notes": "饮品甜点、小吃、平价快餐适配；竞争高；停留性中等"
+  }
+]

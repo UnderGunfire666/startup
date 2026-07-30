@@ -26,48 +26,6 @@ text = "门面："
 [node name="StorefrontOption" type="OptionButton" parent="VBox/StorefrontRow"]
 custom_minimum_size = Vector2(260, 0)
 
-[node name="CategoryRow" type="HBoxContainer" parent="VBox"]
-
-[node name="CategoryLabel" type="Label" parent="VBox/CategoryRow"]
-text = "品类："
-
-[node name="CategoryOption" type="OptionButton" parent="VBox/CategoryRow"]
-custom_minimum_size = Vector2(200, 0)
-
-[node name="ProductRow" type="HBoxContainer" parent="VBox"]
-
-[node name="ProductLabel" type="Label" parent="VBox/ProductRow"]
-text = "主产品："
-
-[node name="ProductOption" type="OptionButton" parent="VBox/ProductRow"]
-custom_minimum_size = Vector2(220, 0)
-
-[node name="StaffRow" type="HBoxContainer" parent="VBox"]
-
-[node name="StaffLabel" type="Label" parent="VBox/StaffRow"]
-text = "关键员工："
-
-[node name="KeyStaffCheck" type="CheckBox" parent="VBox/StaffRow"]
-text = "已雇佣"
-
-[node name="StrategyRow" type="HBoxContainer" parent="VBox"]
-
-[node name="StrategyLabel" type="Label" parent="VBox/StrategyRow"]
-text = "营业策略："
-
-[node name="StrategyOption" type="OptionButton" parent="VBox/StrategyRow"]
-custom_minimum_size = Vector2(180, 0)
-
-[node name="InventoryRow" type="HBoxContainer" parent="VBox"]
-
-[node name="InventoryLabel" type="Label" parent="VBox/InventoryRow"]
-text = "初始库存："
-
-[node name="InventorySpin" type="SpinBox" parent="VBox/InventoryRow"]
-min_value = 0
-max_value = 999
-value = 100
-
 [node name="OwnerRow" type="HBoxContainer" parent="VBox"]
 
 [node name="OwnerLabel" type="Label" parent="VBox/OwnerRow"]

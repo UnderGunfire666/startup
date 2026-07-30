@@ -1,0 +1,57 @@
+[gd_scene format=3 uid="uid://qcx5mbxrqkiy"]
+
+[ext_resource type="Script" uid="uid://cr1ruvttdgnqv" path="res://scenes/panels/ProcurementPanel.gd" id="1_procurement"]
+
+[node name="ProcurementPanel" type="PanelContainer" unique_id=1527778064]
+custom_minimum_size = Vector2(460, 480)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_procurement")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=932096605]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer" unique_id=510097255]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox" unique_id=1989385657]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "采购与补货"
+
+[node name="CashLabel" type="Label" parent="MarginContainer/VBox" unique_id=22267880]
+layout_mode = 2
+text = "当前现金：0 元"
+
+[node name="HintLabel" type="Label" parent="MarginContainer/VBox" unique_id=923472219]
+layout_mode = 2
+text = "输入本次采购数量；确认采购后立即扣款并加入门店共享原材料库存。"
+autowrap_mode = 3
+
+[node name="IngredientScroll" type="ScrollContainer" parent="MarginContainer/VBox" unique_id=2146570434]
+custom_minimum_size = Vector2(0, 280)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="IngredientList" type="VBoxContainer" parent="MarginContainer/VBox/IngredientScroll" unique_id=1279427358]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TotalLabel" type="Label" parent="MarginContainer/VBox" unique_id=831236646]
+layout_mode = 2
+text = "本次采购合计：¥0"
+
+[node name="PurchaseButton" type="Button" parent="MarginContainer/VBox" unique_id=470441009]
+layout_mode = 2
+text = "确认采购"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBox" unique_id=2121629864]
+layout_mode = 2
+autowrap_mode = 3

@@ -7,6 +7,11 @@ var is_open: bool = true
 var not_open_reason: String = ""
 var missing_key_staff_active: bool = false
 
+# ── 归属标识（新增，供多品类门店的报告区分显示） ──────────
+var category_id: String = ""
+var category_name: String = ""
+var product_id: String = ""
+
 # ── 漏斗 ────────────────────────────────────────────────
 var slot_foot_traffic: float = 0.0
 var reachable_traffic: float = 0.0
@@ -46,6 +51,8 @@ var top_negative: Array[String] = []
 func to_summary_dict() -> Dictionary:
 	return {
 		"day": day, "slot": slot,
+		"category_id": category_id, "category_name": category_name,
+		"product_id": product_id,
 		"is_open": is_open,
 		"actual_orders": actual_orders,
 		"revenue": revenue,

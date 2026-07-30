@@ -113,6 +113,10 @@ const KEY_STAFF_EXTRA_COST_PER_SLOT: float = 120.0
 const STRESS_HIGH_THRESHOLD: float    = 70.0
 const STRESS_CONVERSION_PENALTY: float = 0.05
 
+const MARGIN_DEVIATION_ENTRY_COEFFICIENT: float = 0.08  # 毛利率偏离1个百分点对到店率的影响系数
+const MARGIN_DEVIATION_MAX_PENALTY: float = 0.05        # 定价过高的到店率惩罚上限
+const MARGIN_DEVIATION_MAX_BONUS: float = 0.03          # 定价亲民的到店率加成上限（通常小于惩罚，避免"越便宜越好"无限套利）
+
 # ── 口碑变化参数 ──────────────────────────────────────────
 const REPUTATION_PER_SLOT_MAX_CHANGE: float = 3.0   # 单时段最大变化
 const REPUTATION_GOOD_THRESHOLD: float      = 0.80  # 订单完成率≥80%算良好

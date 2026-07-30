@@ -1,221 +1,136 @@
 class_name GameData
 
-# ── 区域 ─────────────────────────────────────────────────
+const DATA_DIR := "res://data/"
+
 static func get_regions() -> Array[RegionData]:
+	var raw: Array = _load_json_array(DATA_DIR + "regions.json")
 	var list: Array[RegionData] = []
-
-	var a1: RegionData = RegionData.new()
-	a1.id = "A001"
-	a1.name = "东环智造园"
-	a1.radiation_population = 50000
-	a1.population_density = "medium"
-	a1.primary_groups = ["worker", "logistics_driver"]
-	a1.secondary_groups = ["night_shift_worker", "resident"]
-	a1.spending_power = "low"
-	a1.dwell_time = "low"
-	a1.traffic_sources = ["work", "commute", "transit"]
-	a1.competition_level = "medium"
-	a1.rent_baseline = "low"
-	a1.hourly_foot_traffic_by_slot = {"dawn": 600, "noon": 1200, "night": 700}
-	a1.weekend_modifier = 1.0
-	a1.notes = "平价快餐、小吃更适配；高客单饮品甜点较弱；低停留性"
-	list.append(a1)
-
-	var a2: RegionData = RegionData.new()
-	a2.id = "A002"
-	a2.name = "南城大学生活圈"
-	a2.radiation_population = 50000
-	a2.population_density = "high"
-	a2.primary_groups = ["student", "family"]
-	a2.secondary_groups = ["teacher", "office_worker"]
-	a2.spending_power = "medium"
-	a2.dwell_time = "medium"
-	a2.traffic_sources = ["study", "residence", "shopping", "commute"]
-	a2.competition_level = "high"
-	a2.rent_baseline = "medium_high"
-	a2.hourly_foot_traffic_by_slot = {"dawn": 450, "noon": 1100, "night": 1400}
-	a2.weekend_modifier = 1.0
-	a2.notes = "饮品甜点、小吃、平价快餐适配；竞争高；停留性中等"
-	list.append(a2)
-
+	for entry in raw:
+		var r: RegionData = RegionData.new()
+		r.id = entry.get("id", "")
+		r.name = entry.get("name", "")
+		r.radiation_population = entry.get("radiation_population", 0)
+		r.population_density = entry.get("population_density", "medium")
+		r.primary_groups = _to_string_array(entry.get("primary_groups", []))
+		r.secondary_groups = _to_string_array(entry.get("secondary_groups", []))
+		r.spending_power = entry.get("spending_power", "medium")
+		r.dwell_time = entry.get("dwell_time", "medium")
+		r.traffic_sources = _to_string_array(entry.get("traffic_sources", []))
+		r.competition_level = entry.get("competition_level", "medium")
+		r.rent_baseline = entry.get("rent_baseline", "medium")
+		r.hourly_foot_traffic_by_slot = entry.get("hourly_foot_traffic_by_slot", {})
+		r.weekend_modifier = entry.get("weekend_modifier", 1.0)
+		r.notes = entry.get("notes", "")
+		list.append(r)
 	return list
 
 
-# ── 门面 ─────────────────────────────────────────────────
 static func get_storefronts() -> Array[StorefrontData]:
+	var raw: Array = _load_json_array(DATA_DIR + "storefronts.json")
 	var list: Array[StorefrontData] = []
-
-	var s1: StorefrontData = StorefrontData.new()
-	s1.id = "S001"
-	s1.name = "晨光街角档口"
-	s1.region_id = "A002"
-	s1.monthly_rent_wan = 0.85
-	s1.area = 12
-	s1.decoration_level = "good"
-	s1.storefront_flow = "main"
-	s1.flow_share = 0.50
-	s1.supported_categories = ["breakfast", "snack", "beverage_dessert"]
-	s1.equipment_condition = "normal"
-	s1.hourly_capacity_base = 15
-	s1.notes = "适合早餐与低油烟产品；主动线但面积小"
-	list.append(s1)
-
-	var s2: StorefrontData = StorefrontData.new()
-	s2.id = "S002"
-	s2.name = "旧影院后巷小馆"
-	s2.region_id = "A002"
-	s2.monthly_rent_wan = 1.15
-	s2.area = 38
-	s2.decoration_level = "poor"
-	s2.storefront_flow = "hidden"
-	s2.flow_share = 0.25
-	s2.supported_categories = ["snack", "fast_food", "beverage_dessert"]
-	s2.equipment_condition = "good"
-	s2.hourly_capacity_base = 30
-	s2.notes = "容量高但动线低；适合快餐或夜间小吃"
-	list.append(s2)
-
-	var s3: StorefrontData = StorefrontData.new()
-	s3.id = "S003"
-	s3.name = "工业园区路边摊"
-	s3.region_id = "A001"
-	s3.monthly_rent_wan = 0.45
-	s3.area = 18
-	s3.decoration_level = "normal"
-	s3.storefront_flow = "secondary"
-	s3.flow_share = 0.40
-	s3.supported_categories = ["breakfast", "snack", "fast_food"]
-	s3.equipment_condition = "normal"
-	s3.hourly_capacity_base = 22
-	s3.notes = "靠近园区主出入口；午间和夜班交接有稳定客流；不适合饮品甜点"
-	list.append(s3)
-
+	for entry in raw:
+		var s: StorefrontData = StorefrontData.new()
+		s.id = entry.get("id", "")
+		s.name = entry.get("name", "")
+		s.region_id = entry.get("region_id", "")
+		s.monthly_rent_wan = entry.get("monthly_rent_wan", 1.0)
+		s.area = entry.get("area", 20)
+		s.decoration_level = entry.get("decoration_level", "normal")
+		s.storefront_flow = entry.get("storefront_flow", "main")
+		s.flow_share = entry.get("flow_share", 0.4)
+		s.supported_categories = _to_string_array(entry.get("supported_categories", []))
+		s.equipment_condition = entry.get("equipment_condition", "normal")
+		s.hourly_capacity_base = entry.get("hourly_capacity_base", 20)
+		s.notes = entry.get("notes", "")
+		list.append(s)
 	return list
 
 
-# ── 品类 ─────────────────────────────────────────────────
 static func get_categories() -> Array[CategoryData]:
+	var raw: Array = _load_json_array(DATA_DIR + "categories.json")
 	var list: Array[CategoryData] = []
-
-	var breakfast: CategoryData = CategoryData.new()
-	breakfast.id = "breakfast"
-	breakfast.name = "早餐类"
-	breakfast.base_entry_rate = 0.025
-	breakfast.default_open_slots = ["dawn"]
-	breakfast.preferred_groups = ["student", "office_worker", "worker", "commute"]
-	breakfast.preferred_spending_power = ["low", "medium"]
-	breakfast.preferred_slots = ["dawn"]
-	breakfast.base_service_speed = "high"
-	breakfast.key_staff_type = "none"
-	breakfast.missing_key_staff_capacity_penalty = 0.0
-	breakfast.missing_key_staff_conversion_penalty = 0.0
-	breakfast.missing_key_staff_reputation_penalty = 0.0
-	breakfast.allowed_strategies = ["standard", "extend", "shorten"]
-	list.append(breakfast)
-
-	var snack: CategoryData = CategoryData.new()
-	snack.id = "snack"
-	snack.name = "小吃类"
-	snack.base_entry_rate = 0.030
-	snack.default_open_slots = ["noon", "night"]
-	snack.preferred_groups = ["student", "worker", "night_shift_worker"]
-	snack.preferred_spending_power = ["low", "medium"]
-	snack.preferred_slots = ["noon", "night"]
-	snack.base_service_speed = "high"
-	snack.key_staff_type = "none"
-	snack.missing_key_staff_capacity_penalty = 0.0
-	snack.missing_key_staff_conversion_penalty = 0.0
-	snack.missing_key_staff_reputation_penalty = 0.0
-	snack.allowed_strategies = ["standard", "extend", "shorten"]
-	list.append(snack)
-
-	var fast_food: CategoryData = CategoryData.new()
-	fast_food.id = "fast_food"
-	fast_food.name = "快餐类"
-	fast_food.base_entry_rate = 0.020
-	fast_food.default_open_slots = ["noon", "night"]
-	fast_food.preferred_groups = ["worker", "student", "office_worker", "family"]
-	fast_food.preferred_spending_power = ["low", "medium"]
-	fast_food.preferred_slots = ["noon", "night"]
-	fast_food.base_service_speed = "medium"
-	fast_food.key_staff_type = "chef"
-	fast_food.missing_key_staff_capacity_penalty = 0.20
-	fast_food.missing_key_staff_conversion_penalty = 0.10
-	fast_food.missing_key_staff_reputation_penalty = 2.0
-	fast_food.allowed_strategies = ["standard", "extend", "shorten"]
-	list.append(fast_food)
-
-	var bev: CategoryData = CategoryData.new()
-	bev.id = "beverage_dessert"
-	bev.name = "饮品甜点类"
-	bev.base_entry_rate = 0.025
-	bev.default_open_slots = ["dawn", "noon", "night"]
-	bev.preferred_groups = ["student", "family", "office_worker"]
-	bev.preferred_spending_power = ["medium", "high"]
-	bev.preferred_slots = ["noon", "night"]
-	bev.base_service_speed = "high"
-	bev.key_staff_type = "baker"
-	bev.missing_key_staff_capacity_penalty = 0.15
-	bev.missing_key_staff_conversion_penalty = 0.08
-	bev.missing_key_staff_reputation_penalty = 1.5
-	bev.allowed_strategies = ["standard", "extend", "shorten"]
-	list.append(bev)
-
+	for entry in raw:
+		var c: CategoryData = CategoryData.new()
+		c.id = entry.get("id", "")
+		c.name = entry.get("name", "")
+		c.base_entry_rate = entry.get("base_entry_rate", 0.02)
+		c.default_open_slots = _to_string_array(entry.get("default_open_slots", []))
+		c.preferred_groups = _to_string_array(entry.get("preferred_groups", []))
+		c.preferred_spending_power = _to_string_array(entry.get("preferred_spending_power", []))
+		c.preferred_slots = _to_string_array(entry.get("preferred_slots", []))
+		c.base_service_speed = entry.get("base_service_speed", "medium")
+		c.key_staff_type = entry.get("key_staff_type", "none")
+		c.missing_key_staff_capacity_penalty = entry.get("missing_key_staff_capacity_penalty", 0.0)
+		c.missing_key_staff_conversion_penalty = entry.get("missing_key_staff_conversion_penalty", 0.0)
+		c.missing_key_staff_reputation_penalty = entry.get("missing_key_staff_reputation_penalty", 0.0)
+		c.allowed_strategies = _to_string_array(entry.get("allowed_strategies", ["standard", "extend", "shorten"]))
+		c.required_area = entry.get("required_area", 10.0)
+		c.setup_cost_wan = entry.get("setup_cost_wan", 0.3)
+		c.extra_rent_wan = entry.get("extra_rent_wan", 0.15)
+		list.append(c)
 	return list
 
 
-# ── 产品 ─────────────────────────────────────────────────
 static func get_products() -> Array[ProductData]:
+	var raw: Array = _load_json_array(DATA_DIR + "products.json")
 	var list: Array[ProductData] = []
-
-	var p: ProductData
-
-	p = ProductData.new(); p.id = "P001"; p.category_id = "breakfast"
-	p.name = "豆浆油条"; p.target_groups = ["worker", "student", "commute"]
-	p.preferred_slots = ["dawn"]; p.price_tier = "low"; p.average_price = 8.0
-	p.ingredient_cost_ratio = 0.35; p.complexity = "simple"; p.differentiation = "normal"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P002"; p.category_id = "breakfast"
-	p.name = "煎饼卷饼"; p.target_groups = ["worker", "student", "office_worker"]
-	p.preferred_slots = ["dawn"]; p.price_tier = "low"; p.average_price = 11.0
-	p.ingredient_cost_ratio = 0.38; p.complexity = "normal"; p.differentiation = "special"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P003"; p.category_id = "snack"
-	p.name = "炸串"; p.target_groups = ["student", "worker", "night_shift_worker"]
-	p.preferred_slots = ["night"]; p.price_tier = "low"; p.average_price = 16.0
-	p.ingredient_cost_ratio = 0.40; p.complexity = "normal"; p.differentiation = "normal"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P004"; p.category_id = "snack"
-	p.name = "麻辣拌"; p.target_groups = ["student", "worker"]
-	p.preferred_slots = ["noon", "night"]; p.price_tier = "medium"; p.average_price = 24.0
-	p.ingredient_cost_ratio = 0.42; p.complexity = "normal"; p.differentiation = "special"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P005"; p.category_id = "fast_food"
-	p.name = "盖浇饭"; p.target_groups = ["worker", "student", "office_worker"]
-	p.preferred_slots = ["noon", "night"]; p.price_tier = "medium"; p.average_price = 22.0
-	p.ingredient_cost_ratio = 0.40; p.complexity = "normal"; p.differentiation = "normal"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P006"; p.category_id = "fast_food"
-	p.name = "卤味饭"; p.target_groups = ["worker", "student", "family"]
-	p.preferred_slots = ["noon", "night"]; p.price_tier = "medium"; p.average_price = 26.0
-	p.ingredient_cost_ratio = 0.42; p.complexity = "normal"; p.differentiation = "special"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P007"; p.category_id = "beverage_dessert"
-	p.name = "奶茶"; p.target_groups = ["student", "family"]
-	p.preferred_slots = ["noon", "night"]; p.price_tier = "medium"; p.average_price = 18.0
-	p.ingredient_cost_ratio = 0.30; p.complexity = "simple"; p.differentiation = "normal"
-	list.append(p)
-
-	p = ProductData.new(); p.id = "P008"; p.category_id = "beverage_dessert"
-	p.name = "现烤面包"; p.target_groups = ["student", "family", "office_worker"]
-	p.preferred_slots = ["dawn", "noon"]; p.price_tier = "medium"; p.average_price = 15.0
-	p.ingredient_cost_ratio = 0.35; p.complexity = "normal"; p.differentiation = "special"
-	list.append(p)
-
+	for entry in raw:
+		var p: ProductData = ProductData.new()
+		p.id = entry.get("id", "")
+		p.category_id = entry.get("category_id", "")
+		p.name = entry.get("name", "")
+		p.target_groups = _to_string_array(entry.get("target_groups", []))
+		p.preferred_slots = _to_string_array(entry.get("preferred_slots", []))
+		p.price_tier = entry.get("price_tier", "medium")
+		p.average_price = entry.get("average_price", 15.0)
+		p.ingredient_cost_per_unit = entry.get("ingredient_cost_per_unit", 3.0)
+		p.suggested_margin_rate = entry.get("suggested_margin_rate", 0.6)
+		p.complexity = entry.get("complexity", "normal")
+		p.differentiation = entry.get("differentiation", "normal")
+		p.extra_service_speed_modifier = entry.get("extra_service_speed_modifier", 1.0)
+		p.notes = entry.get("notes", "")
+		var recipe_raw: Array = entry.get("recipe", [])
+		var recipe_typed: Array[Dictionary] = []
+		for r in recipe_raw:
+			recipe_typed.append({
+				"ingredient_id": r.get("ingredient_id", ""),
+				"quantity": r.get("quantity", 0.0),
+			})
+		p.recipe = recipe_typed
+		list.append(p)
 	return list
+
+static func get_ingredients() -> Array[IngredientData]:
+	var raw: Array = _load_json_array(DATA_DIR + "ingredients.json")
+	var list: Array[IngredientData] = []
+	for entry in raw:
+		var i: IngredientData = IngredientData.new()
+		i.id = entry.get("id", "")
+		i.name = entry.get("name", "")
+		i.unit = entry.get("unit", "")
+		i.base_purchase_price = entry.get("base_purchase_price", 0.0)
+		i.notes = entry.get("notes", "")
+		list.append(i)
+	return list
+# ── 工具函数 ──────────────────────────────────────────────
+
+static func _load_json_array(path: String) -> Array:
+	if not FileAccess.file_exists(path):
+		push_error("GameData: 数据文件不存在 -> %s" % path)
+		return []
+	var file := FileAccess.open(path, FileAccess.READ)
+	var text := file.get_as_text()
+	var parsed = JSON.parse_string(text)
+	if parsed == null:
+		push_error("GameData: JSON解析失败 -> %s" % path)
+		return []
+	if typeof(parsed) != TYPE_ARRAY:
+		push_error("GameData: 顶层结构应为数组 -> %s" % path)
+		return []
+	return parsed
+
+static func _to_string_array(raw: Array) -> Array[String]:
+	var result: Array[String] = []
+	for x in raw:
+		result.append(str(x))
+	return result

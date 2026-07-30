@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://hvruohq1ruyh"]
+
+[ext_resource type="PackedScene" path="res://scenes/panels/ConfigPanel.tscn" id="1"]
+[ext_resource type="Script" uid="uid://7eli4towpjap" path="res://scenes/Main.gd" id="1_c01mt"]
+[ext_resource type="PackedScene" uid="uid://vksjgk4ij6wn" path="res://scenes/panels/OperationPanel.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/panels/ReportPanel.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://c7gjxg6qgpxh2" path="res://scenes/debug/DebugPanel.tscn" id="5"]
+
+[node name="Main" type="Control" unique_id=70985931]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_c01mt")
+
+[node name="RootVBox" type="VBoxContainer" parent="." unique_id=255595007]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="TopRow" type="HBoxContainer" parent="RootVBox" unique_id=135664897]
+layout_mode = 2
+
+[node name="ConfigPanel" parent="RootVBox/TopRow" unique_id=797339369 instance=ExtResource("1")]
+layout_mode = 2
+
+[node name="OperationPanel" parent="RootVBox/TopRow" unique_id=303183450 instance=ExtResource("2")]
+layout_mode = 2
+
+[node name="DebugPanel" parent="RootVBox/TopRow" unique_id=1667110439 instance=ExtResource("5")]
+layout_mode = 2
+
+[node name="BottomScroll" type="ScrollContainer" parent="RootVBox" unique_id=1829597032]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="BottomRow" type="HBoxContainer" parent="RootVBox/BottomScroll" unique_id=1331282314]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ReportPanel" parent="RootVBox/BottomScroll/BottomRow" unique_id=976464266 instance=ExtResource("3")]
+layout_mode = 2
+size_flags_horizontal = 3

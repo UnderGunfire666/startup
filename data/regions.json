@@ -1,34 +1,44 @@
 [
   {
 	"id": "A001",
-	"name": "东环智造园",
-	"radiation_population": 50000,
-	"population_density": "medium",
-	"primary_groups": ["worker", "logistics_driver"],
-	"secondary_groups": ["night_shift_worker", "resident"],
-	"spending_power": "low",
+	"name": "科技园商圈",
+	"radiation_population": 28000,
+	"population_density": "high",
+	"primary_groups": ["白领", "上班族"],
+	"secondary_groups": ["学生"],
+	"spending_power": "medium",
 	"dwell_time": "low",
-	"traffic_sources": ["work", "commute", "transit"],
-	"competition_level": "medium",
-	"rent_baseline": "low",
-	"hourly_foot_traffic_by_slot": {"dawn": 600, "noon": 1200, "night": 700},
-	"weekend_modifier": 1.0,
-	"notes": "平价快餐、小吃更适配；高客单饮品甜点较弱；低停留性"
+	"traffic_sources": ["地铁", "写字楼"],
+	"competition_level": "high",
+	"rent_baseline": "high",
+	"hourly_foot_traffic_by_slot": {
+	  "dawn": 900,
+	  "noon": 1600,
+	  "night": 1100
+	},
+	"weekend_modifier": 0.6,
+	"notes": "工作日客流为主，周末客流明显下降",
+	"research_cost": 800.0
   },
   {
 	"id": "A002",
-	"name": "南城大学生活圈",
-	"radiation_population": 50000,
-	"population_density": "high",
-	"primary_groups": ["student", "family"],
-	"secondary_groups": ["teacher", "office_worker"],
-	"spending_power": "medium",
+	"name": "老城生活区",
+	"radiation_population": 19000,
+	"population_density": "medium",
+	"primary_groups": ["家庭", "老人"],
+	"secondary_groups": ["学生"],
+	"spending_power": "low",
 	"dwell_time": "medium",
-	"traffic_sources": ["study", "residence", "shopping", "commute"],
-	"competition_level": "high",
-	"rent_baseline": "medium_high",
-	"hourly_foot_traffic_by_slot": {"dawn": 450, "noon": 1100, "night": 1400},
-	"weekend_modifier": 1.0,
-	"notes": "饮品甜点、小吃、平价快餐适配；竞争高；停留性中等"
+	"traffic_sources": ["公交", "菜市场"],
+	"competition_level": "medium",
+	"rent_baseline": "low",
+	"hourly_foot_traffic_by_slot": {
+	  "dawn": 700,
+	  "noon": 900,
+	  "night": 1000
+	},
+	"weekend_modifier": 1.2,
+	"notes": "居民区为主，周末家庭出行客流上涨",
+	"research_cost": 600.0
   }
 ]

@@ -1,14 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cpcx36dd6onvq"]
 
-[ext_resource type="Script" path="res://scenes/panels/ReportPanel.gd" id="1_report"]
+[ext_resource type="Script" uid="uid://h3w0ngj6xiaw" path="res://scenes/panels/ReportPanel.gd" id="1_report"]
 
-[node name="ReportPanel" type="PanelContainer"]
-layout_mode = 2
+[node name="ReportPanel" type="PanelContainer" unique_id=649566715]
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_report")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1751821962]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -17,10 +16,8 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="RichTextLabel" type="RichTextLabel" parent="MarginContainer"]
+[node name="RichTextLabel" type="RichTextLabel" parent="MarginContainer" unique_id=959587161]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 bbcode_enabled = true
-fit_content = false
-scroll_active = true

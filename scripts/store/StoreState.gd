@@ -1,6 +1,21 @@
 class_name StoreState
 extends RefCounted
 
+enum PreOpenStage {
+	ORIGIN_SELECTION,
+	REGION_RESEARCH,
+	STOREFRONT_SELECTION,
+	STORE_SETUP,
+	OPEN_FOR_BUSINESS
+}
+
+var pre_open_stage: PreOpenStage = PreOpenStage.ORIGIN_SELECTION
+var selected_origin_id: String = ""
+var researched_region_ids: Array[String] = []
+var inspected_storefront_ids: Array[String] = []
+var signed_storefront_id: String = ""
+var is_open: bool = false
+
 var cash: float = SettlementConfig.INITIAL_CASH
 var inventory_units: int = SettlementConfig.INITIAL_INVENTORY
 var inventory_capacity: int = 200

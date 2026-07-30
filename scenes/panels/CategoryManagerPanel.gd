@@ -25,7 +25,7 @@ func refresh() -> void:
 		var label := "%s（面积%.0f㎡/装修%.0f元）" % [
 			cat.name, cat.required_area, cat.setup_cost_wan * 10000.0]
 		if opt.already_added:
-			label += " [已添加]"
+			label += " [已添加，可补充商品]"
 		elif not opt.can_add:
 			label += " [不可添加：%s]" % opt.reason
 		add_dropdown.add_item(label)
@@ -33,7 +33,7 @@ func refresh() -> void:
 		_on_category_dropdown_changed(0)
 	_refresh_category_list()
 	_refresh_ingredient_section()
-	
+
 
 func _on_category_dropdown_changed(idx: int) -> void:
 	for cb in _product_checkboxes:
@@ -41,19 +41,40 @@ func _on_category_dropdown_changed(idx: int) -> void:
 	_product_checkboxes.clear()
 	if idx < 0 or idx >= _pending_options.size():
 		return
-	var cat: CategoryData = _pending_options[idx].category
+
+	var opt := _pending_options[idx]
+	var cat: CategoryData = opt.category
+	var existing_slot: StoreCategorySlot = null
+	if opt.already_added:
+		existing_slot = GameManager.store_state.get_slot_by_category(cat.id)
+
 	for p in GameManager.get_products_for_category(cat.id):
 		var cb := CheckBox.new()
-		cb.text = "%s（¥%.0f）" % [p.name, p.average_price]
+		var already_in_slot := existing_slot != null and existing_slot.has_product(p.id)
+		cb.text = "%s（¥%.0f）%s" % [
+			p.name, p.average_price, "[已在售]" if already_in_slot else ""]
 		cb.set_meta("product_id", p.id)
+		if already_in_slot:
+			cb.button_pressed = true
+			cb.disabled = true
 		product_checklist.add_child(cb)
 		_product_checkboxes.append(cb)
+
 
 func _on_add_pressed() -> void:
 	var idx := add_dropdown.selected
 	if idx < 0 or idx >= _pending_options.size():
 		return
 	var opt := _pending_options[idx]
+	var cat: CategoryData = opt.category
+
+	if opt.already_added:
+		_add_products_to_existing_category(cat)
+	else:
+		_add_new_category(opt)
+
+
+func _add_new_category(opt: Dictionary) -> void:
 	if not opt.can_add:
 		status_label.text = "⚠ %s" % opt.reason
 		return
@@ -73,6 +94,32 @@ func _on_add_pressed() -> void:
 	else:
 		status_label.text = "⚠ %s" % result.reason
 
+
+func _add_products_to_existing_category(cat: CategoryData) -> void:
+	var newly_selected_ids: Array[String] = []
+	for cb in _product_checkboxes:
+		if cb.disabled:
+			continue
+		if cb.button_pressed:
+			newly_selected_ids.append(cb.get_meta("product_id"))
+
+	if newly_selected_ids.is_empty():
+		status_label.text = "⚠ 请勾选至少一个尚未添加的新商品"
+		return
+
+	var added_count := 0
+	for pid in newly_selected_ids:
+		if GameManager.add_product_to_slot(cat.id, pid):
+			added_count += 1
+
+	if added_count > 0:
+		status_label.text = "✅ 已为「%s」补充%d个商品" % [cat.name, added_count]
+		refresh()
+		category_changed.emit()
+	else:
+		status_label.text = "⚠ 补充商品失败"
+
+
 func _refresh_category_list() -> void:
 	for child in category_list.get_children():
 		child.queue_free()
@@ -81,6 +128,7 @@ func _refresh_category_list() -> void:
 		if cat == null:
 			continue
 		category_list.add_child(_build_category_block(cat, slot))
+
 
 func _refresh_ingredient_section() -> void:
 	for child in ingredient_list.get_children():
@@ -93,6 +141,7 @@ func _refresh_ingredient_section() -> void:
 	ingredient_list.add_child(title)
 	for ing in ingredients:
 		ingredient_list.add_child(_build_ingredient_row(ing))
+
 
 func _build_ingredient_row(ing: IngredientData) -> Control:
 	var row := HBoxContainer.new()
@@ -115,6 +164,7 @@ func _build_ingredient_row(ing: IngredientData) -> Control:
 	row.add_child(stock_edit)
 
 	return row
+
 
 func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Control:
 	var block := VBoxContainer.new()
@@ -140,6 +190,7 @@ func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Contro
 	block.add_child(remove_cat_btn)
 	block.add_child(HSeparator.new())
 	return block
+
 
 func _build_product_row(cat: CategoryData, product: ProductData,
 		pc: StoreProductConfig) -> Control:
@@ -172,6 +223,10 @@ func _build_product_row(cat: CategoryData, product: ProductData,
 			product.suggested_margin_rate * 100.0]
 		category_changed.emit()
 	)
+
+	var inv_label := Label.new()
+	inv_label.text = "库存"
+	row.add_child(inv_label)
 
 	var remove_btn := Button.new()
 	remove_btn.text = "移除商品"

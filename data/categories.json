@@ -1,7 +1,7 @@
 [
   {
 	"id": "breakfast", "name": "早餐类",
-	"base_entry_rate": 0.025,
+	"base_entry_rate": 0.075,
 	"default_open_slots": ["dawn"],
 	"preferred_groups": ["student", "office_worker", "worker", "commute"],
 	"preferred_spending_power": ["low", "medium"],
@@ -18,7 +18,7 @@
   },
   {
 	"id": "snack", "name": "小吃类",
-	"base_entry_rate": 0.030,
+	"base_entry_rate": 0.090,
 	"default_open_slots": ["noon", "night"],
 	"preferred_groups": ["student", "worker", "night_shift_worker"],
 	"preferred_spending_power": ["low", "medium"],
@@ -35,7 +35,7 @@
   },
   {
 	"id": "fast_food", "name": "快餐类",
-	"base_entry_rate": 0.020,
+	"base_entry_rate": 0.060,
 	"default_open_slots": ["noon", "night"],
 	"preferred_groups": ["worker", "student", "office_worker", "family"],
 	"preferred_spending_power": ["low", "medium"],
@@ -52,7 +52,7 @@
   },
   {
 	"id": "beverage_dessert", "name": "饮品甜点类",
-	"base_entry_rate": 0.025,
+	"base_entry_rate": 0.075,
 	"default_open_slots": ["dawn", "noon", "night"],
 	"preferred_groups": ["student", "family", "office_worker"],
 	"preferred_spending_power": ["medium", "high"],

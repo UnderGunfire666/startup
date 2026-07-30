@@ -15,9 +15,17 @@ const SLOT_NAMES: Dictionary = {
 
 const SLOT_ORDER: Array = ["dawn", "noon", "night"]
 
-# ── 到店率范围 ───────────────────────────────────────────
-const ENTRY_RATE_MIN: float = 0.001
-const ENTRY_RATE_MAX: float = 0.15
+# ── 到店率范围（原0.15上限过低，调整为更真实区间） ──────────
+const ENTRY_RATE_MIN: float = 0.02
+const ENTRY_RATE_MAX: float = 0.40
+
+# ── 区域人流真实感：周末与每日随机波动 ────────────────────
+## day 从1开始计数，7天一周；day % 7 == 6 或 0 视为周末（周六/周日）
+const WEEKEND_DAY_REMAINDERS: Array = [6, 0]
+
+## 每日人流随机浮动区间（同一天同一区域同一时段的人流会在此范围内波动）
+const TRAFFIC_FLUCTUATION_MIN: float = 0.80
+const TRAFFIC_FLUCTUATION_MAX: float = 1.25
 
 # ── 客群匹配权重 ─────────────────────────────────────────
 # 每个主客群命中加权值；次客群命中×0.5；完全不匹配总扣减

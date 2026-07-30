@@ -4,6 +4,8 @@ var store_state: StoreState = StoreState.new()
 var debug_ignore_category_restriction: bool = false
 var last_settlement_error: String = ""
 
+var all_origins: Array[OriginData] = []
+
 var current_region: RegionData = null
 var current_storefront: StorefrontData = null
 
@@ -19,6 +21,13 @@ func _ready() -> void:
 	all_categories  = GameData.get_categories()
 	all_products    = GameData.get_products()
 	all_ingredients = GameData.get_ingredients()
+	all_origins = GameData.get_origins()
+
+func get_origin(origin_id: String) -> OriginData:
+	for origin in all_origins:
+		if origin.id == origin_id:
+			return origin
+	return null
 
 func get_region(id: String) -> RegionData:
 	for r in all_regions:
@@ -74,6 +83,111 @@ func get_ingredient_purchase_price(ingredient_id: String) -> float:
 		return 0.0
 	return ingredient.base_purchase_price
 
+func select_origin(origin_id: String) -> Dictionary:
+	var origin := get_origin(origin_id)
+	if origin == null:
+		return {"success": false, "reason": "出身不存在"}
+
+	if store_state.is_open:
+		return {"success": false, "reason": "门店已开业，不能更换出身"}
+
+	store_state.selected_origin_id = origin.id
+	store_state.cash = origin.starting_cash
+	store_state.reputation = origin.initial_reputation
+	store_state.stress = origin.initial_stress
+
+	store_state.selected_region_id = ""
+	store_state.selected_storefront_id = ""
+	store_state.signed_storefront_id = ""
+	store_state.researched_region_ids.clear()
+	store_state.inspected_storefront_ids.clear()
+	store_state.category_slots.clear()
+	store_state.ingredient_stock.clear()
+	store_state.ingredient_avg_cost.clear()
+	store_state.is_open = false
+
+	current_region = null
+	current_storefront = null
+
+	return {
+		"success": true,
+		"reason": "已选择出身：「%s」" % origin.name
+	}
+
+func research_region(region_id: String) -> Dictionary:
+	var region := get_region(region_id)
+	if region == null:
+		return {"success": false, "reason": "区域不存在"}
+
+	if region_id in store_state.researched_region_ids:
+		return {"success": false, "reason": "该区域已调研"}
+
+	var origin := get_origin(store_state.selected_origin_id)
+	var discount: float = 0.0
+	if origin != null:
+		discount = origin.research_discount_rate
+
+	var cost: float = region.research_cost * (1.0 - discount)
+
+	if store_state.cash < cost:
+		return {"success": false, "reason": "现金不足，调研需要¥%.0f" % cost}
+
+	store_state.cash -= cost
+	store_state.researched_region_ids.append(region_id)
+
+	return {
+		"success": true,
+		"reason": "已完成对「%s」的调研，花费¥%.0f" % [region.name, cost]
+	}
+
+
+func select_region(region_id: String) -> Dictionary:
+	if store_state.is_open:
+		return {"success": false, "reason": "门店已开业，不能更换区域"}
+
+	if region_id not in store_state.researched_region_ids:
+		return {"success": false, "reason": "请先调研该区域"}
+
+	var region := get_region(region_id)
+	if region == null:
+		return {"success": false, "reason": "区域不存在"}
+
+	store_state.selected_region_id = region_id
+	store_state.selected_storefront_id = ""
+	store_state.signed_storefront_id = ""
+	current_region = region
+	current_storefront = null
+
+	return {"success": true, "reason": "已选定区域：「%s」" % region.name}
+
+func get_storefronts_for_region(region_id: String) -> Array[StorefrontData]:
+	var result: Array[StorefrontData] = []
+	for s in all_storefronts:
+		if s.region_id == region_id:
+			result.append(s)
+	return result
+
+
+func select_storefront(storefront_id: String) -> Dictionary:
+	if store_state.is_open:
+		return {"success": false, "reason": "门店已开业，不能更换门面"}
+
+	if store_state.selected_region_id == "":
+		return {"success": false, "reason": "请先选定区域"}
+
+	var sf := get_storefront(storefront_id)
+	if sf == null:
+		return {"success": false, "reason": "门面不存在"}
+
+	if sf.region_id != store_state.selected_region_id:
+		return {"success": false, "reason": "该门面不属于当前选定区域"}
+
+	# 更换门面会导致原有品类的面积分配失效，清空重来
+	store_state.selected_storefront_id = storefront_id
+	store_state.category_slots.clear()
+	_sync_data_objects()
+
+	return {"success": true, "reason": "已选定门面：「%s」" % sf.name}
 
 func calculate_purchase_total(cart: Dictionary) -> float:
 	var total := 0.0
@@ -412,10 +526,3 @@ func _add_debug_slot(category_id: String, product_ids: Array[String],
 		pc.inventory_units = SettlementConfig.INITIAL_INVENTORY
 		slot.product_configs.append(pc)
 	store_state.category_slots.append(slot)
-
-func get_storefronts_for_region(region_id: String) -> Array[StorefrontData]:
-	var result: Array[StorefrontData] = []
-	for s in all_storefronts:
-		if s.region_id == region_id:
-			result.append(s)
-	return result

@@ -48,8 +48,11 @@ static func calculate(
 
 	var is_non_default_slot := (slot not in category.default_open_slots)
 
-	# ── 2. 区域时段人流（MVP：event & rep modifier = 1） ──────
-	r.slot_foot_traffic = float(region.hourly_foot_traffic_by_slot.get(slot, 0))
+	# ── 2. 区域时段人流（接入周末系数 + 每日随机波动，让人流更真实） ──
+	var base_traffic: float = float(region.hourly_foot_traffic_by_slot.get(slot, 0))
+	var weekend_mult: float = region.weekend_modifier if _is_weekend_day(day) else 1.0
+	var daily_fluctuation: float = _get_daily_traffic_fluctuation(region.id, slot, day)
+	r.slot_foot_traffic = base_traffic * weekend_mult * daily_fluctuation
 
 	# ── 3. 可触达人流 ────────────────────────────────────────
 	r.reachable_traffic = r.slot_foot_traffic * storefront.flow_share
@@ -109,6 +112,21 @@ static func calculate(
 
 	return r
 
+# ── 私有：判断是否周末 ────────────────────────────────────
+static func _is_weekend_day(day: int) -> bool:
+	return (day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
+
+
+# ── 私有：每日人流随机波动（确定性种子，同一天同一区域同一时段结果稳定，
+#          方便复盘和存档读取后结果一致，但天与天之间会自然涨跌） ──────
+static func _get_daily_traffic_fluctuation(region_id: String, slot: String, day: int) -> float:
+	var seed_str := "%s_%s_%d" % [region_id, slot, day]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(seed_str)
+	return rng.randf_range(
+		SettlementConfig.TRAFFIC_FLUCTUATION_MIN,
+		SettlementConfig.TRAFFIC_FLUCTUATION_MAX
+	)
 
 # ── 私有：营业时段列表 ────────────────────────────────────
 static func _get_active_slots(cat: CategoryData, strategy: String) -> Array:

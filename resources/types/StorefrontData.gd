@@ -14,5 +14,10 @@ extends Resource
 @export var hourly_capacity_base: int = 20
 @export var notes: String = ""
 
+@export var deposit_months: int = 2
+@export var inspection_cost: float = 500.0
+@export var inspection_summary: String = ""
+@export var deep_inspection_summary: String = ""
+
 func get_monthly_rent_yuan() -> float:
 	return monthly_rent_wan * 10000.0

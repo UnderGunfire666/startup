@@ -11,11 +11,17 @@ signal settlement_done(results: Array)
 @onready var inventory_label: Label   = $VBox/StatsGrid/InventoryLabel
 @onready var reputation_label: Label  = $VBox/StatsGrid/ReputationLabel
 @onready var stress_label: Label      = $VBox/StatsGrid/StressLabel
+@onready var owner_present_check: CheckBox = $VBox/OwnerRow/OwnerPresentCheck
 @onready var advance_button: Button   = $VBox/AdvanceButton
 
 func _ready() -> void:
 	advance_button.pressed.connect(_on_advance_pressed)
+	owner_present_check.button_pressed = GameManager.store_state.owner_present
+	owner_present_check.toggled.connect(_on_owner_present_toggled)
 	refresh_display()
+
+func _on_owner_present_toggled(pressed: bool) -> void:
+	GameManager.store_state.owner_present = pressed
 
 func _on_advance_pressed() -> void:
 	var results: Array = GameManager.run_settlement()

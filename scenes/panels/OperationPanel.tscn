@@ -40,6 +40,16 @@ text = "口碑：50.0 / 100"
 layout_mode = 2
 text = "压力：20.0 / 100"
 
+[node name="OwnerRow" type="HBoxContainer" parent="VBox" unique_id=1897326055]
+layout_mode = 2
+
+[node name="OwnerLabel" type="Label" parent="VBox/OwnerRow" unique_id=700864506]
+layout_mode = 2
+text = "老板是否在店"
+
+[node name="OwnerPresentCheck" type="CheckBox" parent="VBox/OwnerRow" unique_id=1147200092]
+layout_mode = 2
+
 [node name="AdvanceButton" type="Button" parent="VBox" unique_id=1890488765]
 layout_mode = 2
 text = "推进到下一时段并结算"

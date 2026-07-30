@@ -1,0 +1,58 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/panels/OriginSelectionPanel.gd" id="1_origin"]
+
+[node name="OriginSelectionPanel" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_origin")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "选择创业者出身"
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "出身决定你的开局资源与前期优势。选择后会重置当前尚未开业的筹备进度。"
+
+[node name="CurrentLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "当前出身：未选择"
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="OriginScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="OriginList" type="VBoxContainer" parent="MarginContainer/VBox/OriginScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = ""

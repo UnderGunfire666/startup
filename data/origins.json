@@ -1,0 +1,32 @@
+[
+  {
+	"id": "worker_savings",
+	"name": "打工积蓄",
+	"description": "攒下了一笔启动金。没有额外优势，但资金最充裕。",
+	"starting_cash": 100000.0,
+	"initial_reputation": 50.0,
+	"initial_stress": 0.0,
+	"research_discount_rate": 0.0,
+	"first_opening_staff_penalty_reduction": 0.0
+  },
+  {
+	"id": "restaurant_apprentice",
+	"name": "餐饮学徒",
+	"description": "有后厨和门店经验，起步资金较少，但能缓解初期开业的人手不足。",
+	"starting_cash": 80000.0,
+	"initial_reputation": 55.0,
+	"initial_stress": 0.0,
+	"research_discount_rate": 0.0,
+	"first_opening_staff_penalty_reduction": 0.25
+  },
+  {
+	"id": "local_network",
+	"name": "本地人脉",
+	"description": "熟悉本地情况，调研和深度考察成本更低。",
+	"starting_cash": 90000.0,
+	"initial_reputation": 50.0,
+	"initial_stress": 0.0,
+	"research_discount_rate": 0.30,
+	"first_opening_staff_penalty_reduction": 0.0
+  }
+]

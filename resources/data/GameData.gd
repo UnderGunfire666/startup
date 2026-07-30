@@ -2,6 +2,26 @@ class_name GameData
 
 const DATA_DIR := "res://data/"
 
+static func get_origins() -> Array[OriginData]:
+	var raw: Array = _load_json_array(DATA_DIR + "origins.json")
+	var result: Array[OriginData] = []
+
+	for entry in raw:
+		var origin := OriginData.new()
+		origin.id = entry.get("id", "")
+		origin.name = entry.get("name", "")
+		origin.description = entry.get("description", "")
+		origin.starting_cash = float(entry.get("starting_cash", 100000.0))
+		origin.initial_reputation = float(entry.get("initial_reputation", 50.0))
+		origin.initial_stress = float(entry.get("initial_stress", 0.0))
+		origin.research_discount_rate = float(entry.get("research_discount_rate", 0.0))
+		origin.first_opening_staff_penalty_reduction = float(
+			entry.get("first_opening_staff_penalty_reduction", 0.0)
+		)
+		result.append(origin)
+
+	return result
+
 static func get_regions() -> Array[RegionData]:
 	var raw: Array = _load_json_array(DATA_DIR + "regions.json")
 	var list: Array[RegionData] = []
@@ -21,6 +41,7 @@ static func get_regions() -> Array[RegionData]:
 		r.hourly_foot_traffic_by_slot = entry.get("hourly_foot_traffic_by_slot", {})
 		r.weekend_modifier = entry.get("weekend_modifier", 1.0)
 		r.notes = entry.get("notes", "")
+		r.research_cost = float(entry.get("research_cost", 800.0))
 		list.append(r)
 	return list
 

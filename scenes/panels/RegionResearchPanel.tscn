@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://dwxi2crtgyfn8"]
+
+[ext_resource type="Script" uid="uid://tj8amtulh8yo" path="res://scenes/panels/RegionResearchPanel.gd" id="1_region"]
+
+[node name="RegionResearchPanel" type="PanelContainer" unique_id=495528356]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_region")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=619164246]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer" unique_id=2094516656]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox" unique_id=301071427]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "区域调研与选择"
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/VBox" unique_id=1513133083]
+layout_mode = 2
+text = "调研可解锁消费能力、竞争强度、人流高峰与适配品类等信息。选定区域后才能进入门面阶段。"
+autowrap_mode = 3
+
+[node name="CurrentLabel" type="Label" parent="MarginContainer/VBox" unique_id=1631205252]
+layout_mode = 2
+text = "当前区域：未选择"
+autowrap_mode = 3
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBox" unique_id=2095149904]
+layout_mode = 2
+
+[node name="RegionScroll" type="ScrollContainer" parent="MarginContainer/VBox" unique_id=796079491]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="RegionList" type="VBoxContainer" parent="MarginContainer/VBox/RegionScroll" unique_id=1039682312]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBox" unique_id=1229925471]
+layout_mode = 2
+autowrap_mode = 3

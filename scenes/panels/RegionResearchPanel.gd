@@ -98,8 +98,7 @@ func _build_region_card(region: RegionData) -> Control:
 		research_button.text = "已调研"
 		research_button.disabled = true
 	else:
-		var discounted_cost := _get_discounted_cost(region)
-		research_button.text = "调研此区域（¥%.0f）" % discounted_cost
+		research_button.text = "调研此区域（¥%.0f）" % region.research_cost
 		research_button.pressed.connect(func() -> void:
 			_on_research_pressed(region.id)
 		)
@@ -125,14 +124,6 @@ func _build_region_card(region: RegionData) -> Control:
 	card.add_child(button_row)
 	card.add_child(HSeparator.new())
 	return card
-
-
-func _get_discounted_cost(region: RegionData) -> float:
-	var origin := GameManager.get_origin(GameManager.store_state.selected_origin_id)
-	var discount: float = 0.0
-	if origin != null:
-		discount = origin.research_discount_rate
-	return region.research_cost * (1.0 - discount)
 
 
 func _join_or_dash(arr) -> String:

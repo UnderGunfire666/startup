@@ -1,0 +1,176 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/panels/CharacterCreationPanel.gd" id="1_script"]
+
+[node name="CharacterCreationPanel" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="RootVBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "创建创业者"
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "难度只决定初始资金。选择预设人物可快速开始，也可自行填写信息并选择特质。"
+
+[node name="HSeparatorTop" type="HSeparator" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+
+[node name="SplitBox" type="HSplitContainer" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+split_offset = -40
+
+[node name="LeftPanel" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+theme_override_constants/separation = 8
+
+[node name="DifficultyRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DifficultyLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/DifficultyRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "难度"
+
+[node name="DifficultyOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/DifficultyRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NameRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NameLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/NameRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "姓名"
+
+[node name="NameInput" type="LineEdit" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/NameRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "请输入创业者姓名"
+max_length = 20
+
+[node name="GenderRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="GenderLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "性别"
+
+[node name="MaleButton" type="CheckButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow"]
+layout_mode = 2
+text = "男"
+
+[node name="FemaleButton" type="CheckButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow"]
+layout_mode = 2
+text = "女"
+
+[node name="AgeRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AgeLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "年龄"
+
+[node name="AgeOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparatorLeft" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+
+[node name="PresetTitle" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "快速开始：预设人物"
+
+[node name="PresetScroll" type="ScrollContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="PresetList" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/PresetScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="RightPanel" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.2
+theme_override_constants/separation = 8
+
+[node name="PointSummaryLabel" type="RichTextLabel" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="HSeparatorRight" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+layout_mode = 2
+
+[node name="TraitTitle" type="Label" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "特质选择"
+
+[node name="TraitHint" type="Label" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "每种类型最多选择一个。正向特质消耗点数；负向特质返还点数。"
+
+[node name="TraitScroll" type="ScrollContainer" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="TraitList" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox/RightPanel/TraitScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="HSeparatorBottom" type="HSeparator" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+
+[node name="ConfirmButton" type="Button" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+disabled = true
+text = "确认创建，进入区域调研"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/RootVBox"]
+layout_mode = 2
+autowrap_mode = 3

@@ -30,6 +30,37 @@ autowrap_mode = 3
 [node name="OpeningSeparator" type="HSeparator" parent="VBox/OpeningPrepBox" unique_id=2001000006]
 layout_mode = 2
 
+[node name="ClockLabel" type="Label" parent="VBox" unique_id=2001000010]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+text = "06:00:00 ｜ 清晨"
+
+[node name="SpeedRow" type="HBoxContainer" parent="VBox" unique_id=2001000011]
+layout_mode = 2
+alignment = 1
+
+[node name="PauseButton" type="Button" parent="VBox/SpeedRow" unique_id=2001000012]
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "⏸ 暂停"
+
+[node name="Speed1Button" type="Button" parent="VBox/SpeedRow" unique_id=2001000013]
+layout_mode = 2
+toggle_mode = true
+text = "▶ 1x"
+
+[node name="Speed2Button" type="Button" parent="VBox/SpeedRow" unique_id=2001000014]
+layout_mode = 2
+toggle_mode = true
+text = "▶▶ 2x"
+
+[node name="Speed5Button" type="Button" parent="VBox/SpeedRow" unique_id=2001000015]
+layout_mode = 2
+toggle_mode = true
+text = "▶▶▶ 5x"
+
 [node name="DayLabel" type="Label" parent="VBox" unique_id=1212767472]
 layout_mode = 2
 text = "第 1 天"
@@ -72,6 +103,11 @@ text = "老板是否在店"
 [node name="OwnerPresentCheck" type="CheckBox" parent="VBox/OwnerRow" unique_id=1147200092]
 layout_mode = 2
 
-[node name="AdvanceButton" type="Button" parent="VBox" unique_id=1890488765]
+[node name="CustomerFeedScroll" type="ScrollContainer" parent="VBox" unique_id=2001000020]
 layout_mode = 2
-text = "推进到下一时段并结算"
+custom_minimum_size = Vector2(0, 160)
+size_flags_vertical = 3
+
+[node name="CustomerFeed" type="VBoxContainer" parent="VBox/CustomerFeedScroll" unique_id=2001000021]
+layout_mode = 2
+size_flags_horizontal = 3

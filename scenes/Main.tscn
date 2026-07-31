@@ -8,9 +8,9 @@
 [ext_resource type="PackedScene" uid="uid://qcx5mbxrqkiy" path="res://scenes/panels/ProcurementPanel.tscn" id="5_procurement"]
 [ext_resource type="PackedScene" uid="uid://cpcx36dd6onvq" path="res://scenes/panels/ReportPanel.tscn" id="6_report"]
 [ext_resource type="PackedScene" uid="uid://btfk3y4ccqthn" path="res://scenes/panels/HistoryPanel.tscn" id="7_history"]
-[ext_resource type="PackedScene" path="res://scenes/panels/OriginSelectionPanel.tscn" id="9_origin"]
-[ext_resource type="PackedScene" uid="uid://dl4q8n6yce2sr" path="res://scenes/panels/DayEndPanel.tscn" id="10_dayend"]
-[ext_resource type="PackedScene" path="res://scenes/panels/SaveLoadBar.tscn" id="11_saveload"]
+[ext_resource type="PackedScene" path="res://scenes/panels/CharacterCreationPanel.tscn" id="9_character"]
+[ext_resource type="PackedScene" uid="uid://c3nwhfj115pun" path="res://scenes/panels/DayEndPanel.tscn" id="10_dayend"]
+[ext_resource type="PackedScene" uid="uid://dmvtdi23pfj6m" path="res://scenes/panels/SaveLoadBar.tscn" id="11_saveload"]
 
 [node name="Main" type="Control" unique_id=401657002]
 layout_mode = 3
@@ -33,25 +33,25 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="RootVBox" type="VBoxContainer" parent="MarginContainer"]
+[node name="RootVBox" type="VBoxContainer" parent="MarginContainer" unique_id=1832794164]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="SaveLoadBar" parent="MarginContainer/RootVBox" instance=ExtResource("11_saveload")]
+[node name="SaveLoadBar" parent="MarginContainer/RootVBox" unique_id=509289159 instance=ExtResource("11_saveload")]
 layout_mode = 2
 
-[node name="HSeparator" type="HSeparator" parent="MarginContainer/RootVBox"]
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/RootVBox" unique_id=1446232592]
 layout_mode = 2
 
-[node name="MainTabs" type="TabContainer" parent="MarginContainer/RootVBox"]
+[node name="MainTabs" type="TabContainer" parent="MarginContainer/RootVBox" unique_id=548196400]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 current_tab = 0
 tabs_rearrange_group = 0
 
-[node name="PlayerPanel" type="MarginContainer" parent="MarginContainer/RootVBox/MainTabs"]
+[node name="PlayerPanel" type="MarginContainer" parent="MarginContainer/RootVBox/MainTabs" unique_id=1880579249]
 layout_mode = 2
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
@@ -59,14 +59,14 @@ theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 metadata/_tab_index = 0
 
-[node name="PlayerSubTabs" type="TabContainer" parent="MarginContainer/RootVBox/MainTabs/PlayerPanel"]
+[node name="PlayerSubTabs" type="TabContainer" parent="MarginContainer/RootVBox/MainTabs/PlayerPanel" unique_id=1036432841]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 current_tab = 0
 tabs_rearrange_group = 1
 
-[node name="OriginSelectionPanel" parent="MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs" unique_id=1716309151 instance=ExtResource("9_origin")]
+[node name="CharacterCreationPanel" parent="MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs" unique_id=1716309151 instance=ExtResource("9_character")]
 metadata/_tab_index = 0
 
 [node name="RegionResearchPanel" parent="MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs" unique_id=495528356 instance=ExtResource("3_lhr70")]
@@ -79,7 +79,7 @@ visible = false
 layout_mode = 2
 metadata/_tab_index = 2
 
-[node name="StorePanel" type="MarginContainer" parent="MarginContainer/RootVBox/MainTabs"]
+[node name="StorePanel" type="MarginContainer" parent="MarginContainer/RootVBox/MainTabs" unique_id=1891057924]
 visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 8
@@ -88,7 +88,7 @@ theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 metadata/_tab_index = 1
 
-[node name="StoreSubTabs" type="TabContainer" parent="MarginContainer/RootVBox/MainTabs/StorePanel"]
+[node name="StoreSubTabs" type="TabContainer" parent="MarginContainer/RootVBox/MainTabs/StorePanel" unique_id=465638353]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -124,4 +124,4 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 metadata/_tab_index = 4
 
-[node name="DayEndPanel" parent="." instance=ExtResource("10_dayend")]
+[node name="DayEndPanel" parent="." unique_id=596501704 instance=ExtResource("10_dayend")]

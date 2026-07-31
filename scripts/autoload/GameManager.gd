@@ -4,8 +4,6 @@ var store_state: StoreState = StoreState.new()
 var player_state: PlayerState = PlayerState.new()
 var last_settlement_error: String = ""
 
-var all_origins: Array[OriginData] = []
-
 var current_region: RegionData = null
 var current_storefront: StorefrontData = null
 
@@ -21,13 +19,94 @@ func _ready() -> void:
 	all_categories  = GameData.get_categories()
 	all_products    = GameData.get_products()
 	all_ingredients = GameData.get_ingredients()
-	all_origins = GameData.get_origins()
 
-func get_origin(origin_id: String) -> OriginData:
-	for origin in all_origins:
-		if origin.id == origin_id:
-			return origin
-	return null
+func create_character(data: Dictionary) -> Dictionary:
+	if store_state.is_open:
+		return {
+			"success": false,
+			"reason": "门店已开业，不能重新创建角色",
+		}
+
+	var player_name := str(data.get("player_name", "")).strip_edges()
+	var gender := str(data.get("gender", ""))
+	var age := int(data.get("age", 0))
+	var difficulty_id := str(data.get("difficulty_id", ""))
+	var trait_ids_raw: Array = data.get("trait_ids", [])
+
+	if player_name.is_empty():
+		return {"success": false, "reason": "请输入创业者姓名"}
+
+	if gender not in ["male", "female"]:
+		return {"success": false, "reason": "请选择性别"}
+
+	if age not in CharacterCreationData.get_all_ages():
+		return {"success": false, "reason": "请选择20至58岁之间的年龄"}
+
+	var difficulty := CharacterCreationData.get_difficulty(difficulty_id)
+	if difficulty.is_empty():
+		return {"success": false, "reason": "请选择难度"}
+
+	var trait_ids: Array[String] = []
+	var chosen_types: Dictionary = {}
+
+	for raw_trait_id in trait_ids_raw:
+		var trait_id := str(raw_trait_id)
+		var trait_data := CharacterCreationData.get_trait(trait_id)
+
+		if trait_data == null:
+			return {
+				"success": false,
+				"reason": "存在无效特质：%s" % trait_id,
+			}
+
+		if trait_data.trait_type in chosen_types:
+			return {
+				"success": false,
+				"reason": "每种特质类型只能选择一个",
+			}
+
+		chosen_types[trait_data.trait_type] = true
+		trait_ids.append(trait_id)
+
+	var bracket := CharacterCreationData.get_age_bracket(age)
+	var used_points := 0
+	for trait_id in trait_ids:
+		var trait_data := CharacterCreationData.get_trait(trait_id)
+		used_points += trait_data.point_cost
+
+	var remaining_points := int(bracket.trait_points) - used_points
+	if remaining_points < 0:
+		return {
+			"success": false,
+			"reason": "特质点不足，还需要 %d 点" % abs(remaining_points),
+		}
+
+	## 创建角色会开启全新开局，不能保留此前的调研、门面、品类和库存状态。
+	store_state = StoreState.new()
+	player_state = PlayerState.new()
+	current_region = null
+	current_storefront = null
+	last_settlement_error = ""
+
+	player_state.apply_character_setup({
+		"player_name": player_name,
+		"gender": gender,
+		"age": age,
+		"difficulty_id": difficulty_id,
+		"preset_id": str(data.get("preset_id", "")),
+		"starting_cash": float(difficulty.starting_cash),
+		"trait_ids": trait_ids,
+	})
+
+	store_state.pre_open_stage = StoreState.PreOpenStage.REGION_RESEARCH
+
+	return {
+		"success": true,
+		"reason": "创业者「%s」已创建，初始资金 ¥%.0f" % [
+			player_state.player_name,
+			player_state.cash,
+		],
+	}
 
 func get_region(id: String) -> RegionData:
 	for r in all_regions:
@@ -86,37 +165,6 @@ func get_ingredient_purchase_price(ingredient_id: String) -> float:
 func get_product_unit_utility_cost(product: ProductData) -> float:
 	return product.utility_cost_per_unit
 
-func select_origin(origin_id: String) -> Dictionary:
-	var origin := get_origin(origin_id)
-	if origin == null:
-		return {"success": false, "reason": "出身不存在"}
-
-	if store_state.is_open:
-		return {"success": false, "reason": "门店已开业，不能更换出身"}
-
-	store_state.selected_origin_id = origin.id
-	player_state.cash = origin.starting_cash
-	player_state.stress = origin.initial_stress
-	store_state.reputation = origin.initial_reputation
-
-	store_state.selected_region_id = ""
-	store_state.selected_storefront_id = ""
-	store_state.signed_storefront_id = ""
-	store_state.researched_region_ids.clear()
-	store_state.inspected_storefront_ids.clear()
-	store_state.category_slots.clear()
-	store_state.ingredient_stock.clear()
-	store_state.ingredient_avg_cost.clear()
-	store_state.is_open = false
-
-	current_region = null
-	current_storefront = null
-
-	return {
-		"success": true,
-		"reason": "已选择出身：「%s」" % origin.name
-	}
-
 func research_region(region_id: String) -> Dictionary:
 	var region := get_region(region_id)
 	if region == null:
@@ -125,12 +173,10 @@ func research_region(region_id: String) -> Dictionary:
 	if region_id in store_state.researched_region_ids:
 		return {"success": false, "reason": "该区域已调研"}
 
-	var origin := get_origin(store_state.selected_origin_id)
-	var discount: float = 0.0
-	if origin != null:
-		discount = origin.research_discount_rate
+	if not player_state.is_character_created:
+		return {"success": false, "reason": "请先完成人物创建"}
 
-	var cost: float = region.research_cost * (1.0 - discount)
+	var cost: float = region.research_cost
 
 	if player_state.cash < cost:
 		return {"success": false, "reason": "现金不足，调研需要¥%.0f" % cost}
@@ -145,6 +191,9 @@ func research_region(region_id: String) -> Dictionary:
 
 
 func select_region(region_id: String) -> Dictionary:
+	if not player_state.is_character_created:
+		return {"success": false, "reason": "请先完成人物创建"}
+	
 	if store_state.is_open:
 		return {"success": false, "reason": "门店已开业，不能更换区域"}
 
@@ -517,3 +566,94 @@ func start_new_game() -> void:
 	player_state = PlayerState.new()
 	current_region = null
 	current_storefront = null
+
+var active_simulations: Array[Dictionary] = []  # {sim, params, category, product_template, inventory_limit, product_count}
+
+func begin_slot_simulation() -> void:
+	active_simulations.clear()
+	if current_region == null or current_storefront == null or store_state.category_slots.is_empty():
+		return
+
+	var slot := store_state.get_current_slot()
+	var slot_seconds := float(SettlementConfig.SLOT_HOURS[slot]) * 3600.0
+	var total_area: float = current_storefront.area
+
+	for cat_slot in store_state.category_slots:
+		var category := get_category(cat_slot.category_id)
+		if category == null or cat_slot.product_configs.is_empty():
+			continue
+
+		var area_share: float = cat_slot.allocated_area / total_area
+		var product_count: int = cat_slot.product_configs.size()
+
+		for pc in cat_slot.product_configs:
+			var product_template := get_product(pc.product_id)
+			if product_template == null:
+				continue
+
+			var scaled_storefront: StorefrontData = current_storefront.duplicate()
+			scaled_storefront.hourly_capacity_base = int(round(
+				current_storefront.hourly_capacity_base * area_share / product_count))
+			scaled_storefront.flow_share = current_storefront.flow_share / product_count
+
+			var product_instance: ProductData = product_template.duplicate()
+			product_instance.average_price = pc.get_effective_price(product_template)
+			product_instance.recipe = product_template.recipe
+
+			var params := SettlementEngine.calculate_params(
+				current_region, scaled_storefront, category, product_instance,
+				store_state, player_state, slot, cat_slot.has_key_staff, cat_slot.strategy)
+
+			var entry := {
+				"sim": null, "params": params, "category": category,
+				"product": product_instance, "product_template": product_template,
+				"inventory_limit": 0, "product_count": product_count,
+			}
+
+			if params.is_open:
+				var available_units := store_state.get_max_produceable_by_ingredients(product_template)
+				var unit_ingredient_cost := get_product_unit_ingredient_cost(product_template)
+				var unit_utility_cost := get_product_unit_utility_cost(product_template)
+				entry.inventory_limit = mini(available_units, pc.inventory_units)
+
+				var sim := CustomerSimulator.new()
+				sim.setup(params.visitors, slot_seconds, params.conversion_rate,
+					params.slot_capacity, entry.inventory_limit,
+					product_instance.average_price, unit_ingredient_cost, unit_utility_cost)
+				entry.sim = sim
+
+			active_simulations.append(entry)
+
+func advance_slot_simulation(elapsed_seconds: float) -> void:
+	for entry in active_simulations:
+		if entry.sim != null:
+			entry.sim.advance(elapsed_seconds)
+
+func finalize_slot_simulation() -> Array[SettlementResult]:
+	var results: Array[SettlementResult] = []
+	var slot := store_state.get_current_slot()
+	var day := store_state.current_day
+
+	for entry in active_simulations:
+		var result: SettlementResult
+		if entry.sim != null:
+			result = SettlementEngine.finalize_from_simulation(
+				entry.params, slot, day, entry.category, entry.product,
+				entry.inventory_limit, entry.sim)
+
+			var extra_upkeep: float = (entry.category.extra_rent_wan * 10000.0) \
+				/ 30.0 / SettlementConfig.SLOT_ORDER.size() / entry.product_count
+			result.rent_cost += extra_upkeep
+			result.profit -= extra_upkeep
+
+			store_state.consume_ingredients(entry.product_template, result.actual_orders)
+		else:
+			result = SettlementEngine.finalize_from_simulation(
+				entry.params, slot, day, entry.category, entry.product, 0, null)
+
+		store_state.apply_settlement(result)
+		player_state.apply_settlement(result)
+		results.append(result)
+
+	active_simulations.clear()
+	return results

@@ -116,6 +116,125 @@ static func calculate(
 
 	return r
 
+## 步骤0-7：只算漏斗参数，不产生任何订单/财务结果。
+## 供 CustomerSimulator 在时段开始时读取一次即可驱动整个时段的逐事件模拟。
+static func calculate_params(
+		region: RegionData,
+		storefront: StorefrontData,
+		category: CategoryData,
+		product: ProductData,
+		store_state: StoreState,
+		player_state: PlayerState,
+		slot: String,
+		has_key_staff: bool,
+		strategy: String,
+) -> Dictionary:
+	var p := {
+		"is_open": true, "not_open_reason": "",
+		"slot_foot_traffic": 0.0, "reachable_traffic": 0.0,
+		"entry_rate": 0.0, "visitors": 0,
+		"conversion_rate": 0.0, "slot_capacity": 0,
+		"missing_key_staff_active": false, "modifiers": [],
+	}
+
+	if category.id not in storefront.supported_categories:
+		p.is_open = false
+		p.not_open_reason = "门面[%s]不支持品类[%s]" % [storefront.name, category.name]
+		return p
+
+	var active_slots := _get_active_slots(category, strategy)
+	if slot not in active_slots:
+		p.is_open = false
+		p.not_open_reason = "策略[%s]下品类[%s]在[%s]不营业" % [
+			strategy, category.name, SettlementConfig.SLOT_NAMES[slot]]
+		return p
+
+	var is_non_default_slot := (slot not in category.default_open_slots)
+
+	var base_traffic: float = float(region.hourly_foot_traffic_by_slot.get(slot, 0))
+	var weekend_mult: float = region.weekend_modifier if _is_weekend_day(store_state.current_day) else 1.0
+	var daily_fluctuation: float = _get_daily_traffic_fluctuation(region.id, slot, store_state.current_day)
+	p.slot_foot_traffic = base_traffic * weekend_mult * daily_fluctuation
+	p.reachable_traffic = p.slot_foot_traffic * storefront.flow_share
+
+	var entry_result := _calc_entry_rate(
+		region, storefront, category, product, store_state, slot, is_non_default_slot)
+	p.entry_rate = entry_result.rate
+	p.modifiers.append_array(entry_result.mods)
+
+	p.visitors = floori(p.reachable_traffic * p.entry_rate)
+
+	var conv_result := _calc_conversion_rate(category, store_state, player_state, has_key_staff)
+	p.conversion_rate = conv_result.rate
+	p.missing_key_staff_active = conv_result.missing_key_staff_active
+	p.modifiers.append_array(conv_result.mods)
+
+	var hourly_cap := _calc_hourly_capacity(storefront, category, has_key_staff)
+	p.slot_capacity = floori(hourly_cap * SettlementConfig.SLOT_HOURS[slot])
+
+	return p
+
+
+## 步骤8-11：用 CustomerSimulator 逐事件模拟出的真实计数，拼装完整结果。
+static func finalize_from_simulation(
+		params: Dictionary,
+		slot: String,
+		day: int,
+		category: CategoryData,
+		product: ProductData,
+		inventory_limit: int,
+		sim: CustomerSimulator,
+) -> SettlementResult:
+	var r := SettlementResult.new()
+	r.slot = slot
+	r.day = day
+	r.category_id = category.id
+	r.category_name = category.name
+	r.product_id = product.id
+	r.product_name = product.name
+	r.is_open = params.is_open
+	r.not_open_reason = params.not_open_reason
+	r.missing_key_staff_active = params.missing_key_staff_active
+
+	# ── 修复点：显式构造 Array[Dictionary]，而不是直接赋值普通 Array ──
+	var typed_modifiers: Array[Dictionary] = []
+	typed_modifiers.append_array(params.modifiers)
+	r.modifiers = typed_modifiers
+
+	r.slot_foot_traffic = params.slot_foot_traffic
+	r.reachable_traffic = params.reachable_traffic
+	r.entry_rate = params.entry_rate
+	r.conversion_rate = params.conversion_rate
+	r.slot_capacity = params.slot_capacity
+	r.inventory_limit = inventory_limit
+
+	if not params.is_open or sim == null:
+		_build_summary(r)
+		return r
+
+	r.visitors = sim.visitors_so_far
+	r.theoretical_orders = sim.converted_count
+	r.actual_orders = sim.actual_orders
+	r.inventory_used = sim.actual_orders
+
+	r.lost_no_entry = maxi(0, floori(params.reachable_traffic) - r.visitors)
+	r.lost_no_conversion = maxi(0, r.visitors - r.theoretical_orders)
+	r.lost_capacity = sim.rejected_capacity_count
+	r.lost_inventory = sim.rejected_inventory_count
+
+	r.revenue = sim.revenue
+	r.ingredient_cost = sim.ingredient_cost
+	r.staff_cost = _calc_staff_cost(false, "standard", false)
+	r.rent_cost = 0.0
+	r.utility_cost = sim.utility_cost
+	r.waste_cost = _calc_waste_cost(sim.unit_ingredient_cost, inventory_limit, r.actual_orders)
+	r.profit = r.revenue - r.ingredient_cost - r.staff_cost \
+		- r.rent_cost - r.utility_cost - r.waste_cost
+
+	_calc_reputation_stress(r, category, GameManager.store_state, GameManager.player_state)
+	_build_summary(r)
+	return r
+
 # ── 私有：判断是否周末 ────────────────────────────────────
 static func _is_weekend_day(day: int) -> bool:
 	return (day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS

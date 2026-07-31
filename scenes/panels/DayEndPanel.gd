@@ -20,6 +20,7 @@ func _on_confirm_pressed() -> void:
 
 func _format_summary(day: int, s: Dictionary) -> String:
 	var state := GameManager.store_state
+	var player := GameManager.player_state
 	var text := "[b]═══ 第%d天 · 日结报告 ═══[/b]\n\n" % day
 
 	text += "[b]【当日财务汇总】[/b]\n"
@@ -44,14 +45,14 @@ func _format_summary(day: int, s: Dictionary) -> String:
 		rep_color, s.reputation_delta, state.reputation
 	]
 	text += "压力：%+.1f  （当前 %.1f / 100）\n\n" % [
-		s.stress_delta, state.stress
+		s.stress_delta, player.stress
 	]
 
-	text += "[b]当前现金：%.0f 元[/b]\n" % state.cash
+	text += "[b]当前现金：%.0f 元[/b]\n" % player.cash
 
-	if state.cash < 0.0:
+	if player.cash < 0.0:
 		text += "\n[color=red][b]⚠ 现金已为负，门店面临倒闭风险！[/b][/color]\n"
-	elif state.stress >= SettlementConfig.STRESS_HIGH_THRESHOLD:
+	elif player.stress >= SettlementConfig.STRESS_HIGH_THRESHOLD:
 		text += "\n[color=orange]⚠ 压力值偏高，可能影响服务质量[/color]\n"
 
 	return text

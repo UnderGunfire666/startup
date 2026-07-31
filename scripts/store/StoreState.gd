@@ -2,14 +2,14 @@ class_name StoreState
 extends RefCounted
 
 enum PreOpenStage {
-	ORIGIN_SELECTION,
+	CHARACTER_CREATION,
 	REGION_RESEARCH,
 	STOREFRONT_SELECTION,
 	STORE_SETUP,
 	OPEN_FOR_BUSINESS
 }
 
-var pre_open_stage: PreOpenStage = PreOpenStage.ORIGIN_SELECTION
+var pre_open_stage: PreOpenStage = PreOpenStage.CHARACTER_CREATION
 var selected_origin_id: String = ""
 var researched_region_ids: Array[String] = []
 var inspected_storefront_ids: Array[String] = []
@@ -229,7 +229,10 @@ func to_save_dict() -> Dictionary:
 
 static func from_save_dict(data: Dictionary) -> StoreState:
 	var s := StoreState.new()
-	s.pre_open_stage = data.get("pre_open_stage", PreOpenStage.ORIGIN_SELECTION) as PreOpenStage
+	s.pre_open_stage = data.get(
+	"pre_open_stage",
+	PreOpenStage.CHARACTER_CREATION
+) as PreOpenStage
 	s.selected_origin_id = data.get("selected_origin_id", "")
 
 	var researched_raw: Array = data.get("researched_region_ids", [])

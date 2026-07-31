@@ -10,8 +10,8 @@ extends Control
 @onready var save_load_bar: HBoxContainer = \
 	$MarginContainer/RootVBox/SaveLoadBar
 
-@onready var origin_selection_panel: PanelContainer = \
-	$MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs/OriginSelectionPanel
+@onready var character_creation_panel: PanelContainer = \
+	$MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs/CharacterCreationPanel
 
 @onready var region_research_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs/RegionResearchPanel
@@ -43,7 +43,7 @@ var settlement_history: Array[Dictionary] = []
 func _ready() -> void:
 	_setup_tab_titles()
 
-	origin_selection_panel.origin_selected.connect(_on_origin_selected)
+	character_creation_panel.character_created.connect(_on_character_created)
 	region_research_panel.region_selected.connect(_on_region_selected)
 	storefront_panel.storefront_selected.connect(_on_storefront_selected)
 	category_manager_panel.category_changed.connect(_on_category_changed)
@@ -60,7 +60,7 @@ func _setup_tab_titles() -> void:
 	main_tabs.set_tab_title(0, "个人")
 	main_tabs.set_tab_title(1, "店铺")
 
-	player_sub_tabs.set_tab_title(0, "出身选择")
+	player_sub_tabs.set_tab_title(0, "创建角色")
 	player_sub_tabs.set_tab_title(1, "区域调研")
 	player_sub_tabs.set_tab_title(2, "门面选择")
 
@@ -71,17 +71,17 @@ func _setup_tab_titles() -> void:
 	store_sub_tabs.set_tab_title(4, "历史统计")
 
 
-func _on_origin_selected() -> void:
+func _on_character_created() -> void:
 	settlement_history.clear()
 
-	_refresh_origin_panel()
+	_refresh_character_panel()
 	_refresh_region_panel()
 	_refresh_category_panel()
 	_refresh_procurement_panel()
 	_refresh_operation_panel()
 	_refresh_history_panel()
 
-	# 出身选好后自动跳到区域调研，引导玩家进入下一步行动
+	## 创建完成后，进入区域调研。
 	player_sub_tabs.current_tab = 1
 
 func _on_region_selected() -> void:
@@ -142,7 +142,7 @@ func _on_data_changed() -> void:
 
 
 func _refresh_all_panels() -> void:
-	_refresh_origin_panel()
+	_refresh_character_panel()
 	_refresh_region_panel()
 	storefront_panel.refresh()
 	_refresh_category_panel()
@@ -151,8 +151,8 @@ func _refresh_all_panels() -> void:
 	_refresh_history_panel()
 
 
-func _refresh_origin_panel() -> void:
-	origin_selection_panel.refresh()
+func _refresh_character_panel() -> void:
+	character_creation_panel.refresh()
 
 func _refresh_category_panel() -> void:
 	category_manager_panel.refresh()

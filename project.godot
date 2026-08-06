@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 GameManager="*uid://dpu1trhw83wy"
 SaveManager="*uid://8udx8knlavdf"
 TimeManager="*uid://dp6n1a0m2opiy"
+ScheduleManager="*uid://7p8aova2tlpi"
 
 [display]
 

@@ -23,6 +23,9 @@ var daily_energy_recovery_rate: float = 1.0
 var base_trait_points: int = 0
 var selected_trait_ids: Array[String] = []
 
+var work_hours_today: float = 0.0
+var fatigue_state: String = "normal"
+var energy_debt: float = 0.0
 
 func reset_to_defaults() -> void:
 	is_character_created = false
@@ -130,6 +133,32 @@ func apply_settlement(result: SettlementResult) -> void:
 		100.0
 	)
 
+## 精力增减统一入口：正数优先偿还透支，负数超支记入energy_debt，不截断。
+func apply_energy_delta(delta: float) -> void:
+	if delta >= 0.0:
+		var remaining := delta
+		if energy_debt > 0.0:
+			var pay := minf(energy_debt, remaining)
+			energy_debt -= pay
+			remaining -= pay
+		energy = minf(max_energy, energy + remaining)
+	else:
+		var cost := -delta
+		if energy >= cost:
+			energy -= cost
+		else:
+			var overflow := cost - energy
+			energy = 0.0
+			energy_debt += overflow
+
+
+## 每日结算：应用前一日过劳遗留惩罚，重置当日工作时长与疲惫状态。
+func start_new_day() -> void:
+	var penalty := ScheduleConfig.get_overwork_penalty(work_hours_today)
+	if penalty > 0.0:
+		apply_energy_delta(-penalty)
+	work_hours_today = 0.0
+	fatigue_state = "normal"
 
 func to_save_dict() -> Dictionary:
 	return {

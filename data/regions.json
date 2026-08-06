@@ -1,44 +1,62 @@
 [
-  {
-	"id": "A001",
-	"name": "科技园商圈",
-	"radiation_population": 28000,
-	"population_density": "high",
-	"primary_groups": ["白领", "上班族"],
-	"secondary_groups": ["学生"],
-	"spending_power": "medium",
-	"dwell_time": "low",
-	"traffic_sources": ["地铁", "写字楼"],
-	"competition_level": "high",
-	"rent_baseline": "high",
-	"hourly_foot_traffic_by_slot": {
-	  "dawn": 900,
-	  "noon": 1600,
-	  "night": 1100
+	{
+		"id": "A001",
+		"name": "科技园商圈",
+		"radiation_population": 28000.0,
+		"population_density": "high",
+		"primary_groups": [
+			"白领",
+			"上班族"
+		],
+		"secondary_groups": [
+			"学生"
+		],
+		"spending_power": "medium",
+		"dwell_time": "low",
+		"traffic_sources": [
+			"地铁",
+			"写字楼"
+		],
+		"competition_level": "high",
+		"rent_baseline": "high",
+		"hourly_foot_traffic_by_slot": {
+			"midnight": 35.0,
+			"dawn": 900.0,
+			"noon": 1600.0,
+			"night": 1100.0
+		},
+		"weekend_modifier": 0.6,
+		"notes": "工作日客流为主，周末客流明显下降",
+		"research_cost": 800.0
 	},
-	"weekend_modifier": 0.6,
-	"notes": "工作日客流为主，周末客流明显下降",
-	"research_cost": 800.0
-  },
-  {
-	"id": "A002",
-	"name": "老城生活区",
-	"radiation_population": 19000,
-	"population_density": "medium",
-	"primary_groups": ["家庭", "老人"],
-	"secondary_groups": ["学生"],
-	"spending_power": "low",
-	"dwell_time": "medium",
-	"traffic_sources": ["公交", "菜市场"],
-	"competition_level": "medium",
-	"rent_baseline": "low",
-	"hourly_foot_traffic_by_slot": {
-	  "dawn": 700,
-	  "noon": 900,
-	  "night": 1000
-	},
-	"weekend_modifier": 1.2,
-	"notes": "居民区为主，周末家庭出行客流上涨",
-	"research_cost": 600.0
-  }
+	{
+		"id": "A002",
+		"name": "老城生活区",
+		"radiation_population": 19000.0,
+		"population_density": "medium",
+		"primary_groups": [
+			"家庭",
+			"老人"
+		],
+		"secondary_groups": [
+			"学生"
+		],
+		"spending_power": "low",
+		"dwell_time": "medium",
+		"traffic_sources": [
+			"公交",
+			"菜市场"
+		],
+		"competition_level": "medium",
+		"rent_baseline": "low",
+		"hourly_foot_traffic_by_slot": {
+			"midnight": 150.0,
+			"dawn": 700.0,
+			"noon": 900.0,
+			"night": 1000.0
+		},
+		"weekend_modifier": 1.2,
+		"notes": "居民区为主，周末家庭出行客流上涨",
+		"research_cost": 600.0
+	}
 ]

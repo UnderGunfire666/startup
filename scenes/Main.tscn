@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/panels/CharacterCreationPanel.tscn" id="9_character"]
 [ext_resource type="PackedScene" uid="uid://c3nwhfj115pun" path="res://scenes/panels/DayEndPanel.tscn" id="10_dayend"]
 [ext_resource type="PackedScene" uid="uid://dmvtdi23pfj6m" path="res://scenes/panels/SaveLoadBar.tscn" id="11_saveload"]
+[ext_resource type="PackedScene" uid="uid://bbn17k0t337nv" path="res://scenes/panels/SchedulePanel.tscn" id="12_schedule"]
 
 [node name="Main" type="Control" unique_id=401657002]
 layout_mode = 3
@@ -79,6 +80,11 @@ visible = false
 layout_mode = 2
 metadata/_tab_index = 2
 
+[node name="SchedulePanel" parent="MarginContainer/RootVBox/MainTabs" unique_id=1222943830 instance=ExtResource("12_schedule")]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 1
+
 [node name="StorePanel" type="MarginContainer" parent="MarginContainer/RootVBox/MainTabs" unique_id=1891057924]
 visible = false
 layout_mode = 2
@@ -86,7 +92,7 @@ theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
-metadata/_tab_index = 1
+metadata/_tab_index = 2
 
 [node name="StoreSubTabs" type="TabContainer" parent="MarginContainer/RootVBox/MainTabs/StorePanel" unique_id=465638353]
 layout_mode = 2

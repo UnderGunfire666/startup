@@ -7,6 +7,7 @@ func save_game() -> bool:
 	var data := {
 		"player_state": GameManager.player_state.to_save_dict(),
 		"store_state": GameManager.store_state.to_save_dict(),
+		"time_manager": TimeManager.to_save_dict(),   # ← 新增
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -28,9 +29,11 @@ func load_game() -> bool:
 
 	var player_data: Dictionary = parsed.get("player_state", {})
 	var store_data: Dictionary = parsed.get("store_state", {})
+	var time_data: Dictionary = parsed.get("time_manager", {})   # ← 新增
 
 	GameManager.player_state = PlayerState.from_save_dict(player_data)
 	GameManager.store_state = StoreState.from_save_dict(store_data)
+	TimeManager.apply_save_dict(time_data)   # ← 新增：旧存档没有这个键时走默认值，不会报错
 	GameManager._sync_data_objects()
 	return true
 

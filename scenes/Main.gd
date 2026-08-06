@@ -37,6 +37,9 @@ extends Control
 @onready var day_end_panel: PopupPanel = \
 	$DayEndPanel
 
+@onready var schedule_panel: PanelContainer = \
+	$MarginContainer/RootVBox/MainTabs/SchedulePanel
+
 var settlement_history: Array[Dictionary] = []
 
 
@@ -58,7 +61,8 @@ func _ready() -> void:
 ## 方便以后调整文案而不用动场景树结构。
 func _setup_tab_titles() -> void:
 	main_tabs.set_tab_title(0, "个人")
-	main_tabs.set_tab_title(1, "店铺")
+	main_tabs.set_tab_title(1, "日程")
+	main_tabs.set_tab_title(2, "店铺")
 
 	player_sub_tabs.set_tab_title(0, "创建角色")
 	player_sub_tabs.set_tab_title(1, "区域调研")
@@ -80,6 +84,7 @@ func _on_character_created() -> void:
 	_refresh_procurement_panel()
 	_refresh_operation_panel()
 	_refresh_history_panel()
+	_refresh_schedule_panel()
 
 	## 创建完成后，进入区域调研。
 	player_sub_tabs.current_tab = 1
@@ -98,6 +103,9 @@ func _on_storefront_selected() -> void:
 
 func _refresh_region_panel() -> void:
 	region_research_panel.refresh()
+
+func _refresh_schedule_panel() -> void:
+	schedule_panel.refresh()
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()
@@ -149,6 +157,7 @@ func _refresh_all_panels() -> void:
 	_refresh_procurement_panel()
 	_refresh_operation_panel()
 	_refresh_history_panel()
+	_refresh_schedule_panel()
 
 
 func _refresh_character_panel() -> void:

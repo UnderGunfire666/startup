@@ -99,7 +99,10 @@ func create_character(data: Dictionary) -> Dictionary:
 	})
 
 	store_state.pre_open_stage = StoreState.PreOpenStage.REGION_RESEARCH
-
+	
+	TimeManager.reset()
+	ScheduleManager.reset_for_new_game()
+	
 	return {
 		"success": true,
 		"reason": "创业者「%s」已创建，初始资金 ¥%.0f" % [

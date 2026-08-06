@@ -38,10 +38,14 @@ func _ready() -> void:
 	owner_present_check.button_pressed = GameManager.store_state.owner_present
 	owner_present_check.toggled.connect(_on_owner_present_toggled)
 
-	pause_button.pressed.connect(func(): TimeManager.set_speed(TimeManager.Speed.PAUSED))
-	speed1_button.pressed.connect(func(): TimeManager.set_speed(TimeManager.Speed.X1))
-	speed2_button.pressed.connect(func(): TimeManager.set_speed(TimeManager.Speed.X2))
-	speed5_button.pressed.connect(func(): TimeManager.set_speed(TimeManager.Speed.X5))
+	pause_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.PAUSED))
+	speed1_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.X1))
+	speed2_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.X2))
+	speed5_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.X5))
 
 	TimeManager.clock_updated.connect(_on_clock_updated)
 	TimeManager.slot_completed.connect(_on_slot_completed)
@@ -135,7 +139,7 @@ func refresh_display() -> void:
 	reputation_label.text = "口碑：%.1f / 100" % state.reputation
 	stress_label.text     = "压力：%.1f / 100" % GameManager.player_state.stress
 
-	var speed_controls_enabled := state.is_open
+	var speed_controls_enabled := GameManager.player_state.is_character_created
 	pause_button.disabled  = not speed_controls_enabled
 	speed1_button.disabled = not speed_controls_enabled
 	speed2_button.disabled = not speed_controls_enabled

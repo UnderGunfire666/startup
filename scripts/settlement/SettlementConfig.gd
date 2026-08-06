@@ -2,18 +2,20 @@ class_name SettlementConfig
 
 # ── 时段等价小时数 ──────────────────────────────────────
 const SLOT_HOURS: Dictionary = {
-	"dawn":  4,
-	"noon":  2,
-	"night": 6
+	"midnight": 5,
+	"dawn":     4,
+	"noon":     2,
+	"night":    6
 }
 
 const SLOT_NAMES: Dictionary = {
-	"dawn":  "清晨",
-	"noon":  "午间",
-	"night": "晚夜"
+	"midnight": "深夜",
+	"dawn":     "清晨",
+	"noon":     "午间",
+	"night":    "晚夜"
 }
 
-const SLOT_ORDER: Array = ["dawn", "noon", "night"]
+const SLOT_ORDER: Array = ["midnight", "dawn", "noon", "night"]
 
 # ── 到店率范围（原0.15上限过低，调整为更真实区间） ──────────
 const ENTRY_RATE_MIN: float = 0.02

@@ -10,8 +10,12 @@ enum PreOpenStage {
 }
 
 var pre_open_stage: PreOpenStage = PreOpenStage.CHARACTER_CREATION
-var selected_origin_id: String = ""
-var researched_region_ids: Array[String] = []
+
+## 区域的了解程度/兴趣程度，0-100%，key为region_id。
+## 不设值时默认0（见下面两个getter）。
+var region_familiarity: Dictionary = {}
+var region_interest: Dictionary = {}
+
 var inspected_storefront_ids: Array[String] = []
 var signed_storefront_id: String = ""
 var is_open: bool = false
@@ -20,7 +24,6 @@ var inventory_units: int = SettlementConfig.INITIAL_INVENTORY
 var inventory_capacity: int = 200
 var reputation: float = SettlementConfig.INITIAL_REPUTATION
 var current_day: int = 1
-var current_slot_index: int = 0
 
 var selected_region_id: String = ""
 var selected_storefront_id: String = ""
@@ -39,17 +42,14 @@ var total_lost_capacity: int = 0
 var missing_key_staff_penalty_count: int = 0
 var daily_history: Array[Dictionary] = []
 
-func get_current_slot() -> String:
-	return SettlementConfig.SLOT_ORDER[current_slot_index]
 
-func is_last_slot_of_day() -> bool:
-	return current_slot_index == SettlementConfig.SLOT_ORDER.size() - 1
+func get_region_familiarity(region_id: String) -> float:
+	return float(region_familiarity.get(region_id, 0.0))
 
-func advance_slot() -> void:
-	current_slot_index += 1
-	if current_slot_index >= SettlementConfig.SLOT_ORDER.size():
-		current_slot_index = 0
-		current_day += 1
+
+func get_region_interest(region_id: String) -> float:
+	return float(region_interest.get(region_id, 0.0))
+
 
 func get_used_area() -> float:
 	var total := 0.0
@@ -57,10 +57,12 @@ func get_used_area() -> float:
 		total += slot.allocated_area
 	return total
 
+
 func get_available_area(storefront: StorefrontData) -> float:
 	if storefront == null:
 		return 0.0
 	return storefront.area - get_used_area()
+
 
 func has_category(category_id: String) -> bool:
 	for slot in category_slots:
@@ -68,11 +70,13 @@ func has_category(category_id: String) -> bool:
 			return true
 	return false
 
+
 func get_slot_by_category(category_id: String) -> StoreCategorySlot:
 	for slot in category_slots:
 		if slot.category_id == category_id:
 			return slot
 	return null
+
 
 func get_total_inventory_across_slots() -> int:
 	var total := 0
@@ -80,11 +84,14 @@ func get_total_inventory_across_slots() -> int:
 		total += slot.get_total_inventory()
 	return total
 
+
 func get_ingredient_stock(ingredient_id: String) -> float:
 	return ingredient_stock.get(ingredient_id, 0.0)
 
+
 func set_ingredient_stock(ingredient_id: String, amount: float) -> void:
 	ingredient_stock[ingredient_id] = maxf(0.0, amount)
+
 
 func get_max_produceable_by_ingredients(product: ProductData) -> int:
 	if product.recipe.is_empty():
@@ -98,8 +105,10 @@ func get_max_produceable_by_ingredients(product: ProductData) -> int:
 		max_units = minf(max_units, floorf(available / qty_per_unit))
 	return int(max_units) if max_units != INF else 999999
 
+
 func get_ingredient_avg_cost(ingredient_id: String) -> float:
 	return float(ingredient_avg_cost.get(ingredient_id, 0.0))
+
 
 func add_ingredient_stock(
 		ingredient_id: String,
@@ -123,6 +132,7 @@ func add_ingredient_stock(
 	ingredient_stock[ingredient_id] = new_stock
 	ingredient_avg_cost[ingredient_id] = new_avg_cost
 
+
 func consume_ingredients(product: ProductData, units_sold: int) -> void:
 	if units_sold <= 0:
 		return
@@ -130,11 +140,11 @@ func consume_ingredients(product: ProductData, units_sold: int) -> void:
 		var current: float = get_ingredient_stock(r.ingredient_id)
 		ingredient_stock[r.ingredient_id] = maxf(0.0, current - r.quantity * units_sold)
 
+
 func reset_to_defaults() -> void:
 	inventory_units = SettlementConfig.INITIAL_INVENTORY
 	reputation = SettlementConfig.INITIAL_REPUTATION
 	current_day = 1
-	current_slot_index = 0
 	category_slots.clear()
 	total_revenue = 0.0
 	total_cost = 0.0
@@ -145,6 +155,7 @@ func reset_to_defaults() -> void:
 	daily_history.clear()
 	ingredient_stock.clear()
 	ingredient_avg_cost.clear()
+
 
 ## 结算后应用店铺层面的变化：口碑、累计统计、历史记录。
 ## 财务（cash）与压力（stress）已改由 PlayerState.apply_settlement() 处理。
@@ -171,6 +182,7 @@ func apply_settlement(result: SettlementResult) -> void:
 		"lost_capacity": result.lost_capacity,
 	})
 
+
 func get_day_summary(day: int) -> Dictionary:
 	var s := {
 		"revenue": 0.0, "ingredient_cost": 0.0, "staff_cost": 0.0,
@@ -196,23 +208,24 @@ func get_day_summary(day: int) -> Dictionary:
 		s.lost_capacity += entry.get("lost_capacity", 0)
 	return s
 
-# ── 存档序列化（version 4：移除 cash/stress，转由 PlayerState 序列化） ──
+
+# ── 存档序列化（version 6：区域改为了解/兴趣百分比，删除slot相关字段） ──
 func to_save_dict() -> Dictionary:
 	var slots_data: Array = []
 	for slot in category_slots:
 		slots_data.append(slot.to_dict())
 	return {
-		"version": 4,
+		"version": 6,
 		"pre_open_stage": pre_open_stage,
-		"selected_origin_id": selected_origin_id,
-		"researched_region_ids": researched_region_ids,
+		"region_familiarity": region_familiarity,
+		"region_interest": region_interest,
 		"inspected_storefront_ids": inspected_storefront_ids,
 		"signed_storefront_id": signed_storefront_id,
 		"is_open": is_open,
 		"inventory_units": inventory_units,
 		"inventory_capacity": inventory_capacity,
 		"reputation": reputation,
-		"current_day": current_day, "current_slot_index": current_slot_index,
+		"current_day": current_day,
 		"selected_region_id": selected_region_id,
 		"selected_storefront_id": selected_storefront_id,
 		"owner_present": owner_present,
@@ -227,19 +240,16 @@ func to_save_dict() -> Dictionary:
 		"ingredient_avg_cost": ingredient_avg_cost,
 	}
 
+
 static func from_save_dict(data: Dictionary) -> StoreState:
 	var s := StoreState.new()
 	s.pre_open_stage = data.get(
-	"pre_open_stage",
-	PreOpenStage.CHARACTER_CREATION
-) as PreOpenStage
-	s.selected_origin_id = data.get("selected_origin_id", "")
+		"pre_open_stage",
+		PreOpenStage.CHARACTER_CREATION
+	) as PreOpenStage
 
-	var researched_raw: Array = data.get("researched_region_ids", [])
-	var researched_typed: Array[String] = []
-	for r in researched_raw:
-		researched_typed.append(r)
-	s.researched_region_ids = researched_typed
+	s.region_familiarity = data.get("region_familiarity", {})
+	s.region_interest = data.get("region_interest", {})
 
 	var inspected_raw: Array = data.get("inspected_storefront_ids", [])
 	var inspected_typed: Array[String] = []
@@ -254,13 +264,14 @@ static func from_save_dict(data: Dictionary) -> StoreState:
 	s.inventory_capacity = data.get("inventory_capacity", 200)
 	s.reputation = data.get("reputation", SettlementConfig.INITIAL_REPUTATION)
 	s.current_day = data.get("current_day", 1)
-	s.current_slot_index = data.get("current_slot_index", 0)
 	s.selected_region_id = data.get("selected_region_id", "")
 	s.selected_storefront_id = data.get("selected_storefront_id", "")
 	s.owner_present = data.get("owner_present", false)
+
 	var slots_raw: Array = data.get("category_slots", [])
 	for sd in slots_raw:
 		s.category_slots.append(StoreCategorySlot.from_dict(sd))
+
 	s.total_revenue = data.get("total_revenue", 0.0)
 	s.total_cost = data.get("total_cost", 0.0)
 	s.total_orders = data.get("total_orders", 0)
@@ -275,4 +286,5 @@ static func from_save_dict(data: Dictionary) -> StoreState:
 	for h in history_raw:
 		history_typed.append(h)
 	s.daily_history = history_typed
+
 	return s

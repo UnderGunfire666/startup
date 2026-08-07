@@ -5,7 +5,7 @@ extends Resource
 @export var category_id: String
 @export var name: String
 @export var target_groups: Array[String] = []
-@export var preferred_slots: Array[String] = []
+@export var preferred_hour_ranges: Array[Vector2i] = []
 @export var price_tier: String
 @export var average_price: float
 @export var ingredient_cost_per_unit: float = 3.0

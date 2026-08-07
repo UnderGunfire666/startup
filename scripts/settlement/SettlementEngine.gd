@@ -1,123 +1,7 @@
 class_name SettlementEngine
-## 纯计算类，无副作用，不读写任何全局状态。
-## 所有输入通过参数传入，输出为 SettlementResult。
-## 注：has_key_staff 与 strategy 现在由调用方（GameManager）针对每个品类实例
-## 显式传入，不再从 state 上读取，因为一个门店可以同时经营多个品类，
-## 每个品类的关键员工配置和营业策略是独立的。
-## 门面基础租金与基础水电已改由 GameManager 每时段统一结算一次，
-## 此处不再计入商品级结算，避免多商品/多品类时被重复扣除。
+## 纯计算类，无副作用。改动：结算单位从"slot"变成"hour"（0-23的单个小时），
+## 营业判定改为查 StoreCategorySlot.open_hour_ranges，不再依赖策略。
 
-static func calculate(
-		region: RegionData,
-		storefront: StorefrontData,
-		category: CategoryData,
-		product: ProductData,
-		store_state: StoreState,
-		player_state: PlayerState,
-		slot: String,
-		day: int,
-		has_key_staff: bool,
-		strategy: String,
-		product_inventory: int,
-		unit_ingredient_cost: float,
-		unit_utility_cost: float,
-
-) -> SettlementResult:
-
-	var r := SettlementResult.new()
-	r.slot = slot
-	r.day  = day
-	r.category_id = category.id
-	r.category_name = category.name
-	r.product_id = product.id
-
-	# ── 0. 品类适配检查 ─────────────────────────────────────
-	if category.id not in storefront.supported_categories:
-		r.is_open = false
-		r.not_open_reason = "门面[%s]不支持品类[%s]" % [storefront.name, category.name]
-		return r
-
-	# ── 1. 营业时段判断 ──────────────────────────────────────
-	var active_slots := _get_active_slots(category, strategy)
-	if slot not in active_slots:
-		r.is_open = false
-		r.not_open_reason = "策略[%s]下品类[%s]在[%s]不营业" % [
-			strategy,
-			category.name,
-			SettlementConfig.SLOT_NAMES[slot]
-		]
-		return r
-	r.is_open = true
-
-	var is_non_default_slot := (slot not in category.default_open_slots)
-
-	# ── 2. 区域时段人流（接入周末系数 + 每日随机波动，让人流更真实） ──
-	var base_traffic: float = float(region.hourly_foot_traffic_by_slot.get(slot, 0))
-	var weekend_mult: float = region.weekend_modifier if _is_weekend_day(day) else 1.0
-	var daily_fluctuation: float = _get_daily_traffic_fluctuation(region.id, slot, day)
-	r.slot_foot_traffic = base_traffic * weekend_mult * daily_fluctuation
-
-	# ── 3. 可触达人流 ────────────────────────────────────────
-	r.reachable_traffic = r.slot_foot_traffic * storefront.flow_share
-
-	# ── 4. 到店率 ────────────────────────────────────────────
-	var entry_result := _calc_entry_rate(
-		region, storefront, category, product, store_state, slot,
-		is_non_default_slot
-		)
-	r.entry_rate = entry_result.rate
-	r.modifiers.append_array(entry_result.mods)
-
-	# ── 5. 进店人数 ──────────────────────────────────────────
-	r.visitors = floori(r.reachable_traffic * r.entry_rate)
-
-	# ── 6. 成交率 ────────────────────────────────────────────
-	var conv_result := _calc_conversion_rate(category, store_state, player_state, has_key_staff)
-	r.conversion_rate = conv_result.rate
-	r.missing_key_staff_active = conv_result.missing_key_staff_active
-	r.modifiers.append_array(conv_result.mods)
-
-	# ── 7. 服务容量 ──────────────────────────────────────────
-	var hourly_cap := _calc_hourly_capacity(storefront, category, has_key_staff)
-	r.slot_capacity = floori(hourly_cap * SettlementConfig.SLOT_HOURS[slot])
-
-	# ── 8. 实际订单 ──────────────────────────────────────────
-	r.theoretical_orders = floori(r.visitors * r.conversion_rate)
-	r.inventory_limit = product_inventory
-	
-	var after_cap      := mini(r.theoretical_orders, r.slot_capacity)
-	r.actual_orders    = mini(after_cap, r.inventory_limit)
-	r.inventory_used   = r.actual_orders
-
-	r.lost_no_entry     = floori(r.reachable_traffic) - r.visitors
-	r.lost_no_conversion = maxi(0, r.visitors - r.theoretical_orders)
-	r.lost_capacity     = maxi(0, r.theoretical_orders - r.slot_capacity)
-	r.lost_inventory    = maxi(0, after_cap - r.actual_orders)
-
-	# ── 9. 财务 ──────────────────────────────────────────────
-	r.revenue = r.actual_orders * product.average_price
-	r.ingredient_cost = r.actual_orders * unit_ingredient_cost
-	r.staff_cost = _calc_staff_cost(has_key_staff, strategy, is_non_default_slot)
-	r.rent_cost = 0.0  # 门面基础租金已改为由 GameManager 每时段统一结算一次
-	r.utility_cost = r.actual_orders * unit_utility_cost  # 商品制作产生的额外水电消耗
-	r.waste_cost = _calc_waste_cost(
-		unit_ingredient_cost,
-		product_inventory,
-		r.actual_orders
-	)
-	r.profit = r.revenue - r.ingredient_cost - r.staff_cost \
-		- r.rent_cost - r.utility_cost - r.waste_cost
-
-	# ── 10. 口碑与压力 ───────────────────────────────────────
-	_calc_reputation_stress(r, category, store_state, player_state)
-
-	# ── 11. 原因摘要 ─────────────────────────────────────────
-	_build_summary(r)
-
-	return r
-
-## 步骤0-7：只算漏斗参数，不产生任何订单/财务结果。
-## 供 CustomerSimulator 在时段开始时读取一次即可驱动整个时段的逐事件模拟。
 static func calculate_params(
 		region: RegionData,
 		storefront: StorefrontData,
@@ -125,9 +9,9 @@ static func calculate_params(
 		product: ProductData,
 		store_state: StoreState,
 		player_state: PlayerState,
-		slot: String,
+		hour: int,
+		open_hour_ranges: Array[Vector2i],
 		has_key_staff: bool,
-		strategy: String,
 ) -> Dictionary:
 	var p := {
 		"is_open": true, "not_open_reason": "",
@@ -142,23 +26,21 @@ static func calculate_params(
 		p.not_open_reason = "门面[%s]不支持品类[%s]" % [storefront.name, category.name]
 		return p
 
-	var active_slots := _get_active_slots(category, strategy)
-	if slot not in active_slots:
+	if not _hour_in_ranges(hour, open_hour_ranges):
 		p.is_open = false
-		p.not_open_reason = "策略[%s]下品类[%s]在[%s]不营业" % [
-			strategy, category.name, SettlementConfig.SLOT_NAMES[slot]]
+		p.not_open_reason = "品类[%s]未配置%02d:00这个时段营业" % [category.name, hour]
 		return p
 
-	var is_non_default_slot := (slot not in category.default_open_slots)
+	var is_off_suggested := not _hour_in_ranges(hour, category.suggested_open_hour_ranges)
 
-	var base_traffic: float = float(region.hourly_foot_traffic_by_slot.get(slot, 0))
+	var base_traffic: float = float(region.hourly_foot_traffic_by_hour[hour]) \
+		if hour >= 0 and hour < region.hourly_foot_traffic_by_hour.size() else 0.0
 	var weekend_mult: float = region.weekend_modifier if _is_weekend_day(store_state.current_day) else 1.0
-	var daily_fluctuation: float = _get_daily_traffic_fluctuation(region.id, slot, store_state.current_day)
+	var daily_fluctuation: float = _get_daily_traffic_fluctuation(region.id, hour, store_state.current_day)
 	p.slot_foot_traffic = base_traffic * weekend_mult * daily_fluctuation
 	p.reachable_traffic = p.slot_foot_traffic * storefront.flow_share
 
-	var entry_result := _calc_entry_rate(
-		region, storefront, category, product, store_state, slot, is_non_default_slot)
+	var entry_result := _calc_entry_rate(region, storefront, category, product, store_state, hour, is_off_suggested)
 	p.entry_rate = entry_result.rate
 	p.modifiers.append_array(entry_result.mods)
 
@@ -169,16 +51,15 @@ static func calculate_params(
 	p.missing_key_staff_active = conv_result.missing_key_staff_active
 	p.modifiers.append_array(conv_result.mods)
 
-	var hourly_cap := _calc_hourly_capacity(storefront, category, has_key_staff)
-	p.slot_capacity = floori(hourly_cap * SettlementConfig.SLOT_HOURS[slot])
+	## 每次结算恰好覆盖1小时，容量不再需要乘以"这个slot多少小时"。
+	p.slot_capacity = floori(_calc_hourly_capacity(storefront, category, has_key_staff))
 
 	return p
 
 
-## 步骤8-11：用 CustomerSimulator 逐事件模拟出的真实计数，拼装完整结果。
 static func finalize_from_simulation(
 		params: Dictionary,
-		slot: String,
+		hour: int,
 		day: int,
 		category: CategoryData,
 		product: ProductData,
@@ -186,7 +67,7 @@ static func finalize_from_simulation(
 		sim: CustomerSimulator,
 ) -> SettlementResult:
 	var r := SettlementResult.new()
-	r.slot = slot
+	r.slot = "%02d:00" % hour   # SettlementResult.slot字段沿用String类型，直接存文字化的小时标签
 	r.day = day
 	r.category_id = category.id
 	r.category_name = category.name
@@ -196,7 +77,6 @@ static func finalize_from_simulation(
 	r.not_open_reason = params.not_open_reason
 	r.missing_key_staff_active = params.missing_key_staff_active
 
-	# ── 修复点：显式构造 Array[Dictionary]，而不是直接赋值普通 Array ──
 	var typed_modifiers: Array[Dictionary] = []
 	typed_modifiers.append_array(params.modifiers)
 	r.modifiers = typed_modifiers
@@ -224,7 +104,7 @@ static func finalize_from_simulation(
 
 	r.revenue = sim.revenue
 	r.ingredient_cost = sim.ingredient_cost
-	r.staff_cost = _calc_staff_cost(false, "standard", false)
+	r.staff_cost = 0.0
 	r.rent_cost = 0.0
 	r.utility_cost = sim.utility_cost
 	r.waste_cost = _calc_waste_cost(sim.unit_ingredient_cost, inventory_limit, r.actual_orders)
@@ -235,15 +115,20 @@ static func finalize_from_simulation(
 	_build_summary(r)
 	return r
 
-# ── 私有：判断是否周末 ────────────────────────────────────
+
+static func _hour_in_ranges(hour: int, ranges: Array[Vector2i]) -> bool:
+	for r in ranges:
+		if hour >= r.x and hour < r.y:
+			return true
+	return false
+
+
 static func _is_weekend_day(day: int) -> bool:
 	return (day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
 
 
-# ── 私有：每日人流随机波动（确定性种子，同一天同一区域同一时段结果稳定，
-#          方便复盘和存档读取后结果一致，但天与天之间会自然涨跌） ──────
-static func _get_daily_traffic_fluctuation(region_id: String, slot: String, day: int) -> float:
-	var seed_str := "%s_%s_%d" % [region_id, slot, day]
+static func _get_daily_traffic_fluctuation(region_id: String, hour: int, day: int) -> float:
+	var seed_str := "%s_%d_%d" % [region_id, hour, day]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(seed_str)
 	return rng.randf_range(
@@ -251,38 +136,24 @@ static func _get_daily_traffic_fluctuation(region_id: String, slot: String, day:
 		SettlementConfig.TRAFFIC_FLUCTUATION_MAX
 	)
 
-# ── 私有：营业时段列表 ────────────────────────────────────
-static func _get_active_slots(cat: CategoryData, strategy: String) -> Array:
-	match strategy:
-		"standard":
-			return cat.default_open_slots
-		"extend":
-			return SettlementConfig.SLOT_ORDER  # 全时段
-		"shorten":
-			return cat.preferred_slots
-	return cat.default_open_slots
 
-
-# ── 私有：到店率计算 ──────────────────────────────────────
 static func _calc_entry_rate(
 		region: RegionData,
 		storefront: StorefrontData,
 		category: CategoryData,
 		product: ProductData,
 		store_state: StoreState,
-		slot: String,
-		is_non_default_slot: bool,
+		hour: int,
+		is_off_suggested: bool,
 ) -> Dictionary:
-
 	var mods: Array[Dictionary] = []
 	var rate: float = category.base_entry_rate
 	mods.append({label="品类基础到店率[%s]" % category.name,
 				 value=rate, is_positive=true, phase="entry"})
 
-	# 客群匹配
-	var primary_hits   := _count_overlap(product.target_groups, region.primary_groups)
+	var primary_hits := _count_overlap(product.target_groups, region.primary_groups)
 	var secondary_hits := _count_overlap(product.target_groups, region.secondary_groups)
-	var total_target   := product.target_groups.size()
+	var total_target := product.target_groups.size()
 	var group_mod: float
 	if primary_hits + secondary_hits == 0 and total_target > 0:
 		group_mod = SettlementConfig.GROUP_NO_MATCH_PENALTY
@@ -295,46 +166,39 @@ static func _calc_entry_rate(
 					 value=group_mod, is_positive=group_mod >= 0, phase="entry"})
 	rate += group_mod
 
-	# 时段匹配
-	var slot_mod: float
-	if slot in product.preferred_slots:
-		slot_mod = SettlementConfig.SLOT_MATCH_BONUS
-		mods.append({label="时段匹配[%s]" % SettlementConfig.SLOT_NAMES[slot],
-					 value=slot_mod, is_positive=true, phase="entry"})
+	var hour_mod: float
+	if _hour_in_ranges(hour, product.preferred_hour_ranges):
+		hour_mod = SettlementConfig.SLOT_MATCH_BONUS
+		mods.append({label="时段匹配[%02d:00]" % hour,
+					 value=hour_mod, is_positive=true, phase="entry"})
 	else:
-		slot_mod = SettlementConfig.SLOT_MISMATCH_PENALTY
-		mods.append({label="时段不匹配[%s]" % SettlementConfig.SLOT_NAMES[slot],
-					 value=slot_mod, is_positive=false, phase="entry"})
-	rate += slot_mod
+		hour_mod = SettlementConfig.SLOT_MISMATCH_PENALTY
+		mods.append({label="时段不匹配[%02d:00]" % hour,
+					 value=hour_mod, is_positive=false, phase="entry"})
+	rate += hour_mod
 
-	# 非默认时段营业（extend策略）
-	if is_non_default_slot:
-		var ext_pen := SettlementConfig.STRATEGY_EXTEND_ENTRY_PENALTY
-		mods.append({label="延长营业时段惩罚", value=ext_pen,
+	if is_off_suggested:
+		var off_pen := SettlementConfig.OFF_SUGGESTED_HOUR_ENTRY_PENALTY
+		mods.append({label="偏离推荐营业时段惩罚", value=off_pen,
 					 is_positive=false, phase="entry"})
-		rate += ext_pen
+		rate += off_pen
 
-	# 消费能力匹配
 	var spend_key := "%s_%s" % [product.price_tier, region.spending_power]
 	var spend_mod: float = SettlementConfig.SPENDING_POWER_MOD.get(spend_key, 0.0)
 	mods.append({label="价格[%s]×消费能力[%s]" % [product.price_tier, region.spending_power],
 				 value=spend_mod, is_positive=spend_mod >= 0, phase="entry"})
 	rate += spend_mod
 
-	# 装修
 	var deco_mod: float = SettlementConfig.DECORATION_MOD.get(storefront.decoration_level, 0.0)
 	mods.append({label="装修[%s]" % storefront.decoration_level,
 				 value=deco_mod, is_positive=deco_mod >= 0, phase="entry"})
 	rate += deco_mod
 
-	# 差异化
-	var diff_mod: float = SettlementConfig.DIFFERENTIATION_ENTRY_MOD.get(
-		product.differentiation, 0.0)
+	var diff_mod: float = SettlementConfig.DIFFERENTIATION_ENTRY_MOD.get(product.differentiation, 0.0)
 	mods.append({label="差异化[%s]" % product.differentiation,
 				 value=diff_mod, is_positive=diff_mod >= 0, phase="entry"})
 	rate += diff_mod
 
-		# 毛利率偏离建议值（价格相对成本过高会吓跑客人，过低则吸引客人但压缩利润）
 	var actual_margin: float = product.get_actual_margin_rate(product.average_price)
 	var margin_deviation: float = actual_margin - product.suggested_margin_rate
 	var margin_mod: float = clampf(
@@ -346,33 +210,21 @@ static func _calc_entry_rate(
 		actual_margin * 100.0, product.suggested_margin_rate * 100.0],
 		value=margin_mod, is_positive=margin_mod >= 0, phase="entry"})
 	rate += margin_mod
-	
-	# 口碑
+
 	var rep_mod: float = (store_state.reputation - 50.0) / 50.0 \
 					   * SettlementConfig.REPUTATION_MAX_ENTRY_MOD
 	mods.append({label="口碑影响(%.0f)" % store_state.reputation,
 				 value=rep_mod, is_positive=rep_mod >= 0, phase="entry"})
 	rate += rep_mod
 
-	# 停留性 × 品类（饮品甜点在低停留区额外惩罚）
 	if category.id == "beverage_dessert" and region.dwell_time == "low":
 		var dwell_pen := SettlementConfig.DWELL_MISMATCH_PENALTY
 		mods.append({label="低停留性区域不适合饮品甜点",
 					 value=dwell_pen, is_positive=false, phase="entry"})
 		rate += dwell_pen
 
-	# 品类不适配（调试模式强行开店时加惩罚）
-	if category.id not in storefront.supported_categories:
-		var cat_pen := -0.010
-		mods.append({label="门面设备/品类不适配惩罚(调试)",
-					 value=cat_pen, is_positive=false, phase="entry"})
-		rate += cat_pen
-
-	# 竞争（差异化部分抵消）
-	var comp_base: float = SettlementConfig.COMPETITION_PENALTY.get(
-		region.competition_level, 0.0)
-	var diff_offset: float = SettlementConfig.COMPETITION_DIFF_OFFSET.get(
-		product.differentiation, 0.0)
+	var comp_base: float = SettlementConfig.COMPETITION_PENALTY.get(region.competition_level, 0.0)
+	var diff_offset: float = SettlementConfig.COMPETITION_DIFF_OFFSET.get(product.differentiation, 0.0)
 	var net_comp: float = -(comp_base - diff_offset)
 	mods.append({label="竞争压力[%s](差异化抵消%.3f)" % [region.competition_level, diff_offset],
 				 value=net_comp, is_positive=false, phase="entry"})
@@ -382,7 +234,6 @@ static func _calc_entry_rate(
 	return {rate=rate, mods=mods}
 
 
-# ── 私有：成交率计算 ──────────────────────────────────────
 static func _calc_conversion_rate(
 		cat: CategoryData, store_state: StoreState, player_state: PlayerState, has_key_staff: bool
 ) -> Dictionary:
@@ -390,7 +241,6 @@ static func _calc_conversion_rate(
 	var rate: float = SettlementConfig.BASE_CONVERSION_RATE
 	var missing := false
 
-	# 关键员工缺失
 	if cat.key_staff_type != "none" and not has_key_staff:
 		missing = true
 		var pen := -cat.missing_key_staff_conversion_penalty
@@ -398,28 +248,21 @@ static func _calc_conversion_rate(
 					 value=pen, is_positive=false, phase="conversion"})
 		rate += pen
 
-	# 亲自坐镇小加成（增加压力）
 	if store_state.owner_present:
-		mods.append({label="亲自坐镇加成", value=0.03,
-					 is_positive=true, phase="conversion"})
+		mods.append({label="亲自坐镇加成", value=0.03, is_positive=true, phase="conversion"})
 		rate += 0.03
 
-	# 高压力惩罚
 	if player_state.stress >= SettlementConfig.STRESS_HIGH_THRESHOLD:
 		var pen := -SettlementConfig.STRESS_CONVERSION_PENALTY
 		mods.append({label="高压力(%.0f)影响服务质量" % player_state.stress,
 					 value=pen, is_positive=false, phase="conversion"})
 		rate += pen
 
-	rate = clampf(rate, SettlementConfig.CONVERSION_RATE_MIN,
-						SettlementConfig.CONVERSION_RATE_MAX)
+	rate = clampf(rate, SettlementConfig.CONVERSION_RATE_MIN, SettlementConfig.CONVERSION_RATE_MAX)
 	return {rate=rate, mods=mods, missing_key_staff_active=missing}
 
 
-# ── 私有：每小时服务容量 ──────────────────────────────────
-static func _calc_hourly_capacity(
-		sf: StorefrontData, cat: CategoryData, has_key_staff: bool
-) -> float:
+static func _calc_hourly_capacity(sf: StorefrontData, cat: CategoryData, has_key_staff: bool) -> float:
 	var cap: float = float(sf.hourly_capacity_base)
 	cap *= SettlementConfig.SERVICE_SPEED_MOD.get(cat.base_service_speed, 1.0)
 	cap *= SettlementConfig.EQUIPMENT_CAPACITY_MOD.get(sf.equipment_condition, 1.0)
@@ -428,53 +271,33 @@ static func _calc_hourly_capacity(
 	return cap
 
 
-# ── 私有：员工成本 ────────────────────────────────────────
-## 当前尚未实现员工系统（雇佣、工资、人数完全由玩家决定），
-## 暂时不计入任何员工成本，返回0。has_key_staff/strategy 参数
-## 保留供未来员工系统读取（例如判断该时段是否有对应岗位在岗），
-## 但成本计算将改由员工系统的雇佣列表驱动，与此函数解耦。
-static func _calc_staff_cost(
-		_has_key_staff: bool, _strategy: String, _is_non_default: bool
-) -> float:
-	return 0.0
-
-# ── 私有：损耗成本 ────────────────────────────────────────
-static func _calc_waste_cost(
-		unit_ingredient_cost: float,
-		inventory: int,
-		sold: int
-) -> float:
+static func _calc_waste_cost(unit_ingredient_cost: float, inventory: int, sold: int) -> float:
 	var threshold := int(sold * SettlementConfig.WASTE_THRESHOLD_RATIO)
 	if inventory <= threshold:
 		return 0.0
-
 	var excess := inventory - threshold
-	return excess * unit_ingredient_cost \
-		* SettlementConfig.WASTE_COST_RATIO_OF_INGREDIENT
+	return excess * unit_ingredient_cost * SettlementConfig.WASTE_COST_RATIO_OF_INGREDIENT
 
-# ── 私有：口碑与压力 ──────────────────────────────────────
+
 static func _calc_reputation_stress(r: SettlementResult,
 		cat: CategoryData, store_state: StoreState, _player_state: PlayerState) -> void:
-
 	var order_completion_rate: float = 0.0
 	if r.theoretical_orders > 0:
 		order_completion_rate = float(r.actual_orders) / float(r.theoretical_orders)
 
-	# 口碑
 	var rep_delta: float = 0.0
 	if order_completion_rate >= SettlementConfig.REPUTATION_GOOD_THRESHOLD:
 		rep_delta += 1.5
 	elif order_completion_rate < SettlementConfig.REPUTATION_BAD_THRESHOLD:
 		rep_delta -= 2.0
 	if r.lost_inventory > 0:
-		rep_delta -= 1.0   # 缺货损失口碑
+		rep_delta -= 1.0
 	if cat.key_staff_type != "none" and r.missing_key_staff_active:
 		rep_delta -= cat.missing_key_staff_reputation_penalty
 	r.reputation_delta = clampf(rep_delta,
 		-SettlementConfig.REPUTATION_PER_SLOT_MAX_CHANGE,
 		 SettlementConfig.REPUTATION_PER_SLOT_MAX_CHANGE)
 
-	# 压力
 	var stress_delta: float = 0.0
 	if r.profit < 0:
 		stress_delta += SettlementConfig.STRESS_LOSS_PER_SLOT
@@ -488,11 +311,9 @@ static func _calc_reputation_stress(r: SettlementResult,
 	r.stress_delta = stress_delta
 
 
-# ── 私有：生成原因摘要 ────────────────────────────────────
 static func _build_summary(r: SettlementResult) -> void:
 	var pos_mods := r.modifiers.filter(func(m): return m.is_positive and m.value > 0.001)
 	var neg_mods := r.modifiers.filter(func(m): return not m.is_positive and m.value < -0.001)
-
 	pos_mods.sort_custom(func(a, b): return a.value > b.value)
 	neg_mods.sort_custom(func(a, b): return a.value < b.value)
 
@@ -501,8 +322,6 @@ static func _build_summary(r: SettlementResult) -> void:
 		r.top_positive.append("%s (+%.4f)" % [m.label, m.value])
 
 	r.top_negative = []
-
-	# 未成交原因优先显示
 	if r.lost_inventory > 0:
 		r.top_negative.append("库存不足：损失%d单" % r.lost_inventory)
 	if r.lost_capacity > 0:
@@ -511,7 +330,6 @@ static func _build_summary(r: SettlementResult) -> void:
 		r.top_negative.append("%s (%.4f)" % [m.label, m.value])
 
 
-# ── 工具函数 ──────────────────────────────────────────────
 static func _count_overlap(a: Array, b: Array) -> int:
 	var count := 0
 	for x in a:

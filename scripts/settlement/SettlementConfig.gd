@@ -1,22 +1,5 @@
 class_name SettlementConfig
 
-# ── 时段等价小时数 ──────────────────────────────────────
-const SLOT_HOURS: Dictionary = {
-	"midnight": 5,
-	"dawn":     4,
-	"noon":     2,
-	"night":    6
-}
-
-const SLOT_NAMES: Dictionary = {
-	"midnight": "深夜",
-	"dawn":     "清晨",
-	"noon":     "午间",
-	"night":    "晚夜"
-}
-
-const SLOT_ORDER: Array = ["midnight", "dawn", "noon", "night"]
-
 # ── 到店率范围（原0.15上限过低，调整为更真实区间） ──────────
 const ENTRY_RATE_MIN: float = 0.02
 const ENTRY_RATE_MAX: float = 0.40
@@ -107,9 +90,7 @@ const SERVICE_SPEED_MOD: Dictionary = {
 }
 
 # ── 营业策略修正 ──────────────────────────────────────────
-const STRATEGY_EXTEND_ENTRY_PENALTY: float     = -0.005  # 非默认时段到店率惩罚
-const STRATEGY_EXTEND_COST_MULTIPLIER: float   =  1.20   # 员工成本倍率
-const STRATEGY_SHORTEN_COST_MULTIPLIER: float  =  0.80
+const OFF_SUGGESTED_HOUR_ENTRY_PENALTY: float = -0.005
 
 # ── 损耗配置 ─────────────────────────────────────────────
 const WASTE_THRESHOLD_RATIO: float  = 1.20   # 库存 > 销量×1.20 才计损耗

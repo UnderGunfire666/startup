@@ -17,7 +17,7 @@ static func get_actions() -> Array[ActionDefinition]:
 	list.append(_make_work(
 		"region_research", "区域调研", "调研", 2, 8.0,
 		Vector2i(5, 24), "region_research",
-		{"requires_region_selected": false}
+		{"requires_region_selected": false},
 	))
 
 	list.append(_make_work(
@@ -97,12 +97,12 @@ static func _make(
 	a.requires_character_created = true
 	return a
 
-
 static func _make_work(
 		id: String, name: String, category: String,
 		duration_hours: int, base_energy_cost_per_hour: float,
 		allowed_hour_range: Vector2i, effect_type: String,
-		extra_requirements: Dictionary
+		extra_requirements: Dictionary,
+		effect_scaling: String = "proportional"
 ) -> ActionDefinition:
 	var a := _make(
 		id, name, category, duration_hours, base_energy_cost_per_hour,
@@ -110,4 +110,5 @@ static func _make_work(
 	)
 	for key in extra_requirements:
 		a.set(key, extra_requirements[key])
+	a.effect_scaling = effect_scaling
 	return a

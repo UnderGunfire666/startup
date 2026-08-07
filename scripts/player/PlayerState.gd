@@ -211,3 +211,18 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p.selected_trait_ids = typed_trait_ids
 
 	return p
+
+func get_required_region_familiarity() -> float:
+	return clampf(
+		RegionConfig.DEFAULT_OPEN_FAMILIARITY_THRESHOLD
+			+ get_trait_modifier("region_familiarity_threshold_add", 0.0),
+		0.0, 100.0
+	)
+
+
+func get_required_region_interest() -> float:
+	return clampf(
+		RegionConfig.DEFAULT_OPEN_INTEREST_THRESHOLD
+			+ get_trait_modifier("region_interest_threshold_add", 0.0),
+		0.0, 100.0
+	)

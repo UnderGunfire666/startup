@@ -168,44 +168,69 @@ func get_ingredient_purchase_price(ingredient_id: String) -> float:
 func get_product_unit_utility_cost(product: ProductData) -> float:
 	return product.utility_cost_per_unit
 
-func research_region(region_id: String) -> Dictionary:
+func research_region(region_id: String, gain_amount: float = RegionConfig.FAMILIARITY_GAIN_PER_HOUR) -> Dictionary:
 	var region := get_region(region_id)
 	if region == null:
 		return {"success": false, "reason": "区域不存在"}
 
-	if region_id in store_state.researched_region_ids:
-		return {"success": false, "reason": "该区域已调研"}
-
 	if not player_state.is_character_created:
 		return {"success": false, "reason": "请先完成人物创建"}
 
-	var cost: float = region.research_cost
+	if store_state.get_region_familiarity(region_id) >= 100.0:
+		return {"success": false, "reason": "已完全了解该区域，无需再考察"}
 
+	var cost: float = region.research_cost
 	if player_state.cash < cost:
-		return {"success": false, "reason": "现金不足，调研需要¥%.0f" % cost}
+		return {"success": false, "reason": "现金不足，考察需要¥%.0f" % cost}
 
 	player_state.cash -= cost
-	store_state.researched_region_ids.append(region_id)
+	var new_familiarity := clampf(
+		store_state.get_region_familiarity(region_id) + gain_amount,
+		0.0, 100.0
+	)
+	store_state.region_familiarity[region_id] = new_familiarity
 
 	return {
 		"success": true,
-		"reason": "已完成对「%s」的调研，花费¥%.0f" % [region.name, cost]
+		"reason": "对「%s」的了解程度提升至%.0f%%，花费¥%.0f" % [region.name, new_familiarity, cost]
 	}
 
+## 预留接口：供未来"考察到的具体信息影响兴趣"系统调用。
+func adjust_region_interest(region_id: String, delta: float) -> void:
+	var current := store_state.get_region_interest(region_id)
+	store_state.region_interest[region_id] = clampf(current + delta, 0.0, 100.0)
 
 func select_region(region_id: String) -> Dictionary:
 	if not player_state.is_character_created:
 		return {"success": false, "reason": "请先完成人物创建"}
-	
+
 	if store_state.is_open:
 		return {"success": false, "reason": "门店已开业，不能更换区域"}
-
-	if region_id not in store_state.researched_region_ids:
-		return {"success": false, "reason": "请先调研该区域"}
 
 	var region := get_region(region_id)
 	if region == null:
 		return {"success": false, "reason": "区域不存在"}
+
+	var familiarity := store_state.get_region_familiarity(region_id)
+	var interest := store_state.get_region_interest(region_id)
+	var required_familiarity := player_state.get_required_region_familiarity()
+	var required_interest := player_state.get_required_region_interest()
+
+	if familiarity < required_familiarity:
+		return {
+			"success": false,
+			"reason": "对该区域的了解程度不足（当前%.0f%%，你需要至少%.0f%%），请先考察该区域" % [
+				familiarity, required_familiarity
+			]
+		}
+
+	if interest < required_interest:
+		return {
+			"success": false,
+			"reason": "对该区域的兴趣程度不足（当前%.0f%%，你需要至少%.0f%%）" % [
+				interest, required_interest
+			]
+		}
 
 	store_state.selected_region_id = region_id
 	store_state.selected_storefront_id = ""
@@ -339,7 +364,7 @@ func get_category_options_for_current_store() -> Array[Dictionary]:
 	return options
 
 func add_category_to_store(category_id: String, product_ids: Array[String],
-		has_key_staff: bool = false, strategy: String = "standard") -> Dictionary:
+		has_key_staff: bool = false, open_hour_ranges: Array[Vector2i] = []) -> Dictionary:
 	if current_storefront == null:
 		return {"success": false, "reason": "尚未选择门面"}
 	var cat := get_category(category_id)
@@ -361,7 +386,8 @@ func add_category_to_store(category_id: String, product_ids: Array[String],
 	var slot := StoreCategorySlot.new()
 	slot.category_id = category_id
 	slot.has_key_staff = has_key_staff
-	slot.strategy = strategy
+	## 未指定营业时间时，默认用品类的推荐时间预填，玩家随时可以再改。
+	slot.open_hour_ranges = open_hour_ranges if not open_hour_ranges.is_empty() else cat.suggested_open_hour_ranges.duplicate()
 	slot.allocated_area = cat.required_area
 	for pid in product_ids:
 		var pc := StoreProductConfig.new()
@@ -419,11 +445,11 @@ func set_product_inventory(category_id: String, product_id: String, new_units: i
 	pc.inventory_units = maxi(0, new_units)
 	return true
 
-func set_category_strategy(category_id: String, strategy: String) -> bool:
+func set_category_open_hours(category_id: String, open_hour_ranges: Array[Vector2i]) -> bool:
 	var slot := store_state.get_slot_by_category(category_id)
 	if slot == null:
 		return false
-	slot.strategy = strategy
+	slot.open_hour_ranges = open_hour_ranges
 	return true
 
 func set_category_key_staff(category_id: String, has_staff: bool) -> bool:
@@ -489,80 +515,6 @@ func open_store() -> Dictionary:
 	store_state.is_open = true
 	return {"success": true, "reason": "门店已开业！"}
 
-# ── 结算（现在遍历门店内所有品类实例） ──────────────────
-
-func run_settlement() -> Array[SettlementResult]:
-	last_settlement_error = ""
-	var results: Array[SettlementResult] = []
-
-	if current_region == null or current_storefront == null:
-		last_settlement_error = "尚未选择区域或门面"
-		push_error("GameManager: " + last_settlement_error)
-		return results
-
-	if store_state.category_slots.is_empty():
-		last_settlement_error = "尚未添加任何品类"
-		push_error("GameManager: " + last_settlement_error)
-		return results
-
-	var total_area: float = current_storefront.area
-	for slot in store_state.category_slots:
-		var category := get_category(slot.category_id)
-		if category == null or slot.product_configs.is_empty():
-			continue
-
-		var area_share: float = slot.allocated_area / total_area
-		var product_count: int = slot.product_configs.size()
-
-		for pc in slot.product_configs:
-			var product_template := get_product(pc.product_id)
-			if product_template == null:
-				continue
-
-			var scaled_storefront: StorefrontData = current_storefront.duplicate()
-			scaled_storefront.hourly_capacity_base = int(round(
-				current_storefront.hourly_capacity_base * area_share / product_count))
-			scaled_storefront.flow_share = current_storefront.flow_share / product_count
-
-			var product_instance: ProductData = product_template.duplicate()
-			product_instance.average_price = pc.get_effective_price(product_template)
-			product_instance.recipe = product_template.recipe
-
-			var available_units := store_state.get_max_produceable_by_ingredients(product_template)
-			var unit_ingredient_cost := get_product_unit_ingredient_cost(product_template)
-			var unit_utility_cost := get_product_unit_utility_cost(product_template)
-
-			var result := SettlementEngine.calculate(
-				current_region,
-				scaled_storefront,
-				category,
-				product_instance,
-				store_state,
-				player_state,
-				store_state.get_current_slot(),
-				store_state.current_day,
-				slot.has_key_staff,
-				slot.strategy,
-				available_units,
-				unit_ingredient_cost,
-				unit_utility_cost,
-				)
-
-			var extra_upkeep: float = (category.extra_rent_wan * 10000.0) \
-				/ 30.0 / SettlementConfig.SLOT_ORDER.size() / product_count
-			result.rent_cost += extra_upkeep
-			result.profit -= extra_upkeep
-
-			store_state.consume_ingredients(product_template, result.actual_orders)
-			store_state.apply_settlement(result)
-			player_state.apply_settlement(result)
-			results.append(result)
-
-	return results
-
-func advance_time_only() -> void:
-	store_state.advance_slot()
-
 ## 开始全新一局：完全重建门店与玩家状态，不保留任何选择/进度/存档影响。
 func start_new_game() -> void:
 	store_state = StoreState.new()
@@ -577,8 +529,7 @@ func begin_slot_simulation() -> void:
 	if current_region == null or current_storefront == null or store_state.category_slots.is_empty():
 		return
 
-	var slot := store_state.get_current_slot()
-	var slot_seconds := float(SettlementConfig.SLOT_HOURS[slot]) * 3600.0
+	var hour := TimeManager.get_current_hour_int()
 	var total_area: float = current_storefront.area
 
 	for cat_slot in store_state.category_slots:
@@ -605,7 +556,7 @@ func begin_slot_simulation() -> void:
 
 			var params := SettlementEngine.calculate_params(
 				current_region, scaled_storefront, category, product_instance,
-				store_state, player_state, slot, cat_slot.has_key_staff, cat_slot.strategy)
+				store_state, player_state, hour, cat_slot.open_hour_ranges, cat_slot.has_key_staff)
 
 			var entry := {
 				"sim": null, "params": params, "category": category,
@@ -620,7 +571,7 @@ func begin_slot_simulation() -> void:
 				entry.inventory_limit = mini(available_units, pc.inventory_units)
 
 				var sim := CustomerSimulator.new()
-				sim.setup(params.visitors, slot_seconds, params.conversion_rate,
+				sim.setup(params.visitors, 3600.0, params.conversion_rate,
 					params.slot_capacity, entry.inventory_limit,
 					product_instance.average_price, unit_ingredient_cost, unit_utility_cost)
 				entry.sim = sim
@@ -632,27 +583,27 @@ func advance_slot_simulation(elapsed_seconds: float) -> void:
 		if entry.sim != null:
 			entry.sim.advance(elapsed_seconds)
 
+
 func finalize_slot_simulation() -> Array[SettlementResult]:
 	var results: Array[SettlementResult] = []
-	var slot := store_state.get_current_slot()
+	var hour := TimeManager.get_current_hour_int()
 	var day := store_state.current_day
 
 	for entry in active_simulations:
 		var result: SettlementResult
 		if entry.sim != null:
 			result = SettlementEngine.finalize_from_simulation(
-				entry.params, slot, day, entry.category, entry.product,
+				entry.params, hour, day, entry.category, entry.product,
 				entry.inventory_limit, entry.sim)
 
-			var extra_upkeep: float = (entry.category.extra_rent_wan * 10000.0) \
-				/ 30.0 / SettlementConfig.SLOT_ORDER.size() / entry.product_count
+			var extra_upkeep: float = (entry.category.extra_rent_wan * 10000.0) / 30.0 / 24.0 / entry.product_count
 			result.rent_cost += extra_upkeep
 			result.profit -= extra_upkeep
 
 			store_state.consume_ingredients(entry.product_template, result.actual_orders)
 		else:
 			result = SettlementEngine.finalize_from_simulation(
-				entry.params, slot, day, entry.category, entry.product, 0, null)
+				entry.params, hour, day, entry.category, entry.product, 0, null)
 
 		store_state.apply_settlement(result)
 		player_state.apply_settlement(result)

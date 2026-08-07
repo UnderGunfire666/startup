@@ -1,68 +1,47 @@
 extends PanelContainer
-## 日程面板：排程行动、显示当日12个双小时格、展示执行状态。
-## 时间流逝仍由 TimeManager 的暂停/1x/2x/5x 控制（与营业面板共享同一状态），
-## 这里只是额外提供一份便于随时操作的入口，方便玩家不用切到"营业"标签。
+## "日程"标签：提前规划一整天的行动。改为逐小时列表展示，而不是双小时格子。
 
-const HOUR_CELL_LABELS: Array[String] = [
-	"00:00-02:00", "02:00-04:00", "04:00-06:00", "06:00-08:00",
-	"08:00-10:00", "10:00-12:00", "12:00-14:00", "14:00-16:00",
-	"16:00-18:00", "18:00-20:00", "20:00-22:00", "22:00-24:00",
-]
-
-@onready var day_hour_label: Label = $MarginContainer/RootVBox/StatusBox/DayHourLabel
-@onready var current_action_label: Label = $MarginContainer/RootVBox/StatusBox/CurrentActionLabel
-@onready var energy_label: Label = $MarginContainer/RootVBox/StatusBox/EnergyLabel
-@onready var fatigue_label: Label = $MarginContainer/RootVBox/StatusBox/FatigueLabel
-@onready var store_status_label: Label = $MarginContainer/RootVBox/StatusBox/StoreStatusLabel
-@onready var warning_label: Label = $MarginContainer/RootVBox/WarningLabel
-
-@onready var pause_button: Button = $MarginContainer/RootVBox/SpeedRow/PauseButton
-@onready var speed1_button: Button = $MarginContainer/RootVBox/SpeedRow/Speed1Button
-@onready var speed2_button: Button = $MarginContainer/RootVBox/SpeedRow/Speed2Button
-@onready var speed5_button: Button = $MarginContainer/RootVBox/SpeedRow/Speed5Button
-
-@onready var action_list: VBoxContainer = \
-	$MarginContainer/RootVBox/SplitBox/LeftPanel/ActionScroll/ActionList
+@onready var day_label: Label = $MarginContainer/RootVBox/DayLabel
+@onready var status_label: Label = $MarginContainer/RootVBox/StatusLabel
 @onready var start_hour_option: OptionButton = \
-	$MarginContainer/RootVBox/SplitBox/RightPanel/AddRow/StartHourOption
-@onready var add_button: Button = \
-	$MarginContainer/RootVBox/SplitBox/RightPanel/AddRow/AddButton
-@onready var add_status_label: Label = \
-	$MarginContainer/RootVBox/SplitBox/RightPanel/AddStatusLabel
-@onready var grid_container: GridContainer = \
-	$MarginContainer/RootVBox/SplitBox/RightPanel/GridScroll/ScheduleGrid
+	$MarginContainer/RootVBox/AddRow/StartHourOption
+@onready var action_list: VBoxContainer = \
+	$MarginContainer/RootVBox/ActionScroll/ActionList
+@onready var hour_list: VBoxContainer = \
+	$MarginContainer/RootVBox/HourScroll/HourList
 
-var _selected_action_id: String = ""
+var _last_displayed_hour: int = -1
 
 
 func _ready() -> void:
-	pause_button.toggled.connect(func(pressed: bool):
-		if pressed: TimeManager.set_speed(TimeManager.Speed.PAUSED))
-	speed1_button.toggled.connect(func(pressed: bool):
-		if pressed: TimeManager.set_speed(TimeManager.Speed.X1))
-	speed2_button.toggled.connect(func(pressed: bool):
-		if pressed: TimeManager.set_speed(TimeManager.Speed.X2))
-	speed5_button.toggled.connect(func(pressed: bool):
-		if pressed: TimeManager.set_speed(TimeManager.Speed.X5))
-
-	add_button.pressed.connect(_on_add_pressed)
-
 	TimeManager.clock_updated.connect(_on_clock_updated)
-	ScheduleManager.hour_executed.connect(_on_hour_executed)
-	ScheduleManager.schedule_changed.connect(_refresh_grid)
-	ScheduleManager.action_interrupt.connect(_on_action_interrupt)
-	ScheduleManager.day_schedule_ended.connect(_on_day_schedule_ended)
+	ScheduleManager.schedule_changed.connect(_refresh_all)
 
 	_build_start_hour_options()
-	_build_action_list()
-	_refresh_grid()
-	_refresh_status()
+	_refresh_all()
 
 
 func refresh() -> void:
+	_refresh_all()
+
+
+func _on_clock_updated(hour: int, _m: int, _s: int, _l: String) -> void:
+	_refresh_day_label()
+	## 24格视图没必要跟着时钟每帧重绘，小时数变化时再刷新一次即可，
+	## 这样能达到跟旧的"每小时一次hour_executed"相同的刷新频率。
+	if hour != _last_displayed_hour:
+		_last_displayed_hour = hour
+		_refresh_hour_list()
+
+
+func _refresh_all() -> void:
+	_refresh_day_label()
 	_build_action_list()
-	_refresh_grid()
-	_refresh_status()
+	_refresh_hour_list()
+
+
+func _refresh_day_label() -> void:
+	day_label.text = "第 %d 天的日程安排" % TimeManager.current_day
 
 
 func _build_start_hour_options() -> void:
@@ -88,171 +67,113 @@ func _build_action_list() -> void:
 	for action in ScheduleActionData.get_actions():
 		var check := ScheduleManager.can_schedule_action(action.id, start_hour)
 
-		var row := VBoxContainer.new()
-		row.add_theme_constant_override("separation", 2)
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = "%s（%d小时）" % [action.name, action.duration_hours]
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
 
-		var title := Label.new()
-		title.text = "%s（%d小时）" % [action.name, action.duration_hours]
-		title.add_theme_font_size_override("font_size", 15)
-		row.add_child(title)
+		var region_option: OptionButton = null
+		if action.action_effect_type == "region_research":
+			region_option = OptionButton.new()
+			region_option.custom_minimum_size = Vector2(120, 0)
+			for r in GameManager.all_regions:
+				region_option.add_item(r.name)
+				region_option.set_item_metadata(region_option.item_count - 1, r.id)
+			row.add_child(region_option)
 
-		var desc := Label.new()
-		if action.energy_recovery_per_hour > 0.0:
-			desc.text = "每小时恢复精力 +%.0f｜不计入工作时长" % action.energy_recovery_per_hour
-		else:
-			desc.text = "每小时消耗精力 %.0f｜预计总消耗 %.0f（未计疲惫倍率）" % [
-				action.base_energy_cost_per_hour,
-				action.base_energy_cost_per_hour * action.duration_hours,
-			]
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		row.add_child(desc)
-
-		var select_btn := Button.new()
+		var add_btn := Button.new()
 		if check.can:
-			select_btn.text = "从 %02d:00 开始安排" % start_hour
-			select_btn.disabled = false
+			add_btn.text = "加入 %02d:00" % start_hour
 		else:
-			select_btn.text = "不可安排：%s" % check.reason
-			select_btn.disabled = true
+			add_btn.text = "不可用"
+			add_btn.disabled = true
+			add_btn.tooltip_text = check.reason
 
-		select_btn.pressed.connect(func():
-			_selected_action_id = action.id
-			_on_add_pressed()
+		add_btn.pressed.connect(func():
+			var target_id := ""
+			if region_option != null and region_option.selected >= 0:
+				target_id = str(region_option.get_item_metadata(region_option.selected))
+			var result := ScheduleManager.add_action_to_schedule(action.id, start_hour, target_id)
+			if result.can:
+				status_label.text = "✅ 已加入排程"
+			else:
+				status_label.text = "⚠ %s" % result.reason
+			_refresh_all()
 		)
-		row.add_child(select_btn)
-		row.add_child(HSeparator.new())
+		row.add_child(add_btn)
 		action_list.add_child(row)
 
 
-func _on_add_pressed() -> void:
-	if _selected_action_id == "":
-		return
-	var start_hour := _get_selected_start_hour()
-	var result := ScheduleManager.add_action_to_schedule(_selected_action_id, start_hour)
-	if result.can:
-		add_status_label.text = "✅ 已加入排程"
-	else:
-		add_status_label.text = "⚠ %s" % result.reason
-	_build_action_list()
-	_refresh_grid()
-
-
-func _refresh_grid() -> void:
-	for child in grid_container.get_children():
+## 24行列表，每行代表一个小时。依次检查：正在进行中的行动 > 排程队列里
+## 还没开始的计划 > 今天已经结束的记录，三者覆盖范围可能重叠
+## （比如提前排的计划到点后转成了current_action），按"当前状态优先"取第一个匹配的。
+func _refresh_hour_list() -> void:
+	for child in hour_list.get_children():
 		child.queue_free()
 
-	for cell_index in range(12):
-		var cell_start_hour := cell_index * 2
-		var cell_end_hour := cell_start_hour + 2
+	for hour in range(24):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
 
-		var cell := VBoxContainer.new()
-		cell.add_theme_constant_override("separation", 2)
-		cell.custom_minimum_size = Vector2(140, 70)
+		var hour_label := Label.new()
+		hour_label.custom_minimum_size = Vector2(60, 0)
+		hour_label.text = "%02d:00" % hour
+		row.add_child(hour_label)
 
-		var header := Label.new()
-		header.text = HOUR_CELL_LABELS[cell_index]
-		header.add_theme_font_size_override("font_size", 12)
-		cell.add_child(header)
+		var content_label := Label.new()
+		content_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content_label.text = _describe_hour(hour)
+		row.add_child(content_label)
 
-		var covered_entries: Array[ScheduledActionEntry] = []
-		for hour in range(cell_start_hour, cell_end_hour):
-			var e := ScheduleManager.today_schedule.get_entry_for_hour(hour)
-			if e != null and not covered_entries.has(e):
-				covered_entries.append(e)
-
-		if covered_entries.is_empty():
-			var empty_label := Label.new()
-			empty_label.text = "（空）"
-			cell.add_child(empty_label)
-		else:
-			for e in covered_entries:
-				var action := ScheduleActionData.get_action(e.action_id)
-				var line := Label.new()
-				line.text = "%s %02d-%02d｜%s" % [
-					"✅" if e.status == "completed" else ("⚠" if e.status == "failed" else "⏳"),
-					e.start_hour, e.get_end_hour(),
-					action.name if action != null else e.action_id,
-				]
-				line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-				cell.add_child(line)
-
-				if e.status == "pending":
-					var del_btn := Button.new()
-					del_btn.text = "删除"
-					del_btn.pressed.connect(func():
-						ScheduleManager.remove_action_from_schedule(e.start_hour)
-						_build_action_list()
-					)
-					cell.add_child(del_btn)
-
-		var panel := PanelContainer.new()
-		panel.add_child(cell)
-		grid_container.add_child(panel)
+		hour_list.add_child(row)
 
 
-func _refresh_status() -> void:
-	var player := GameManager.player_state
-	day_hour_label.text = "第 %d 天" % TimeManager.current_day
-	_update_energy_label()
-	_update_fatigue_label()
-	_update_store_status_label()
-	current_action_label.text = "当前行动：（未开始推进）"
+func _describe_hour(hour: int) -> String:
+	var current := ScheduleManager.current_action
+	if current != null and current.is_active:
+		var start_h := int(current.start_game_seconds / 3600.0) % 24
+		var action := ScheduleActionData.get_action(current.action_id)
+		var end_h := start_h + (action.duration_hours if action != null else 0)
+		if hour >= start_h and hour < end_h:
+			return _format_entry_text("▶", action, current.target_id, start_h, end_h, -1.0, -1)
+
+	var pending := ScheduleManager.today_schedule.get_entry_for_hour(hour)
+	if pending != null:
+		var action := ScheduleActionData.get_action(pending.action_id)
+		return _format_entry_text("⏳", action, pending.target_id,
+			pending.start_hour, pending.get_end_hour(), -1.0, pending.duration_hours)
+
+	for e in ScheduleManager.completed_entries_today:
+		if hour >= e.start_hour and hour < e.get_end_hour():
+			var action := ScheduleActionData.get_action(e.action_id)
+			var icon := "✅" if e.status == "completed" else "⚠"
+			return _format_entry_text(icon, action, e.target_id,
+				e.start_hour, e.get_end_hour(), e.hours_completed, e.duration_hours)
+
+	return "（空）"
 
 
-func _on_clock_updated(hour: int, minute: int, second: int, period_label: String) -> void:
-	day_hour_label.text = "第 %d 天 ｜ %02d:%02d:%02d ｜ %s" % [
-		TimeManager.current_day, hour, minute, second, period_label
-	]
-	_update_store_status_label()
+## hours_completed为-1表示"不适用"（还没结束/还不知道实际完成量），
+## duration_hours为-1表示"进行中，还不确定要显示的计划时长"（正在执行的current_action已经在别处传了真实值，这里不会用到-1分支）。
+func _format_entry_text(
+		icon: String, action: ActionDefinition, target_id: String,
+		start_h: int, end_h: int, hours_completed: float, duration_hours: int
+) -> String:
+	var name := action.name if action != null else "未知行动"
+	var target_text := ""
+	if target_id != "":
+		var region := GameManager.get_region(target_id)
+		if region != null:
+			target_text = "｜目标：%s" % region.name
 
-
-func _on_hour_executed(log: HourlyLogEntry) -> void:
-	if log.action_id != "":
-		current_action_label.text = "当前行动：%s（%s）" % [
-			log.action_name,
-			{"executing": "进行中", "completed": "已完成",
-			 "failed": "已中止：%s" % log.failure_reason}.get(log.action_status, log.action_status)
+	if hours_completed >= 0.0:
+		return "%s %s（%d-%d时，已完成%.2f/%d小时）%s" % [
+			icon, name, start_h, end_h, hours_completed, duration_hours, target_text
+		]
+	elif duration_hours >= 0:
+		return "%s %s（%d-%d时，计划%d小时）%s" % [
+			icon, name, start_h, end_h, duration_hours, target_text
 		]
 	else:
-		current_action_label.text = "当前行动：空闲"
-	_update_energy_label()
-	_update_fatigue_label()
-	_update_store_status_label()
-	_refresh_grid()
-
-
-func _update_energy_label() -> void:
-	var player := GameManager.player_state
-	if player.energy_debt > 0.0:
-		energy_label.text = "精力：0 / %.0f（透支 %.0f）" % [player.max_energy, player.energy_debt]
-	else:
-		energy_label.text = "精力：%.0f / %.0f" % [player.energy, player.max_energy]
-
-
-func _update_fatigue_label() -> void:
-	var player := GameManager.player_state
-	fatigue_label.text = "疲惫：%s（今日已工作 %.0f 小时）" % [
-		ScheduleConfig.FATIGUE_STATE_NAMES.get(player.fatigue_state, player.fatigue_state),
-		player.work_hours_today,
-	]
-
-
-func _update_store_status_label() -> void:
-	if not GameManager.store_state.is_open:
-		store_status_label.text = "店铺状态：尚未开业"
-	elif TimeManager.is_store_actually_operating():
-		store_status_label.text = "店铺状态：营业中"
-	else:
-		store_status_label.text = "店铺状态：非营业时段"
-
-
-func _on_action_interrupt(_reason_code: String, message: String) -> void:
-	warning_label.text = "⚠ %s" % message
-	warning_label.visible = true
-
-
-func _on_day_schedule_ended(finished_day: int) -> void:
-	warning_label.text = "第 %d 天已结束，请为新的一天安排日程" % finished_day
-	warning_label.visible = true
-	_build_action_list()
-	_refresh_grid()
+		return "%s %s（%d-%d时，进行中）%s" % [icon, name, start_h, end_h, target_text]

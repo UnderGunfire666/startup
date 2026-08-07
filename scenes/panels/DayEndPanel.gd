@@ -1,22 +1,26 @@
 extends PopupPanel
-## 晚夜结算后的日结面板：聚合当天全部时段（含门店整体固定成本）的经营数据。
-## 展示财务汇总、订单与损失、口碑压力变化，点击按钮关闭并进入新的一天。
+## 晚夜结算后的日结面板：聚合当天全部经营数据 + 当日行动执行情况。
+## 点击按钮关闭并进入新的一天。
 
 signal day_confirmed
 
 @onready var rich_text: RichTextLabel = $MarginContainer/VBox/RichTextLabel
 @onready var confirm_button: Button = $MarginContainer/VBox/ConfirmButton
 
+
 func _ready() -> void:
 	confirm_button.pressed.connect(_on_confirm_pressed)
 
+
 func show_summary(day: int, summary: Dictionary) -> void:
 	rich_text.text = _format_summary(day, summary)
-	popup_centered(Vector2(480, 460))
+	popup_centered(Vector2(520, 620))
+
 
 func _on_confirm_pressed() -> void:
 	hide()
 	day_confirmed.emit()
+
 
 func _format_summary(day: int, s: Dictionary) -> String:
 	var state := GameManager.store_state
@@ -55,4 +59,58 @@ func _format_summary(day: int, s: Dictionary) -> String:
 	elif player.stress >= SettlementConfig.STRESS_HIGH_THRESHOLD:
 		text += "\n[color=orange]⚠ 压力值偏高，可能影响服务质量[/color]\n"
 
+	text += _format_action_summary(day)
+	text += _format_energy_summary(player)
+
+	return text
+
+
+## 汇总当天已经结束的每个行动（无论是自然跑完、提前停止还是失败），
+## 以及店铺营业期间玩家的坐镇覆盖率。
+func _format_action_summary(_day: int) -> String:
+	var text := "\n[b]【当日行动记录】[/b]\n"
+
+	var day_entries: Array[ScheduledActionEntry] = ScheduleManager.completed_entries_today
+	if day_entries.is_empty():
+		text += "（今天没有完成任何行动）\n"
+	else:
+		for e in day_entries:
+			var action := ScheduleActionData.get_action(e.action_id)
+			var name := action.name if action != null else e.action_id
+			var icon := "✅" if e.status == "completed" else "⚠"
+
+			var target_text := ""
+			if e.target_id != "":
+				var region := GameManager.get_region(e.target_id)
+				if region != null:
+					target_text = "（目标：%s）" % region.name
+
+			text += "%s %s%s：实际进行 %.2f 小时（计划上限 %d 小时）" % [
+				icon, name, target_text, e.hours_completed, e.duration_hours,
+			]
+			if e.status == "failed" and e.failure_reason != "":
+				text += " ｜原因：%s" % e.failure_reason
+			text += "\n"
+
+	var operating_hours := ScheduleManager.operating_hours_today
+	var supervising_hours := ScheduleManager.supervising_hours_today
+	if operating_hours > 0:
+		var coverage := float(supervising_hours) / float(operating_hours) * 100.0
+		text += "\n店铺营业时间共%d小时，其中亲自坐镇%d小时（%.0f%%）\n" % [
+			operating_hours, supervising_hours, coverage
+		]
+
+	return text
+
+
+func _format_energy_summary(player: PlayerState) -> String:
+	var text := "\n[b]【今日精力/疲惫】[/b]\n"
+	text += "疲惫状态：%s ｜ 累计工作 %.2f 小时\n" % [
+		ScheduleConfig.FATIGUE_STATE_NAMES.get(player.fatigue_state, player.fatigue_state),
+		player.work_hours_today,
+	]
+	if player.energy_debt > 0.0:
+		text += "[color=red]精力透支：%.1f 点[/color]\n" % player.energy_debt
+	else:
+		text += "精力：%.1f / %.0f\n" % [player.energy, player.max_energy]
 	return text

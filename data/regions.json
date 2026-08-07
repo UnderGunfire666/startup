@@ -1,62 +1,44 @@
 [
-	{
-		"id": "A001",
-		"name": "科技园商圈",
-		"radiation_population": 28000.0,
-		"population_density": "high",
-		"primary_groups": [
-			"白领",
-			"上班族"
-		],
-		"secondary_groups": [
-			"学生"
-		],
-		"spending_power": "medium",
-		"dwell_time": "low",
-		"traffic_sources": [
-			"地铁",
-			"写字楼"
-		],
-		"competition_level": "high",
-		"rent_baseline": "high",
-		"hourly_foot_traffic_by_slot": {
-			"midnight": 35.0,
-			"dawn": 900.0,
-			"noon": 1600.0,
-			"night": 1100.0
-		},
-		"weekend_modifier": 0.6,
-		"notes": "工作日客流为主，周末客流明显下降",
-		"research_cost": 800.0
-	},
-	{
-		"id": "A002",
-		"name": "老城生活区",
-		"radiation_population": 19000.0,
-		"population_density": "medium",
-		"primary_groups": [
-			"家庭",
-			"老人"
-		],
-		"secondary_groups": [
-			"学生"
-		],
-		"spending_power": "low",
-		"dwell_time": "medium",
-		"traffic_sources": [
-			"公交",
-			"菜市场"
-		],
-		"competition_level": "medium",
-		"rent_baseline": "low",
-		"hourly_foot_traffic_by_slot": {
-			"midnight": 150.0,
-			"dawn": 700.0,
-			"noon": 900.0,
-			"night": 1000.0
-		},
-		"weekend_modifier": 1.2,
-		"notes": "居民区为主，周末家庭出行客流上涨",
-		"research_cost": 600.0
-	}
+  {
+	"id": "A001",
+	"name": "科技园商圈",
+	"radiation_population": 28000,
+	"population_density": "high",
+	"primary_groups": ["白领", "上班族"],
+	"secondary_groups": ["学生"],
+	"spending_power": "medium",
+	"dwell_time": "low",
+	"traffic_sources": ["地铁", "写字楼"],
+	"competition_level": "high",
+	"rent_baseline": "high",
+	"hourly_foot_traffic_by_hour": [
+	  300, 200, 150, 150, 200, 450, 700, 950, 1100, 750,
+	  600, 700, 1500, 1650, 900, 650, 600, 750, 1200, 1300,
+	  1100, 850, 600, 400
+	],
+	"weekend_modifier": 0.6,
+	"notes": "工作日客流为主，周末客流明显下降；写字楼深夜有少量技术岗夜班人群",
+	"research_cost": 800.0
+  },
+  {
+	"id": "A002",
+	"name": "老城生活区",
+	"radiation_population": 19000,
+	"population_density": "medium",
+	"primary_groups": ["家庭", "老人"],
+	"secondary_groups": ["学生"],
+	"spending_power": "low",
+	"dwell_time": "medium",
+	"traffic_sources": ["公交", "菜市场"],
+	"competition_level": "medium",
+	"rent_baseline": "low",
+	"hourly_foot_traffic_by_hour": [
+	  150, 100, 80, 80, 100, 250, 450, 650, 750, 650,
+	  600, 700, 900, 850, 600, 550, 600, 700, 900, 1000,
+	  800, 550, 350, 200
+	],
+	"weekend_modifier": 1.2,
+	"notes": "居民区为主，客流曲线较平缓，晚饭时段（19点）是全天高峰；深夜几乎无人",
+	"research_cost": 600.0
+  }
 ]

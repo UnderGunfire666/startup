@@ -131,8 +131,8 @@ static func get_traits() -> Array[TraitData]:
 		"insight",
 		4,
 		true,
-		"后续区域调研与门面考察将更早获得关键市场信息。",
-		{"research_info_bonus": 1.0}
+		"后续区域调研与门面考察将更早获得关键市场信息；对区域的了解要求降低，敢于在了解不深时就下决定。",
+		{"research_info_bonus": 1.0, "region_familiarity_threshold_add": -25.0}
 	))
 
 	traits.append(_make_trait(
@@ -142,8 +142,8 @@ static func get_traits() -> Array[TraitData]:
 		"insight",
 		-4,
 		false,
-		"后续调研中部分信息获取更慢，或需要额外投入。",
-		{"research_info_bonus": -1.0}
+		"后续调研中部分信息获取更慢；需要更充分了解一个区域才敢做决定。",
+		{"research_info_bonus": -1.0, "region_familiarity_threshold_add": 20.0}
 	))
 
 	traits.append(_make_trait(
@@ -153,8 +153,8 @@ static func get_traits() -> Array[TraitData]:
 		"temperament",
 		3,
 		true,
-		"经营亏损、缺货、容量不足带来的压力增幅降低。",
-		{"stress_gain_mult": 0.80}
+		"经营亏损、缺货、容量不足带来的压力增幅降低；对区域的兴趣要求也更低，情绪稳定容易下决定。",
+		{"stress_gain_mult": 0.80, "region_interest_threshold_add": -15.0}
 	))
 
 	traits.append(_make_trait(
@@ -164,8 +164,8 @@ static func get_traits() -> Array[TraitData]:
 		"temperament",
 		-3,
 		false,
-		"经营问题带来的压力增幅提高。",
-		{"stress_gain_mult": 1.25}
+		"经营问题带来的压力增幅提高；需要对区域真正感兴趣、有安全感才敢做决定。",
+		{"stress_gain_mult": 1.25, "region_interest_threshold_add": 25.0}
 	))
 
 	traits.append(_make_trait(
@@ -208,7 +208,7 @@ static func get_traits_by_type(trait_type: String) -> Array[TraitData]:
 	return result
 
 
-## 预设人物是“已完成的自定义角色方案”，不会获得隐藏资源加成。
+## 预设人物是"已完成的自定义角色方案"，不会获得隐藏资源加成。
 ## 每个预设的年龄点数 - 已选特质成本 = 0。
 static func get_presets() -> Array[Dictionary]:
 	return [

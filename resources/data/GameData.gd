@@ -2,26 +2,6 @@ class_name GameData
 
 const DATA_DIR := "res://data/"
 
-static func get_origins() -> Array[OriginData]:
-	var raw: Array = _load_json_array(DATA_DIR + "origins.json")
-	var result: Array[OriginData] = []
-
-	for entry in raw:
-		var origin := OriginData.new()
-		origin.id = entry.get("id", "")
-		origin.name = entry.get("name", "")
-		origin.description = entry.get("description", "")
-		origin.starting_cash = float(entry.get("starting_cash", 100000.0))
-		origin.initial_reputation = float(entry.get("initial_reputation", 50.0))
-		origin.initial_stress = float(entry.get("initial_stress", 0.0))
-		origin.research_discount_rate = float(entry.get("research_discount_rate", 0.0))
-		origin.first_opening_staff_penalty_reduction = float(
-			entry.get("first_opening_staff_penalty_reduction", 0.0)
-		)
-		result.append(origin)
-
-	return result
-
 static func get_regions() -> Array[RegionData]:
 	var raw: Array = _load_json_array(DATA_DIR + "regions.json")
 	var list: Array[RegionData] = []
@@ -38,7 +18,13 @@ static func get_regions() -> Array[RegionData]:
 		r.traffic_sources = _to_string_array(entry.get("traffic_sources", []))
 		r.competition_level = entry.get("competition_level", "medium")
 		r.rent_baseline = entry.get("rent_baseline", "medium")
-		r.hourly_foot_traffic_by_slot = entry.get("hourly_foot_traffic_by_slot", {})
+		var traffic_raw: Array = entry.get("hourly_foot_traffic_by_hour", [])
+		var traffic_typed: Array[int] = []
+		for v in traffic_raw:
+			traffic_typed.append(int(v))
+		while traffic_typed.size() < 24:
+			traffic_typed.append(0)
+		r.hourly_foot_traffic_by_hour = traffic_typed
 		r.weekend_modifier = entry.get("weekend_modifier", 1.0)
 		r.notes = entry.get("notes", "")
 		r.research_cost = float(entry.get("research_cost", 800.0))
@@ -75,22 +61,19 @@ static func get_categories() -> Array[CategoryData]:
 		c.id = entry.get("id", "")
 		c.name = entry.get("name", "")
 		c.base_entry_rate = entry.get("base_entry_rate", 0.02)
-		c.default_open_slots = _to_string_array(entry.get("default_open_slots", []))
+		c.suggested_open_hour_ranges = _to_vector2i_array(entry.get("suggested_open_hours", []))
 		c.preferred_groups = _to_string_array(entry.get("preferred_groups", []))
 		c.preferred_spending_power = _to_string_array(entry.get("preferred_spending_power", []))
-		c.preferred_slots = _to_string_array(entry.get("preferred_slots", []))
 		c.base_service_speed = entry.get("base_service_speed", "medium")
 		c.key_staff_type = entry.get("key_staff_type", "none")
 		c.missing_key_staff_capacity_penalty = entry.get("missing_key_staff_capacity_penalty", 0.0)
 		c.missing_key_staff_conversion_penalty = entry.get("missing_key_staff_conversion_penalty", 0.0)
 		c.missing_key_staff_reputation_penalty = entry.get("missing_key_staff_reputation_penalty", 0.0)
-		c.allowed_strategies = _to_string_array(entry.get("allowed_strategies", ["standard", "extend", "shorten"]))
 		c.required_area = entry.get("required_area", 10.0)
 		c.setup_cost_wan = entry.get("setup_cost_wan", 0.3)
 		c.extra_rent_wan = entry.get("extra_rent_wan", 0.15)
 		list.append(c)
 	return list
-
 
 static func get_products() -> Array[ProductData]:
 	var raw: Array = _load_json_array(DATA_DIR + "products.json")
@@ -101,10 +84,11 @@ static func get_products() -> Array[ProductData]:
 		p.category_id = entry.get("category_id", "")
 		p.name = entry.get("name", "")
 		p.target_groups = _to_string_array(entry.get("target_groups", []))
-		p.preferred_slots = _to_string_array(entry.get("preferred_slots", []))
+		p.preferred_hour_ranges = _to_vector2i_array(entry.get("preferred_hours", []))
 		p.price_tier = entry.get("price_tier", "medium")
 		p.average_price = entry.get("average_price", 15.0)
 		p.ingredient_cost_per_unit = entry.get("ingredient_cost_per_unit", 3.0)
+		p.utility_cost_per_unit = entry.get("utility_cost_per_unit", 0.5)
 		p.suggested_margin_rate = entry.get("suggested_margin_rate", 0.6)
 		p.complexity = entry.get("complexity", "normal")
 		p.differentiation = entry.get("differentiation", "normal")
@@ -154,4 +138,12 @@ static func _to_string_array(raw: Array) -> Array[String]:
 	var result: Array[String] = []
 	for x in raw:
 		result.append(str(x))
+	return result
+
+## ── 工具函数：把 [[start,end],[start,end],...] 转成 Array[Vector2i] ──
+static func _to_vector2i_array(raw: Array) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for pair in raw:
+		if pair is Array and pair.size() >= 2:
+			result.append(Vector2i(int(pair[0]), int(pair[1])))
 	return result

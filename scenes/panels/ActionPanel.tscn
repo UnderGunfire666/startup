@@ -1,0 +1,105 @@
+[gd_scene format=3 uid="uid://dldxyumam4or4"]
+
+[ext_resource type="Script" uid="uid://dy0i61tjt03c5" path="res://scenes/panels/ActionPanel.gd" id="1_script"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_action_speed"]
+
+[node name="ActionPanel" type="PanelContainer" unique_id=983337695]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=258174958]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="RootVBox" type="VBoxContainer" parent="MarginContainer" unique_id=225783016]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="StatusBox" type="GridContainer" parent="MarginContainer/RootVBox" unique_id=973905852]
+layout_mode = 2
+columns = 3
+
+[node name="DayHourLabel" type="Label" parent="MarginContainer/RootVBox/StatusBox" unique_id=678479870]
+layout_mode = 2
+text = "第 1 天 ｜ 08:00:00 ｜ 清晨"
+
+[node name="CurrentActionLabel" type="Label" parent="MarginContainer/RootVBox/StatusBox" unique_id=1445194221]
+layout_mode = 2
+text = "当前行动：空闲"
+
+[node name="StoreStatusLabel" type="Label" parent="MarginContainer/RootVBox/StatusBox" unique_id=1794220018]
+layout_mode = 2
+text = "店铺状态：尚未开业"
+
+[node name="EnergyLabel" type="Label" parent="MarginContainer/RootVBox/StatusBox" unique_id=2131468924]
+layout_mode = 2
+text = "精力：100 / 100"
+
+[node name="FatigueLabel" type="Label" parent="MarginContainer/RootVBox/StatusBox" unique_id=337664647]
+layout_mode = 2
+text = "疲惫：正常（今日已工作 0 小时）"
+
+[node name="WarningLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=430475850]
+visible = false
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SpeedRow" type="HBoxContainer" parent="MarginContainer/RootVBox" unique_id=429210933]
+layout_mode = 2
+alignment = 1
+
+[node name="PauseButton" type="Button" parent="MarginContainer/RootVBox/SpeedRow" unique_id=1657600222]
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_action_speed")
+text = "⏸ 暂停"
+
+[node name="Speed1Button" type="Button" parent="MarginContainer/RootVBox/SpeedRow" unique_id=544048789]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_action_speed")
+text = "▶ 1x"
+
+[node name="Speed2Button" type="Button" parent="MarginContainer/RootVBox/SpeedRow" unique_id=450821445]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_action_speed")
+text = "▶▶ 2x"
+
+[node name="Speed5Button" type="Button" parent="MarginContainer/RootVBox/SpeedRow" unique_id=1620395585]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_action_speed")
+text = "▶▶▶ 5x"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/RootVBox" unique_id=1979475685]
+layout_mode = 2
+
+[node name="CurrentActionBox" type="VBoxContainer" parent="MarginContainer/RootVBox" unique_id=1509737608]
+visible = false
+layout_mode = 2
+
+[node name="ProgressLabel" type="Label" parent="MarginContainer/RootVBox/CurrentActionBox" unique_id=446945552]
+layout_mode = 2
+
+[node name="StopButton" type="Button" parent="MarginContainer/RootVBox/CurrentActionBox" unique_id=1231934683]
+layout_mode = 2
+text = "⏹ 提前停止"
+
+[node name="ActionScroll" type="ScrollContainer" parent="MarginContainer/RootVBox" unique_id=893985428]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ActionList" type="VBoxContainer" parent="MarginContainer/RootVBox/ActionScroll" unique_id=1400743977]
+layout_mode = 2
+size_flags_horizontal = 3

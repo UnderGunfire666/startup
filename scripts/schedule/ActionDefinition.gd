@@ -28,3 +28,6 @@ extends Resource
 
 ## 供未来系统读取的效果类型标签，ScheduleManager按此分发，不按id写死。
 @export var action_effect_type: String = "generic_hook"
+
+## proportional：每小时累加效果；binary：必须做满全部时长才触发一次性效果。
+@export var effect_scaling: String = "proportional"

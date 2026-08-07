@@ -103,8 +103,6 @@ func refresh_display() -> void:
 	_update_speed_button_states()
 
 	day_label.text  = "第 %d 天" % state.current_day
-	slot_label.text = "当前时段：%s" % SettlementConfig.SLOT_NAMES.get(
-		state.get_current_slot(), state.get_current_slot())
 
 	if state.category_slots.is_empty():
 		open_status_label.text = "⚠ 门店尚未添加任何品类（请前往品类管理面板添加）"
@@ -115,12 +113,7 @@ func refresh_display() -> void:
 			var cat := GameManager.get_category(slot.category_id)
 			if cat == null:
 				continue
-			var open_slots: Array = []
-			match slot.strategy:
-				"standard": open_slots = cat.default_open_slots
-				"extend":   open_slots = SettlementConfig.SLOT_ORDER
-				"shorten":  open_slots = cat.preferred_slots
-			if state.get_current_slot() in open_slots:
+			if slot.is_open_at_hour(TimeManager.get_current_hour_int()):
 				open_names.append(cat.name)
 			else:
 				closed_names.append(cat.name)

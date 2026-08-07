@@ -59,7 +59,7 @@ func _group_by_category(list: Array[SettlementResult]) -> Dictionary:
 ## 生成单个品类的聚合报告（品类汇总 + 各商品明细）
 func _format_category_block(items: Array) -> String:
 	var first: SettlementResult = items[0]
-	var slot_name: String = SettlementConfig.SLOT_NAMES.get(first.slot, first.slot)
+	var slot_name: String = first.slot
 
 	if not first.is_open:
 		var text := "[color=orange]⛔ 第%d天 · 「%s」 %s — 本时段不营业[/color]\n" % [
@@ -157,7 +157,7 @@ func _format_category_block(items: Array) -> String:
 
 ## 生成门店整体固定成本的精简报告（跳过与商品经营无关的字段）
 func _format_overhead_block(r: SettlementResult) -> String:
-	var slot_name: String = SettlementConfig.SLOT_NAMES.get(r.slot, r.slot)
+	var slot_name: String = r.slot
 	var text := "[b]═══ 第%d天 · %s · %s ═══[/b]\n\n" % [r.day, r.category_name, slot_name]
 
 	text += "租金：-%.0f 元\n" % r.rent_cost

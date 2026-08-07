@@ -145,6 +145,8 @@ func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Contro
 	header.text = "【%s】面积%.0f㎡" % [cat.name, slot.allocated_area]
 	block.add_child(header)
 
+	block.add_child(_build_hour_range_editor(cat, slot))
+
 	for pc in slot.product_configs:
 		var product := GameManager.get_product(pc.product_id)
 		if product == null:
@@ -166,6 +168,65 @@ func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Contro
 	block.add_child(HSeparator.new())
 	return block
 
+func _build_hour_range_editor(cat: CategoryData, slot: StoreCategorySlot) -> Control:
+	var box := VBoxContainer.new()
+
+	var current_label := Label.new()
+	var range_texts: Array[String] = []
+	for r in slot.open_hour_ranges:
+		range_texts.append("%02d:00-%02d:00" % [r.x, r.y])
+	current_label.text = "当前营业时间：%s" % (
+		"、".join(range_texts) if not range_texts.is_empty() else "未设置（不营业）")
+	box.add_child(current_label)
+
+	var row := HBoxContainer.new()
+	var start_option := OptionButton.new()
+	var end_option := OptionButton.new()
+	for h in range(25):
+		start_option.add_item("%02d:00" % h)
+		end_option.add_item("%02d:00" % h)
+	row.add_child(start_option)
+	row.add_child(end_option)
+
+	var add_range_btn := Button.new()
+	add_range_btn.text = "添加时间段"
+	add_range_btn.disabled = GameManager.store_state.is_open
+	add_range_btn.pressed.connect(func():
+		var start_h := start_option.selected
+		var end_h := end_option.selected
+		if end_h <= start_h:
+			status_label.text = "⚠ 结束时间必须晚于开始时间"
+			return
+		var new_ranges := slot.open_hour_ranges.duplicate()
+		new_ranges.append(Vector2i(start_h, end_h))
+		GameManager.set_category_open_hours(cat.id, new_ranges)
+		refresh()
+		category_changed.emit()
+	)
+	row.add_child(add_range_btn)
+	box.add_child(row)
+
+	for i in range(slot.open_hour_ranges.size()):
+		var r := slot.open_hour_ranges[i]
+		var del_row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = "%02d:00-%02d:00" % [r.x, r.y]
+		del_row.add_child(label)
+		var del_btn := Button.new()
+		del_btn.text = "删除"
+		del_btn.disabled = GameManager.store_state.is_open
+		del_btn.pressed.connect(func():
+			var new_ranges := slot.open_hour_ranges.duplicate()
+			new_ranges.remove_at(i)
+			GameManager.set_category_open_hours(cat.id, new_ranges)
+			refresh()
+			category_changed.emit()
+		)
+		del_row.add_child(del_btn)
+		box.add_child(del_row)
+
+	box.add_child(HSeparator.new())
+	return box
 
 func _build_product_row(cat: CategoryData, product: ProductData,
 		pc: StoreProductConfig) -> Control:

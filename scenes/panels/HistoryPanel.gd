@@ -48,12 +48,12 @@ func refresh(history: Array[Dictionary]) -> void:
 	for entry in recent:
 		if not entry.is_open:
 			t += "D%d·%s [color=gray]不营业[/color]\n" % \
-				 [entry.day, SettlementConfig.SLOT_NAMES.get(entry.slot, entry.slot)]
+				 [entry.day, entry.slot]
 			continue
 		var pc := "green" if entry.profit >= 0 else "red"
 		t += "D%d·%s  订单%d  收入%.0f  [color=%s]利润%+.0f[/color]  口碑%+.1f\n" \
 			 % [entry.day,
-				SettlementConfig.SLOT_NAMES.get(entry.slot, entry.slot),
+				entry.slot,
 				entry.actual_orders, entry.revenue, pc, entry.profit,
 				entry.reputation_delta]
 

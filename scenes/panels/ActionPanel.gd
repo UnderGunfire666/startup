@@ -1,0 +1,257 @@
+extends PanelContainer
+## "行动"标签：单步交互主界面。点行动就开始，跑完/喊停自动暂停。
+## 模式切换（单步/整日排程）的开关放在这里，因为它决定的是
+## "一个行动执行完之后要不要自动暂停"，跟具体在哪个标签操作无关。
+
+@onready var day_hour_label: Label = $MarginContainer/RootVBox/StatusBox/DayHourLabel
+@onready var current_action_label: Label = $MarginContainer/RootVBox/StatusBox/CurrentActionLabel
+@onready var energy_label: Label = $MarginContainer/RootVBox/StatusBox/EnergyLabel
+@onready var fatigue_label: Label = $MarginContainer/RootVBox/StatusBox/FatigueLabel
+@onready var store_status_label: Label = $MarginContainer/RootVBox/StatusBox/StoreStatusLabel
+@onready var warning_label: Label = $MarginContainer/RootVBox/WarningLabel
+
+@onready var pause_button: Button = $MarginContainer/RootVBox/SpeedRow/PauseButton
+@onready var speed1_button: Button = $MarginContainer/RootVBox/SpeedRow/Speed1Button
+@onready var speed2_button: Button = $MarginContainer/RootVBox/SpeedRow/Speed2Button
+@onready var speed5_button: Button = $MarginContainer/RootVBox/SpeedRow/Speed5Button
+
+@onready var current_action_box: VBoxContainer = $MarginContainer/RootVBox/CurrentActionBox
+@onready var current_action_progress_label: Label = \
+	$MarginContainer/RootVBox/CurrentActionBox/ProgressLabel
+@onready var stop_action_button: Button = \
+	$MarginContainer/RootVBox/CurrentActionBox/StopButton
+
+@onready var action_list: VBoxContainer = \
+	$MarginContainer/RootVBox/ActionScroll/ActionList
+
+var _last_hour: int = 0
+var _last_minute: int = 0
+var _last_second: int = 0
+var _last_period_label: String = ""
+
+func _ready() -> void:
+	_seed_clock_cache()
+
+	pause_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.PAUSED))
+	speed1_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.X1))
+	speed2_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.X2))
+	speed5_button.toggled.connect(func(pressed: bool):
+		if pressed: TimeManager.set_speed(TimeManager.Speed.X5))
+
+	stop_action_button.pressed.connect(_on_stop_pressed)
+
+	TimeManager.clock_updated.connect(_on_clock_updated)
+	ScheduleManager.schedule_changed.connect(_refresh_all)
+	ScheduleManager.action_interrupt.connect(_on_action_interrupt)
+	ScheduleManager.day_schedule_ended.connect(_on_day_schedule_ended)
+
+	_refresh_all()
+
+## 开局或还没收到过clock_updated时，先用TimeManager当前的连续小时数
+## 估算一份初始时间，避免label在第一次真正的clock_updated到来之前空着。
+func _seed_clock_cache() -> void:
+	var hour_float := TimeManager.get_hour_of_day()
+	_last_hour = int(hour_float) % 24
+	_last_minute = int((hour_float - int(hour_float)) * 60.0)
+	_last_second = 0
+	_last_period_label = ""
+
+
+func _update_day_hour_label() -> void:
+	day_hour_label.text = "第 %d 天 ｜ %02d:%02d:%02d ｜ %s" % [
+		TimeManager.current_day, _last_hour, _last_minute, _last_second, _last_period_label
+	]
+	
+func refresh() -> void:
+	_refresh_all()
+
+
+func _refresh_all() -> void:
+	_refresh_status()
+	_refresh_current_action_box()
+	_build_action_list()
+
+func _refresh_current_action_box() -> void:
+	var state := ScheduleManager.current_action
+	if state == null or not state.is_active:
+		current_action_box.visible = false
+		return
+
+	var action := ScheduleActionData.get_action(state.action_id)
+	current_action_box.visible = true
+
+	var elapsed: float = (TimeManager.total_game_seconds - state.start_game_seconds) / 3600.0
+	var target_text := ""
+	if state.target_id != "":
+		var region := GameManager.get_region(state.target_id)
+		if region != null:
+			target_text = "（目标：%s）" % region.name
+
+	current_action_progress_label.text = "进行中：%s%s（已进行 %.2f / %d 小时）" % [
+		action.name if action != null else state.action_id,
+		target_text, elapsed, action.duration_hours,
+	]
+	stop_action_button.disabled = false
+	stop_action_button.text = "⏹ 取消（尚未产生任何收益）" if elapsed < 0.01 else "⏹ 提前停止"
+
+func _on_stop_pressed() -> void:
+	ScheduleManager.stop_current_action()
+	_refresh_all()
+
+
+func _build_action_list() -> void:
+	for child in action_list.get_children():
+		child.queue_free()
+
+	var busy := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
+	
+	for action in ScheduleActionData.get_actions():
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+
+		var top_row := HBoxContainer.new()
+		top_row.add_theme_constant_override("separation", 10)
+
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		var title := Label.new()
+		title.text = "%s（%d小时）" % [action.name, action.duration_hours]
+		title.add_theme_font_size_override("font_size", 15)
+		info.add_child(title)
+
+		var desc := Label.new()
+		if action.energy_recovery_per_hour > 0.0:
+			desc.text = "每小时恢复精力 +%.0f｜不计入工作时长" % action.energy_recovery_per_hour
+		else:
+			desc.text = "每小时消耗精力 %.0f｜%s" % [
+				action.base_energy_cost_per_hour,
+				"做多久算多久，随时可停" if action.effect_scaling == "proportional"
+					else "必须做满全部时长才生效，中途停止视为放弃",
+			]
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(desc)
+		top_row.add_child(info)
+
+		## 区域调研需要额外选一个目标区域，用局部变量记录选中的region_id，
+		## 靠闭包传给下面的开始按钮，不需要新增任何持久状态。
+		var region_option: OptionButton = null
+		if action.action_effect_type == "region_research":
+			region_option = OptionButton.new()
+			region_option.custom_minimum_size = Vector2(140, 0)
+			for r in GameManager.all_regions:
+				region_option.add_item(r.name)
+				region_option.set_item_metadata(region_option.item_count - 1, r.id)
+			top_row.add_child(region_option)
+
+		var start_btn := Button.new()
+		start_btn.custom_minimum_size = Vector2(110, 0)
+
+		if busy:
+			start_btn.text = "有行动进行中"
+			start_btn.disabled = true
+		else:
+			var check := ScheduleManager.can_schedule_action(
+				action.id, int(TimeManager.get_hour_of_day()))
+			if check.can:
+				start_btn.text = "▶ 开始"
+				start_btn.disabled = false
+			else:
+				start_btn.text = "不可用"
+				start_btn.disabled = true
+				start_btn.tooltip_text = check.reason
+
+		start_btn.pressed.connect(func():
+			var target_id := ""
+			if region_option != null and region_option.selected >= 0:
+				target_id = str(region_option.get_item_metadata(region_option.selected))
+			var result := ScheduleManager.start_action_now(action.id, target_id)
+			if not result.can:
+				warning_label.visible = true
+				warning_label.text = "⚠ %s" % result.reason
+			_refresh_all()
+		)
+		top_row.add_child(start_btn)
+
+		row.add_child(top_row)
+		action_list.add_child(row)
+		action_list.add_child(HSeparator.new())
+
+func _refresh_status() -> void:
+	_update_day_hour_label()
+	_update_energy_label()
+	_update_fatigue_label()
+	_update_store_status_label()
+	_update_current_action_label()
+
+func _on_clock_updated(hour: int, minute: int, second: int, period_label: String) -> void:
+	_last_hour = hour
+	_last_minute = minute
+	_last_second = second
+	_last_period_label = period_label
+	_update_day_hour_label()
+	_update_store_status_label()
+	_update_current_action_label()
+	_refresh_current_action_box()
+
+func _update_current_action_label() -> void:
+	var state := ScheduleManager.current_action
+	if state != null and state.is_active:
+		var action := ScheduleActionData.get_action(state.action_id)
+		current_action_label.text = "当前行动：%s（进行中）" % [
+			action.name if action != null else state.action_id
+		]
+		return
+
+	if not ScheduleManager.completed_entries_today.is_empty():
+		var last: ScheduledActionEntry = ScheduleManager.completed_entries_today.back()
+		var action := ScheduleActionData.get_action(last.action_id)
+		var name := action.name if action != null else last.action_id
+		var status_text: String = {
+			"completed": "已完成",
+			"failed": "已中止：%s" % last.failure_reason,
+		}.get(last.status, last.status)
+		current_action_label.text = "刚执行：%s（%s，进行了 %.2f 小时）" % [
+			name, status_text, last.hours_completed
+		]
+		return
+
+	current_action_label.text = "当前行动：空闲，可以选择下一个行动"
+
+func _update_energy_label() -> void:
+	var player := GameManager.player_state
+	if player.energy_debt > 0.0:
+		energy_label.text = "精力：0 / %.0f（透支 %.0f）" % [player.max_energy, player.energy_debt]
+	else:
+		energy_label.text = "精力：%.0f / %.0f" % [player.energy, player.max_energy]
+
+
+func _update_fatigue_label() -> void:
+	var player := GameManager.player_state
+	fatigue_label.text = "疲惫：%s（今日已工作 %.0f 小时）" % [
+		ScheduleConfig.FATIGUE_STATE_NAMES.get(player.fatigue_state, player.fatigue_state),
+		player.work_hours_today,
+	]
+
+
+func _update_store_status_label() -> void:
+	if not GameManager.store_state.is_open:
+		store_status_label.text = "店铺状态：尚未开业"
+	elif TimeManager.is_store_actually_operating():
+		store_status_label.text = "店铺状态：营业中"
+	else:
+		store_status_label.text = "店铺状态：非营业时段"
+
+
+func _on_action_interrupt(_reason_code: String, message: String) -> void:
+	warning_label.text = "⚠ %s" % message
+	warning_label.visible = true
+
+
+func _on_day_schedule_ended(finished_day: int) -> void:
+	warning_label.text = "第 %d 天已结束，请为新的一天选择行动" % finished_day
+	warning_label.visible = true
+	_refresh_all()

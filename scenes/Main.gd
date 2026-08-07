@@ -37,6 +37,9 @@ extends Control
 @onready var day_end_panel: PopupPanel = \
 	$DayEndPanel
 
+@onready var action_panel: PanelContainer = \
+	$MarginContainer/RootVBox/MainTabs/ActionPanel
+
 @onready var schedule_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/SchedulePanel
 
@@ -54,15 +57,16 @@ func _ready() -> void:
 	operation_panel.settlement_done.connect(_on_settlement_done)
 	operation_panel.day_ended.connect(_on_day_ended)
 	save_load_bar.data_changed.connect(_on_data_changed)
+	ScheduleManager.schedule_changed.connect(_refresh_region_panel)   # ← 替换原来那行
 	_refresh_all_panels()
-
 
 ## 节点名统一使用英文以保证 $ 路径稳定，中文标题在此处集中设置，
 ## 方便以后调整文案而不用动场景树结构。
 func _setup_tab_titles() -> void:
 	main_tabs.set_tab_title(0, "个人")
-	main_tabs.set_tab_title(1, "日程")
-	main_tabs.set_tab_title(2, "店铺")
+	main_tabs.set_tab_title(1, "行动")
+	main_tabs.set_tab_title(2, "日程")
+	main_tabs.set_tab_title(3, "店铺")
 
 	player_sub_tabs.set_tab_title(0, "创建角色")
 	player_sub_tabs.set_tab_title(1, "区域调研")
@@ -84,10 +88,23 @@ func _on_character_created() -> void:
 	_refresh_procurement_panel()
 	_refresh_operation_panel()
 	_refresh_history_panel()
+	_refresh_action_panel()
 	_refresh_schedule_panel()
 
 	## 创建完成后，进入区域调研。
 	player_sub_tabs.current_tab = 1
+
+
+func _refresh_all_panels() -> void:
+	_refresh_character_panel()
+	_refresh_region_panel()
+	storefront_panel.refresh()
+	_refresh_category_panel()
+	_refresh_procurement_panel()
+	_refresh_operation_panel()
+	_refresh_history_panel()
+	_refresh_action_panel()
+	_refresh_schedule_panel()
 
 func _on_region_selected() -> void:
 	storefront_panel.refresh()
@@ -100,12 +117,6 @@ func _on_storefront_selected() -> void:
 	# 门面选好后自动切到店铺面板，引导玩家开始配置品类
 	main_tabs.current_tab = 1
 	store_sub_tabs.current_tab = 1
-
-func _refresh_region_panel() -> void:
-	region_research_panel.refresh()
-
-func _refresh_schedule_panel() -> void:
-	schedule_panel.refresh()
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()
@@ -148,20 +159,17 @@ func _on_data_changed() -> void:
 	report_panel.display([])
 	_refresh_all_panels()
 
-
-func _refresh_all_panels() -> void:
-	_refresh_character_panel()
-	_refresh_region_panel()
-	storefront_panel.refresh()
-	_refresh_category_panel()
-	_refresh_procurement_panel()
-	_refresh_operation_panel()
-	_refresh_history_panel()
-	_refresh_schedule_panel()
-
-
 func _refresh_character_panel() -> void:
 	character_creation_panel.refresh()
+
+func _refresh_action_panel() -> void:
+	action_panel.refresh()
+
+func _refresh_schedule_panel() -> void:
+	schedule_panel.refresh()
+
+func _refresh_region_panel() -> void:
+	region_research_panel.refresh()
 
 func _refresh_category_panel() -> void:
 	category_manager_panel.refresh()

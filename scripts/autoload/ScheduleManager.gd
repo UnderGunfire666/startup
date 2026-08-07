@@ -1,28 +1,48 @@
 extends Node
-## 排程与每小时执行的核心逻辑层。监听 TimeManager.hour_advanced，
-## 不重写店铺结算，只在必要时读取/设置 GameManager.store_state.owner_present。
 
 signal schedule_changed
-signal hour_executed(log_entry: HourlyLogEntry)
+signal hour_effect_applied(action_id: String, elapsed_hours: float, progress_ratio: float, effect_mult: float)
+signal action_completed(action_id: String, elapsed_hours: float, duration_hours: int)
 signal action_interrupt(reason_code: String, message: String)
 signal day_schedule_ended(day: int)
 
-var today_schedule: DaySchedule = DaySchedule.new()
-var hourly_log: Array[HourlyLogEntry] = []
-var last_completed_day: int = 0
+var today_schedule: DaySchedule = DaySchedule.new()   # 只放"还没开始"的计划
+var completed_entries_today: Array[ScheduledActionEntry] = []   # 今天已结束的（供日程列表/日结报告展示）
+var current_action: CurrentActionState = null
+
+var operating_hours_today: int = 0
+var supervising_hours_today: int = 0
 
 
 func _ready() -> void:
-	TimeManager.hour_advanced.connect(_on_hour_advanced)
+	TimeManager.hour_advanced.connect(_on_hour_tick)
 
 
 func reset_for_new_game() -> void:
 	today_schedule = DaySchedule.new()
-	hourly_log.clear()
-	last_completed_day = 0
+	completed_entries_today.clear()
+	current_action = null
+	operating_hours_today = 0
+	supervising_hours_today = 0
 
 
-## ── 排程校验（纯逻辑，UI直接调用） ──────────────────────
+## ── 每小时触发一次：只负责"坐镇覆盖率"统计和跨天重置，不再驱动行动执行 ──
+func _on_hour_tick(day: int, hour: int) -> void:
+	if hour == 0:
+		GameManager.player_state.start_new_day()
+		today_schedule.clear()
+		completed_entries_today.clear()
+		operating_hours_today = 0
+		supervising_hours_today = 0
+		day_schedule_ended.emit(day - 1)
+
+	if TimeManager.is_store_actually_operating():
+		operating_hours_today += 1
+		if GameManager.store_state.owner_present:
+			supervising_hours_today += 1
+
+
+## ── 排程校验（不变，仍然按小时寻址，因为"计划"本身就是按小时选起始点） ──
 
 func can_schedule_action(action_id: String, start_hour: int) -> Dictionary:
 	var action := ScheduleActionData.get_action(action_id)
@@ -84,12 +104,13 @@ func _check_preconditions(action: ActionDefinition, start_hour: int) -> Dictiona
 	return {"can": true, "reason_code": "", "reason": ""}
 
 
-func add_action_to_schedule(action_id: String, start_hour: int) -> Dictionary:
+func add_action_to_schedule(action_id: String, start_hour: int, target_id: String = "") -> Dictionary:
 	var check := can_schedule_action(action_id, start_hour)
 	if not check.can:
 		return check
 	var action := ScheduleActionData.get_action(action_id)
-	today_schedule.add_entry(action_id, start_hour, action.duration_hours)
+	var entry := today_schedule.add_entry(action_id, start_hour, action.duration_hours)
+	entry.target_id = target_id
 	schedule_changed.emit()
 	return {"can": true, "reason_code": "", "reason": "已加入排程"}
 
@@ -101,38 +122,167 @@ func remove_action_from_schedule(hour: int) -> bool:
 	return removed
 
 
-## ── 动态判定辅助 ─────────────────────────────────────────
+## ── 单步模式：立即开始，不占用日历格子 ──────────────────────
 
-## 判断给定小时是否落在"至少一个已配置品类真正营业"的窗口内。
-## 完全复用现有 SettlementEngine 的营业判定思路（品类的 default_open_slots/
-## preferred_slots/strategy），不重写判定逻辑，只是换成按小时查询。
+func start_action_now(action_id: String, target_id: String = "") -> Dictionary:
+	if current_action != null and current_action.is_active:
+		return {"can": false, "reason_code": "already_running", "reason": "已经有一个行动正在进行，请先结束它"}
+
+	var current_hour := int(TimeManager.get_hour_of_day())
+	var check := can_schedule_action(action_id, current_hour)
+	if not check.can:
+		return check
+
+	var action := ScheduleActionData.get_action(action_id)
+	_begin_current_action(action_id, target_id, null)
+	TimeManager.set_speed(TimeManager.Speed.X1)
+	schedule_changed.emit()
+	return {"can": true, "reason_code": "", "reason": "已开始「%s」" % action.name}
+
+
+func stop_current_action() -> void:
+	if current_action == null or not current_action.is_active:
+		return
+	var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
+	_finalize_current_action(elapsed_hours)
+
+
+## ── 每帧/每次时钟前进都调用：检查当前状态是否该结束，检查队列有没有到点的 ──
+
+func tick() -> void:
+	if current_action != null and current_action.is_active:
+		var action := ScheduleActionData.get_action(current_action.action_id)
+		var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
+		if elapsed_hours >= float(action.duration_hours) - 0.0001:
+			_finalize_current_action(float(action.duration_hours))
+			return
+
+	if current_action == null or not current_action.is_active:
+		_check_and_start_planned_entry()
+
+
+func _check_and_start_planned_entry() -> void:
+	var current_hour := int(TimeManager.get_hour_of_day())
+	for e in today_schedule.entries:
+		if e.status != "pending":
+			continue
+		if current_hour >= e.get_end_hour():
+			e.status = "failed"
+			e.failure_reason = "错过了计划的时间窗口"
+			completed_entries_today.append(e)
+			today_schedule.entries.erase(e)
+			continue
+		if e.start_hour <= current_hour:
+			today_schedule.entries.erase(e)
+			_begin_current_action(e.action_id, e.target_id, e)
+			return
+
+
+func _begin_current_action(action_id: String, target_id: String, source_entry: ScheduledActionEntry) -> void:
+	current_action = CurrentActionState.new()
+	current_action.action_id = action_id
+	current_action.target_id = target_id
+	current_action.start_game_seconds = TimeManager.total_game_seconds
+	current_action.work_hours_before = GameManager.player_state.work_hours_today
+	current_action.source_entry = source_entry
+	current_action.is_active = true
+
+	var action := ScheduleActionData.get_action(action_id)
+	if action.action_effect_type == "store_supervision":
+		GameManager.store_state.owner_present = true
+
+
+func _finalize_current_action(elapsed_hours: float) -> void:
+	var action := ScheduleActionData.get_action(current_action.action_id)
+	var player := GameManager.player_state
+
+	## 目标失效检查：不追溯撤销已经发生的效果，只是提前收尾并记录原因。
+	var precondition := _check_preconditions(action, int(TimeManager.get_hour_of_day()))
+
+	var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
+		current_action.work_hours_before, elapsed_hours)
+
+	var total_cost := 0.0
+	var total_recovery := 0.0
+	var weighted_effect_mult := 0.0
+
+	for seg in segments:
+		if action.energy_recovery_per_hour > 0.0:
+			total_recovery += action.energy_recovery_per_hour * seg.hours
+		else:
+			total_cost += action.base_energy_cost_per_hour * seg.hours * seg.energy_mult
+		weighted_effect_mult += seg.effect_mult * seg.hours
+
+	if elapsed_hours > 0.0:
+		weighted_effect_mult /= elapsed_hours
+
+	if action.energy_recovery_per_hour > 0.0:
+		player.apply_energy_delta(total_recovery)
+	else:
+		player.apply_energy_delta(-total_cost)
+
+	if action.work_hour_counting:
+		player.work_hours_today += elapsed_hours
+	player.fatigue_state = ScheduleConfig.get_fatigue_tier(player.work_hours_today).state
+
+	if action.action_effect_type == "store_supervision":
+		GameManager.store_state.owner_present = false
+
+	var final_status := "completed"
+	var failure_reason := ""
+
+	if not precondition.can:
+		final_status = "failed"
+		failure_reason = precondition.reason
+	else:
+		match action.effect_scaling:
+			"proportional":
+				var progress_ratio := elapsed_hours / float(action.duration_hours)
+				hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
+				if action.action_effect_type == "region_research" and current_action.target_id != "":
+					var gain := RegionConfig.FAMILIARITY_GAIN_PER_HOUR * elapsed_hours
+					var research_result: Dictionary = GameManager.research_region(current_action.target_id, gain)
+					if not research_result.success:
+						final_status = "failed"
+						failure_reason = research_result.reason
+			"binary":
+				if elapsed_hours >= float(action.duration_hours) - 0.0001:
+					action_completed.emit(action.id, elapsed_hours, action.duration_hours)
+
+	## 记录这次执行结果，供UI/日结报告展示。
+	var record: ScheduledActionEntry = current_action.source_entry
+	if record == null:
+		record = ScheduledActionEntry.new()
+		record.action_id = current_action.action_id
+		record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
+		record.duration_hours = action.duration_hours
+	record.target_id = current_action.target_id
+	record.hours_completed = elapsed_hours
+	record.status = final_status
+	record.failure_reason = failure_reason
+	completed_entries_today.append(record)
+
+	current_action = null
+
+	if player.energy <= 0.0 and player.energy_debt > 0.0:
+		action_interrupt.emit("energy_exhausted", "精力已耗尽，当前处于透支状态")
+
+	if today_schedule.entries.is_empty():
+		TimeManager.set_speed(TimeManager.Speed.PAUSED)
+	## 否则保持当前速度，让时间继续流逝，下一次tick()会自动接上排程队列里的下一项。
+
+	schedule_changed.emit()
+
+
+## ── 动态判定辅助（不变） ──────────────────────────────────
+
 func _is_store_operating_at(hour: int) -> bool:
 	if not GameManager.store_state.is_open:
 		return false
-	var slot_id := _slot_id_at_hour(hour)
-	if slot_id == "":
-		return false
 	for cat_slot in GameManager.store_state.category_slots:
-		var cat := GameManager.get_category(cat_slot.category_id)
-		if cat == null:
-			continue
-		var active_slots: Array = []
-		match cat_slot.strategy:
-			"standard": active_slots = cat.default_open_slots
-			"extend":   active_slots = SettlementConfig.SLOT_ORDER
-			"shorten":  active_slots = cat.preferred_slots
-		if slot_id in active_slots:
+		if cat_slot.is_open_at_hour(hour):
 			return true
 	return false
-
-
-func _slot_id_at_hour(hour: int) -> String:
-	for slot_id in SettlementConfig.SLOT_ORDER:
-		var start: int = TimeManager.SLOT_START_HOUR[slot_id]
-		var length: int = SettlementConfig.SLOT_HOURS[slot_id]
-		if hour >= start and hour < start + length:
-			return slot_id
-	return ""
 
 
 func _next_operating_hour_after(hour: int) -> int:
@@ -149,110 +299,3 @@ func _today_has_settled() -> bool:
 		if entry.get("day", -1) == day:
 			return true
 	return false
-
-
-## ── 每小时执行（核心） ───────────────────────────────────
-
-func _on_hour_advanced(day: int, hour: int) -> void:
-	if hour == 0:
-		_handle_day_rollover(day)
-
-	var player := GameManager.player_state
-	var entry := today_schedule.get_entry_for_hour(hour)
-
-	var log := HourlyLogEntry.new()
-	log.day = day
-	log.hour = hour
-	log.energy_before = player.energy
-	log.energy_debt_before = player.energy_debt
-	log.work_hours_before = player.work_hours_today
-	log.fatigue_before = player.fatigue_state
-	log.store_was_operating = _is_store_operating_at(hour)
-
-	if entry == null:
-		log.action_status = "idle"
-	else:
-		_execute_hour_for_action(entry, log)
-
-	player.fatigue_state = ScheduleConfig.get_fatigue_tier(player.work_hours_today).state
-
-	log.energy_after = player.energy
-	log.energy_debt_after = player.energy_debt
-	log.work_hours_after = player.work_hours_today
-	log.fatigue_after = player.fatigue_state
-
-	hourly_log.append(log)
-	hour_executed.emit(log)
-
-	if player.energy <= 0.0 and player.energy_debt > 0.0 and entry != null:
-		action_interrupt.emit("energy_exhausted", "精力已耗尽，当前处于透支状态")
-
-
-func _execute_hour_for_action(entry: ScheduledActionEntry, log: HourlyLogEntry) -> void:
-	var action := ScheduleActionData.get_action(entry.action_id)
-	if action == null:
-		entry.status = "failed"
-		entry.failure_reason = "行动定义丢失"
-		log.action_status = "failed"
-		log.failure_reason = entry.failure_reason
-		return
-
-	log.action_id = action.id
-	log.action_name = action.name
-
-	## 行动仍然可能因为目标失效而在执行途中失败——重新校验一次前置条件，
-	## 不自动替换为其他行动，只记录明确原因。
-	var precondition := _check_preconditions(action, entry.start_hour)
-	if not precondition.can:
-		entry.status = "failed"
-		entry.failure_reason = precondition.reason
-		log.action_status = "failed"
-		log.failure_reason = precondition.reason
-		return
-
-	var player := GameManager.player_state
-	var tier := ScheduleConfig.get_fatigue_tier(player.work_hours_today)
-	log.applied_energy_multiplier = tier.energy_mult
-	log.applied_effect_multiplier = tier.effect_mult
-
-	if action.energy_recovery_per_hour > 0.0:
-		player.apply_energy_delta(action.energy_recovery_per_hour)
-	else:
-		var cost: float = action.base_energy_cost_per_hour * tier.energy_mult
-		player.apply_energy_delta(-cost)
-
-	if action.work_hour_counting:
-		player.work_hours_today += 1.0
-
-	if action.action_effect_type == "store_supervision":
-		GameManager.store_state.owner_present = true
-		log.player_supervising = true
-	else:
-		log.player_supervising = false
-
-	entry.status = "completed"
-	log.action_status = "executing"
-
-	if entry.get_end_hour() - 1 == log.hour:
-		_apply_completion_effect(action, entry)
-		log.action_status = "completed"
-
-
-## 行动最后一小时才触发"完成效果"——工作行动的实际业务效果
-## （调研解锁、库存补充等）在这里统一分发，不按名字写if/else，
-## 按 action_effect_type 分发，未接入的类型只广播信号供未来系统监听。
-func _apply_completion_effect(action: ActionDefinition, _entry: ScheduledActionEntry) -> void:
-	match action.action_effect_type:
-		"store_supervision":
-			pass  # 坐镇效果已在每小时里通过 owner_present 生效，无需额外收尾
-		_:
-			pass
-	# 预留 hook：具体系统接入前，只广播完成事件。
-	# ScheduleManagerActionCompleted 信号名故意区别于 hour_executed，避免UI重复处理。
-
-
-func _handle_day_rollover(new_day: int) -> void:
-	GameManager.player_state.start_new_day()
-	today_schedule.clear()
-	last_completed_day = new_day - 1
-	day_schedule_ended.emit(last_completed_day)

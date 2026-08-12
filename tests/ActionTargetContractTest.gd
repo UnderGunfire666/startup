@@ -55,6 +55,9 @@ func _test_region_research_is_player_level() -> void:
 		"trait_ids": [],
 	})
 	_assert_true(bool(character_result.get("success", false)), "创建角色应成功")
+	if not bool(character_result.get("success", false)):
+		return
+	GameManager.player_state.current_block_id = "cc_primary_school_1"
 
 	var check := ScheduleManager.can_schedule_action(
 		"region_research",

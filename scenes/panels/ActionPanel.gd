@@ -64,7 +64,7 @@ func _refresh_current_action_box() -> void:
 	var action := ScheduleActionData.get_action(state.action_id)
 	current_action_box.visible = true
 	var elapsed: float = (TimeManager.total_game_seconds - state.start_game_seconds) / 3600.0
-	var target_text := _describe_target(action, state.target_id)
+	var target_text := _describe_target(action, state.target_id, state.target_ids)
 	current_action_progress_label.text = "进行中：%s%s（已进行 %.2f / %d 小时）" % [action.name if action != null else state.action_id, target_text, elapsed, action.duration_hours]
 	stop_action_button.disabled = false
 	stop_action_button.text = "⏹ 取消（尚未产生任何收益）" if elapsed < 0.01 else "⏹ 提前停止"
@@ -73,14 +73,21 @@ func _on_stop_pressed() -> void:
 	ScheduleManager.stop_current_action()
 	_refresh_all()
 
-func _describe_target(action: ActionDefinition, target_id: String) -> String:
-	if action == null or target_id == "":
+func _describe_target(action: ActionDefinition, target_id: String, target_ids: Array[String]) -> String:
+	if action == null:
+		return ""
+	if action.action_effect_type == "region_research":
+		if target_ids.is_empty():
+			return ""
+		var block_names: Array[String] = []
+		for block_id in target_ids:
+			var block := GameManager.get_block(block_id)
+			if block != null:
+				block_names.append(block.name)
+		return "（目标区块：%s）" % "、".join(block_names)
+	if target_id == "":
 		return ""
 	match action.action_effect_type:
-		"region_research":
-			var area := GameManager.player_state.get_survey_area(target_id)
-			if area != null:
-				return "（目标：%s）" % area.name
 		"deep_inspection":
 			var sf := GameManager.get_storefront(target_id)
 			if sf != null:
@@ -126,7 +133,7 @@ func _build_action_list() -> void:
 				start_btn.text = "不可用"
 				start_btn.disabled = true
 				start_btn.tooltip_text = check.reason
-		start_btn.pressed.connect(func():
+			start_btn.pressed.connect(func():
 			var result := ScheduleManager.start_action_now(action.id, "")
 			if not result.can:
 				warning_label.visible = true

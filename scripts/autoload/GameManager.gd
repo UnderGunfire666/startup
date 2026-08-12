@@ -309,13 +309,18 @@ func recalculate_region_intel(city_region_id: String) -> void:
 		total += get_block_understanding(b.id)
 	var average := total / float(region_blocks.size())
 
-	## 经营时间加成：遍历玩家名下所有店铺，只统计"选定区域=当前查询区域"
-	## 的那些店铺的营业天数——多店化后这里天然变精确了，不再需要近似算法
-	## （backlog 任务 3 已随本次重构一并解决）。
+	## 经营时间加成：Store 的 selected_region_id 属于旧 Region ID 体系，
+	## 这里通过 Store 选定的门面解析真实 city_region_id，避免把 A001
+	## 之类的旧 Region ID 与 CR001 之类的 CityRegion ID 直接比较。
 	var days: Dictionary = {}
 	for s in stores:
-		if s.selected_region_id != city_region_id:
+		if s.selected_storefront_id.is_empty():
 			continue
+
+		var storefront := get_storefront(s.selected_storefront_id)
+		if storefront == null or storefront.city_region_id != city_region_id:
+			continue
+
 		for entry in s.daily_history:
 			days[entry.get("day", -1)] = true
 	var operating_days := days.size()

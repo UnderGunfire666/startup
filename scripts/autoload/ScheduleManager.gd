@@ -24,6 +24,9 @@ func reset_for_new_game() -> void:
 	supervising_hours_today = 0
 
 func _on_hour_tick(day: int, hour: int) -> void:
+	if current_action != null and current_action.is_active and current_action.continuous_mode:
+		_advance_continuous_region_research_to_elapsed()
+
 	if hour == 0:
 		if current_action != null and current_action.is_active and current_action.continuous_mode:
 			_finalize_current_action(current_action.applied_hours)
@@ -42,9 +45,6 @@ func _on_hour_tick(day: int, hour: int) -> void:
 
 	if supervised_store != null and _is_store_operating_at(TimeManager.get_current_hour_int(), supervised_store):
 		supervising_hours_today += 1
-
-	if current_action != null and current_action.is_active and current_action.continuous_mode:
-		_advance_continuous_region_research_to_elapsed()
 
 func can_schedule_action(
 		action_id: String,
@@ -436,10 +436,10 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	var record: ScheduledActionEntry = current_action.source_entry
 	if record == null:
 		record = ScheduledActionEntry.new()
-	record.action_id = current_action.action_id
-	record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
-	record.duration_hours = int(current_action.duration_hours)
-	record.target_id = current_action.target_id
+		record.action_id = current_action.action_id
+		record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
+		record.duration_hours = int(current_action.duration_hours)
+		record.target_id = current_action.target_id
 	record.hours_completed = elapsed_hours
 	record.status = final_status
 	record.failure_reason = failure_reason

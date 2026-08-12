@@ -1,6 +1,7 @@
 extends Control
 ## 地图页：鼠标点选一个或多个区块。
 ## Phase 2：调查行动直接绑定选中的 Block，不再通过 SurveyArea 启动调查。
+## Phase 7：提供“随便逛逛”和“按顺序逛”两种调查模式。
 ## SurveyArea 数据仍保留在存档层，后续阶段再清理。
 
 @onready var map_canvas: CityMapCanvas = $HBoxContainer/MapScrollContainer/MapCanvas
@@ -13,6 +14,9 @@ extends Control
 ## 已发现门面列表容器。
 @onready var storefront_list: VBoxContainer = $HBoxContainer/SidePanel/StorefrontScroll/StorefrontList
 
+var _sequence_research: RegionResearchSequence = null
+var _sequential_research_button: Button = null
+
 
 func _ready() -> void:
 	map_canvas.setup(GameManager.all_city_regions, GameManager.all_blocks)
@@ -20,20 +24,33 @@ func _ready() -> void:
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
 	start_research_button.pressed.connect(_on_start_research_pressed)
+	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
 
-	instruction_label.text = "点击地图上的区块进行选择；再次点击已选区块可取消选择。可同时选择多个区块。当前阶段可直接调查所选区块。"
+	_sequential_research_button = Button.new()
+	_sequential_research_button.text = "按顺序逛"
+	_sequential_research_button.tooltip_text = "当前区块完全了解后，自动前往下一个选中区块继续调查。"
+	_sequential_research_button.pressed.connect(_on_start_sequential_research_pressed)
+	$HBoxContainer/SidePanel.add_child(_sequential_research_button)
+
+	_sequence_research = RegionResearchSequence.new()
+	_sequence_research.changed.connect(_on_sequence_changed)
+	_sequence_research.completed.connect(_on_sequence_completed)
+	_sequence_research.failed.connect(_on_sequence_failed)
+
+	instruction_label.text = "点击地图上的区块进行选择；再次点击已选区块可取消选择。可同时选择多个区块。"
 	refresh()
 
 
 func refresh() -> void:
-	## Phase 2 不再让地图依赖 SurveyArea 作为调查入口。
 	map_canvas.refresh_storefronts(GameManager.all_storefronts)
 	_refresh_report()
 	_refresh_storefront_list()
+	_refresh_sequence_button()
 
 
 func _on_selected_blocks_changed(_block_ids: Array[String]) -> void:
 	_refresh_report()
+	_refresh_sequence_button()
 
 
 func _on_clear_selection_pressed() -> void:
@@ -43,15 +60,7 @@ func _on_clear_selection_pressed() -> void:
 
 func _on_start_research_pressed() -> void:
 	var selected_blocks := map_canvas.get_selected_blocks()
-	if selected_blocks.is_empty():
-		status_label.text = "⚠ 请先选择至少一个区块"
-		return
-
-	var block_ids: Array[String] = []
-	for block in selected_blocks:
-		if GameManager.get_block_understanding(block.id) < 100.0:
-			block_ids.append(block.id)
-
+	var block_ids := _get_incomplete_block_ids(selected_blocks)
 	if block_ids.is_empty():
 		status_label.text = "⚠ 所选区块都已经完全了解"
 		_refresh_report()
@@ -59,6 +68,58 @@ func _on_start_research_pressed() -> void:
 
 	var result := ScheduleManager.start_action_now("region_research", "", block_ids)
 	status_label.text = ("✅ " if result.get("can", false) else "⚠ ") + str(result.get("reason", ""))
+	_refresh_sequence_button()
+
+
+func _on_start_sequential_research_pressed() -> void:
+	if _sequence_research == null:
+		return
+	var selected_blocks := map_canvas.get_selected_blocks()
+	var block_ids := _get_incomplete_block_ids(selected_blocks)
+	var result := _sequence_research.start(block_ids)
+	status_label.text = ("✅ " if result.get("can", false) else "⚠ ") + str(result.get("reason", ""))
+	_refresh_sequence_button()
+
+
+func _on_schedule_changed() -> void:
+	_refresh_report()
+	_refresh_sequence_button()
+
+
+func _on_sequence_changed() -> void:
+	_refresh_report()
+	_refresh_sequence_button()
+
+
+func _on_sequence_completed() -> void:
+	status_label.text = "✅ 已按顺序完成所有选中区块的调查"
+	_refresh_report()
+	_refresh_sequence_button()
+
+
+func _on_sequence_failed(reason_code: String, reason: String) -> void:
+	status_label.text = "⚠ %s" % reason
+	_refresh_report()
+	_refresh_sequence_button()
+
+
+func _refresh_sequence_button() -> void:
+	if _sequential_research_button == null:
+		return
+	var selected_blocks := map_canvas.get_selected_blocks()
+	var has_incomplete := not _get_incomplete_block_ids(selected_blocks).is_empty()
+	var action_running := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
+	var sequence_running := _sequence_research != null and _sequence_research.active
+	_sequential_research_button.disabled = not has_incomplete or action_running or sequence_running
+	_sequential_research_button.text = "按顺序逛（进行中）" if sequence_running else "按顺序逛"
+
+
+func _get_incomplete_block_ids(selected_blocks: Array[BlockData]) -> Array[String]:
+	var block_ids: Array[String] = []
+	for block in selected_blocks:
+		if GameManager.get_block_understanding(block.id) < 100.0:
+			block_ids.append(block.id)
+	return block_ids
 
 
 func _on_storefront_clicked(storefront_id: String) -> void:
@@ -83,8 +144,16 @@ func _refresh_report() -> void:
 			has_incomplete_block = true
 		lines.append("• %s：%.0f%%了解度" % [block.name, understanding])
 
+	if _sequence_research != null and _sequence_research.active:
+		var current_sequence_block := _sequence_research.get_current_block_id()
+		var sequence_block := GameManager.get_block(current_sequence_block)
+		if sequence_block != null:
+			lines.append("")
+			lines.append("按顺序逛：正在考察「%s」" % sequence_block.name)
+
 	report_label.text = "\n".join(lines)
-	start_research_button.disabled = has_incomplete_block == false or (ScheduleManager.current_action != null and ScheduleManager.current_action.is_active)
+	var action_running := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
+	start_research_button.disabled = not has_incomplete_block or action_running or (_sequence_research != null and _sequence_research.active)
 
 
 ## 遍历所有已发现门面，维持当前地图页的选址/尽调功能。

@@ -6,17 +6,15 @@ signal action_completed(action_id: String, elapsed_hours: float, duration_hours:
 signal action_interrupt(reason_code: String, message: String)
 signal day_schedule_ended(day: int)
 
-var today_schedule: DaySchedule = DaySchedule.new()   # 只放"还没开始"的计划
-var completed_entries_today: Array[ScheduledActionEntry] = []   # 今天已结束的（供日程列表/日结报告展示）
+var today_schedule: DaySchedule = DaySchedule.new()
+var completed_entries_today: Array[ScheduledActionEntry] = []
 var current_action: CurrentActionState = null
 
 var operating_hours_today: int = 0
 var supervising_hours_today: int = 0
 
-
 func _ready() -> void:
 	TimeManager.hour_advanced.connect(_on_hour_tick)
-
 
 func reset_for_new_game() -> void:
 	today_schedule = DaySchedule.new()
@@ -24,7 +22,6 @@ func reset_for_new_game() -> void:
 	current_action = null
 	operating_hours_today = 0
 	supervising_hours_today = 0
-
 
 func _on_hour_tick(day: int, hour: int) -> void:
 	if hour == 0:
@@ -44,7 +41,6 @@ func _on_hour_tick(day: int, hour: int) -> void:
 	if supervised_store != null and _is_store_operating_at(TimeManager.get_current_hour_int(), supervised_store):
 		supervising_hours_today += 1
 
-
 func can_schedule_action(
 		action_id: String,
 		start_hour: int,
@@ -54,40 +50,24 @@ func can_schedule_action(
 	var action := ScheduleActionData.get_action(action_id)
 	if action == null:
 		return {"can": false, "reason_code": "invalid_action", "reason": "行动不存在"}
-
 	if action.requires_character_created and not GameManager.player_state.is_character_created:
 		return {"can": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
-
-	if start_hour < action.allowed_hour_range.x or \
-			(start_hour + action.duration_hours) > action.allowed_hour_range.y:
-		return {
-			"can": false,
-			"reason_code": "outside_allowed_hours",
-			"reason": "%s仅可在%02d:00至%02d:00之间安排" % [
-				action.name, action.allowed_hour_range.x, action.allowed_hour_range.y
-			]
-		}
-
+	if start_hour < action.allowed_hour_range.x or (start_hour + action.duration_hours) > action.allowed_hour_range.y:
+		return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
 	if today_schedule.has_conflict(start_hour, action.duration_hours):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
-
-	var precondition := _check_preconditions(action, start_hour, target_id, target_ids)
+	var precondition := _check_preconditions(action, start_hour, target_id, target_ids, true)
 	if not precondition.can:
 		return precondition
-
 	return {"can": true, "reason_code": "", "reason": ""}
-
 
 func _check_preconditions(
 		action: ActionDefinition,
 		start_hour: int,
 		target_id: String = "",
-		target_ids: Array[String] = []
+		target_ids: Array[String] = [],
+		reject_completed_blocks: bool = false
 ) -> Dictionary:
-	## 行动目标不一定是Store：
-	## region_research → Block ID列表（Phase 2）
-	## deep_inspection → storefront_id
-	## 只有真正依赖Store状态的行动才解析Store并要求其存在。
 	if action.action_effect_type == "region_research":
 		if target_ids.is_empty():
 			return {"can": false, "reason_code": "no_blocks_selected", "reason": "请先在地图上选择至少一个区块"}
@@ -95,7 +75,7 @@ func _check_preconditions(
 			var block := GameManager.get_block(block_id)
 			if block == null:
 				return {"can": false, "reason_code": "block_not_found", "reason": "调查区块不存在：%s" % block_id}
-			if GameManager.get_block_understanding(block_id) >= 100.0:
+			if reject_completed_blocks and GameManager.get_block_understanding(block_id) >= 100.0:
 				return {"can": false, "reason_code": "block_already_understood", "reason": "所选区块已完全了解：%s" % block.name}
 
 	var requires_store: bool = (
@@ -106,7 +86,6 @@ func _check_preconditions(
 		or action.requires_store_operating_hour
 		or action.action_effect_type == "store_supervision"
 	)
-
 	var state: Store = null
 	if requires_store:
 		state = GameManager.get_store(target_id) if target_id != "" else GameManager.store_state
@@ -127,13 +106,10 @@ func _check_preconditions(
 
 	if action.requires_open_store and not state.is_open:
 		return {"can": false, "reason_code": "store_not_open", "reason": "尚未开业，无法安排「%s」" % action.name}
-
 	if action.requires_region_selected and state.selected_region_id == "":
 		return {"can": false, "reason_code": "no_region", "reason": "请先选定区域"}
-
 	if action.requires_selected_category and state.category_slots.is_empty():
 		return {"can": false, "reason_code": "no_category", "reason": "请先选择经营品类"}
-
 	if action.requires_today_has_settled and not _today_has_settled(state):
 		return {"can": false, "reason_code": "no_business_today", "reason": "今天尚未发生任何营业，无法收档复盘"}
 
@@ -148,7 +124,6 @@ func _check_preconditions(
 					reason += "，下次营业时间为 %02d:00" % next_open
 				return {"can": false, "reason_code": "store_not_operating", "reason": reason}
 			check_hour += 1
-
 	return {"can": true, "reason_code": "", "reason": ""}
 
 func _is_store_operating_at(hour: int, store: Store = null) -> bool:
@@ -160,7 +135,6 @@ func _is_store_operating_at(hour: int, store: Store = null) -> bool:
 			return true
 	return false
 
-
 func _next_operating_hour_after(hour: int, store: Store = null) -> int:
 	var s := store if store != null else GameManager.store_state
 	for offset in range(1, 25):
@@ -168,7 +142,6 @@ func _next_operating_hour_after(hour: int, store: Store = null) -> int:
 		if _is_store_operating_at(h, s):
 			return h
 	return -1
-
 
 func _today_has_settled(store: Store = null) -> bool:
 	var s := store if store != null else GameManager.store_state
@@ -190,7 +163,6 @@ func add_action_to_schedule(action_id: String, start_hour: int, target_id: Strin
 	schedule_changed.emit()
 	return {"can": true, "reason_code": "", "reason": "已加入排程"}
 
-
 func start_action_now(
 		action_id: String,
 		target_id: String = "",
@@ -198,12 +170,10 @@ func start_action_now(
 ) -> Dictionary:
 	if current_action != null and current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已经有一个行动正在进行，请先结束它"}
-
 	var current_hour := int(TimeManager.get_hour_of_day())
 	var check := can_schedule_action(action_id, current_hour, target_id, target_ids)
 	if not check.can:
 		return check
-
 	var action := ScheduleActionData.get_action(action_id)
 	_begin_current_action(action_id, target_id, target_ids, null)
 	TimeManager.set_speed(TimeManager.Speed.X1)
@@ -216,15 +186,11 @@ func remove_action_from_schedule(hour: int) -> bool:
 		schedule_changed.emit()
 	return removed
 
-
 func stop_current_action() -> void:
 	if current_action == null or not current_action.is_active:
 		return
 	var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
 	_finalize_current_action(elapsed_hours)
-
-
-## ── 每帧/每次时钟前进都调用：检查当前状态是否该结束，检查队列有没有到点的 ──
 
 func tick() -> void:
 	if current_action != null and current_action.is_active:
@@ -233,10 +199,8 @@ func tick() -> void:
 		if elapsed_hours >= float(action.duration_hours) - 0.0001:
 			_finalize_current_action(float(action.duration_hours))
 			return
-
 	if current_action == null or not current_action.is_active:
 		_check_and_start_planned_entry()
-
 
 func _check_and_start_planned_entry() -> void:
 	var current_hour := int(TimeManager.get_hour_of_day())
@@ -253,7 +217,6 @@ func _check_and_start_planned_entry() -> void:
 			today_schedule.entries.erase(e)
 			_begin_current_action(e.action_id, e.target_id, [], e)
 			return
-
 
 func _begin_current_action(
 		action_id: String,
@@ -278,18 +241,16 @@ func _begin_current_action(
 func _finalize_current_action(elapsed_hours: float) -> void:
 	var action := ScheduleActionData.get_action(current_action.action_id)
 	var player := GameManager.player_state
-
-	## 目标失效检查：不追溯撤销已经发生的效果，只是提前收尾并记录原因。
 	var precondition := _check_preconditions(
 		action,
 		int(TimeManager.get_hour_of_day()),
 		current_action.target_id,
-		current_action.target_ids
+		current_action.target_ids,
+		false
 	)
 
 	var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
 		current_action.work_hours_before, elapsed_hours)
-
 	var total_cost := 0.0
 	var total_recovery := 0.0
 	var weighted_effect_mult := 0.0
@@ -303,22 +264,18 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 
 	if elapsed_hours > 0.0:
 		weighted_effect_mult /= elapsed_hours
-
 	if action.energy_recovery_per_hour > 0.0:
 		player.apply_energy_delta(total_recovery)
 	else:
 		player.apply_energy_delta(-total_cost)
-
 	if action.work_hour_counting:
 		player.work_hours_today += elapsed_hours
 	player.fatigue_state = ScheduleConfig.get_fatigue_tier(player.work_hours_today).state
-
 	if action.action_effect_type == "store_supervision":
 		GameManager.player_state.supervising_store_id = ""
 
 	var final_status := "completed"
 	var failure_reason := ""
-
 	if not precondition.can:
 		final_status = "failed"
 		failure_reason = precondition.reason
@@ -327,18 +284,13 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 			"proportional":
 				var progress_ratio := elapsed_hours / float(action.duration_hours)
 				hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
-
 				if action.action_effect_type == "region_research":
-					var block_effect_result := _apply_region_research_effect(
-						current_action.target_ids, elapsed_hours
-					)
+					var block_effect_result := _apply_region_research_effect(current_action.target_ids, elapsed_hours)
 					if not block_effect_result.is_empty() and not block_effect_result.success:
 						final_status = "failed"
 						failure_reason = block_effect_result.reason
 				elif current_action.target_id != "":
-					var effect_result := _apply_understanding_effect(
-						action.action_effect_type, current_action.target_id, elapsed_hours
-					)
+					var effect_result := _apply_understanding_effect(action.action_effect_type, current_action.target_id, elapsed_hours)
 					if not effect_result.is_empty() and not effect_result.success:
 						final_status = "failed"
 						failure_reason = effect_result.reason
@@ -346,7 +298,6 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 				if elapsed_hours >= float(action.duration_hours) - 0.0001:
 					action_completed.emit(action.id, elapsed_hours, action.duration_hours)
 
-	## 记录这次执行结果，供UI/日结报告展示。
 	var record: ScheduledActionEntry = current_action.source_entry
 	if record == null:
 		record = ScheduledActionEntry.new()
@@ -358,23 +309,13 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	record.status = final_status
 	record.failure_reason = failure_reason
 	completed_entries_today.append(record)
-
 	current_action = null
 
 	if player.energy <= 0.0 and player.energy_debt > 0.0:
 		action_interrupt.emit("energy_exhausted", "精力已耗尽，当前处于透支状态")
-
 	if today_schedule.entries.is_empty():
 		TimeManager.set_speed(TimeManager.Speed.PAUSED)
-	## 否则保持当前速度，让时间继续流逝，下一次tick()会自动接上排程队列里的下一项。
-
 	schedule_changed.emit()
-
-
-## ── 三层了解度行动效果分发 ─────────────────────────────────
-## target_id的含义按行动类型不同：
-## region_research → Phase 2 使用target_ids中的Block ID
-## storefront_inspection / deep_inspection → storefront_id
 
 func _apply_understanding_effect(effect_type: String, target_id: String, elapsed_hours: float) -> Dictionary:
 	match effect_type:
@@ -383,7 +324,6 @@ func _apply_understanding_effect(effect_type: String, target_id: String, elapsed
 		_:
 			return {}
 
-
 func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: float) -> Dictionary:
 	if block_ids.is_empty():
 		return {"success": false, "reason": "没有选择调查区块"}
@@ -391,7 +331,6 @@ func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: floa
 	var gain := RegionConfig.FAMILIARITY_GAIN_PER_HOUR * elapsed_hours
 	var applied := false
 	var affected_city_regions: Dictionary = {}
-
 	for block_id in block_ids:
 		var block := GameManager.get_block(block_id)
 		if block == null:
@@ -405,8 +344,6 @@ func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: floa
 
 	if not applied:
 		return {"success": false, "reason": "所选区块均已完全了解或不存在"}
-
 	for city_region_id in affected_city_regions.keys():
 		GameManager.recalculate_region_intel(str(city_region_id))
-
 	return {"success": true, "reason": "所选区块调查进度已更新"}

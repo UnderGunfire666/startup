@@ -40,7 +40,7 @@ theme_override_constants/separation = 8
 
 [node name="InstructionLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=389310202]
 layout_mode = 2
-text = "在地图上按住鼠标拖拽以框选调查区；点击已有调查区圆圈可查看进度。"
+text = "点击地图上的区块进行选择；再次点击已选区块可取消选择。可同时选择多个区块。"
 autowrap_mode = 3
 
 [node name="HSeparator1" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=1787666556]
@@ -54,12 +54,12 @@ size_flags_vertical = 3
 [node name="ReportLabel" type="Label" parent="HBoxContainer/SidePanel/ReportScroll" unique_id=671181307]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "尚未选择调查区。"
+text = "尚未选择区块。"
 autowrap_mode = 3
 
-[node name="AdvanceBasicButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=1674692095]
+[node name="ClearSelectionButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=1674692095]
 layout_mode = 2
-text = "开始区域调研（消耗时间）"
+text = "清空区块选择"
 
 [node name="HSeparator2" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=1280739347]
 layout_mode = 2

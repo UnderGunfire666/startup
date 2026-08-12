@@ -114,8 +114,7 @@ func _after_time_advance() -> void:
 			var closed_day := current_day
 			current_day = target_day
 			var summary := GameManager.get_day_summary_all_stores(closed_day)
-			if not summary.is_empty():
-				day_completed.emit(closed_day, summary)
+			day_completed.emit(closed_day, summary)
 
 		_last_emitted_hour = hour_int
 		_last_emitted_day = target_day

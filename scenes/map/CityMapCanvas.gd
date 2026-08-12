@@ -1,16 +1,13 @@
 class_name CityMapCanvas
 extends Control
-## v4变更：新增门面渲染与点击检测。未被发现(not_viewed)的门面完全不显示，
-## 也不可点；initial_viewing/full_diligence两种状态用不同颜色标记，
-## 点击可选中并交给CityMapPanel处理后续的行动触发。
+## 地图区块选择：鼠标点选一个或多个 Block。
+## Phase 1 只负责选择状态与可视化，不改变调查时间、体力或行动结算。
+## SurveyArea 相关API暂时保留，供后续迁移期间兼容旧数据。
 
-signal survey_drag_finished(city_region_id: String, center: Vector2, radius: float)
-signal survey_drag_rejected(reason: String)
-signal survey_area_clicked(survey_area_id: String)
+signal selected_blocks_changed(block_ids: Array[String])
 signal storefront_clicked(storefront_id: String)
 
 const MAP_SCALE: float = 0.3
-const MIN_DRAG_RADIUS: float = 5.0
 const STOREFRONT_CLICK_RADIUS_SCREEN_PX: float = 14.0
 
 const BLOCK_TYPE_COLORS: Dictionary = {
@@ -26,14 +23,13 @@ const STOREFRONT_STATE_COLORS: Dictionary = {
 	"full_diligence": Color(0.2, 0.9, 0.4, 1.0),
 }
 
+const BLOCK_SELECTED_COLOR := Color(1.0, 0.9, 0.2, 0.95)
+
 var city_regions: Array[CityRegionData] = []
 var blocks: Array[BlockData] = []
 var survey_areas: Array[SurveyAreaState] = []
 var storefronts: Array[StorefrontData] = []
-
-var _is_dragging: bool = false
-var _drag_start_map_pos: Vector2 = Vector2.ZERO
-var _drag_current_map_pos: Vector2 = Vector2.ZERO
+var selected_block_ids: Array[String] = []
 
 
 func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData]) -> void:
@@ -53,6 +49,52 @@ func refresh_storefronts(new_storefronts: Array[StorefrontData]) -> void:
 	queue_redraw()
 
 
+func clear_block_selection() -> void:
+	if selected_block_ids.is_empty():
+		return
+	selected_block_ids.clear()
+	selected_blocks_changed.emit(selected_block_ids.duplicate())
+	queue_redraw()
+
+
+func set_block_selected(block_id: String, selected: bool) -> bool:
+	var block := _find_block_by_id(block_id)
+	if block == null:
+		return false
+
+	var was_selected := selected_block_ids.has(block_id)
+	if selected and not was_selected:
+		selected_block_ids.append(block_id)
+	elif not selected and was_selected:
+		selected_block_ids.erase(block_id)
+	else:
+		return true
+
+	selected_blocks_changed.emit(selected_block_ids.duplicate())
+	queue_redraw()
+	return true
+
+
+func toggle_block_selection(block_id: String) -> bool:
+	return set_block_selected(block_id, not selected_block_ids.has(block_id))
+
+
+func get_selected_blocks() -> Array[BlockData]:
+	var result: Array[BlockData] = []
+	for block_id in selected_block_ids:
+		var block := _find_block_by_id(block_id)
+		if block != null:
+			result.append(block)
+	return result
+
+
+func _find_block_by_id(block_id: String) -> BlockData:
+	for block in blocks:
+		if block.id == block_id:
+			return block
+	return null
+
+
 func _update_canvas_size() -> void:
 	var max_x := 0.0
 	var max_y := 0.0
@@ -64,31 +106,24 @@ func _update_canvas_size() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
-			if mouse_event.pressed:
-				## 优先检查是否点在一个可见门面上——门面点击优先级高于
-				## 调查区框选/点击，因为门面标记通常很小，容易被拖拽误判。
-				var clicked_storefront := _find_storefront_at_screen(mouse_event.position)
-				if clicked_storefront != null:
-					storefront_clicked.emit(clicked_storefront.id)
-					return
+	if not event is InputEventMouseButton:
+		return
 
-				_is_dragging = true
-				_drag_start_map_pos = _screen_to_map(mouse_event.position)
-				_drag_current_map_pos = _drag_start_map_pos
-				queue_redraw()
-			else:
-				if _is_dragging:
-					_finish_drag()
-				_is_dragging = false
-				queue_redraw()
+	var mouse_event: InputEventMouseButton = event
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
 
-	elif event is InputEventMouseMotion and _is_dragging:
-		var motion_event: InputEventMouseMotion = event
-		_drag_current_map_pos = _screen_to_map(motion_event.position)
-		queue_redraw()
+	## 门面点击优先，避免点击已发现门面时同时改变区块选择。
+	var clicked_storefront := _find_storefront_at_screen(mouse_event.position)
+	if clicked_storefront != null:
+		storefront_clicked.emit(clicked_storefront.id)
+		return
+
+	var clicked_block := _find_block_at_screen(mouse_event.position)
+	if clicked_block == null:
+		return
+
+	toggle_block_selection(clicked_block.id)
 
 
 func _find_storefront_at_screen(screen_pos: Vector2) -> StorefrontData:
@@ -102,44 +137,13 @@ func _find_storefront_at_screen(screen_pos: Vector2) -> StorefrontData:
 	return null
 
 
-func _compute_drag_circle() -> Dictionary:
-	var center := (_drag_start_map_pos + _drag_current_map_pos) / 2.0
-	var radius := _drag_start_map_pos.distance_to(_drag_current_map_pos) / 2.0
-	return {"center": center, "radius": radius}
-
-
-func _finish_drag() -> void:
-	var drag_info := _compute_drag_circle()
-	var radius: float = drag_info.radius
-	var center: Vector2 = drag_info.center
-
-	if radius < MIN_DRAG_RADIUS:
-		var clicked_area := _find_survey_area_at(_drag_start_map_pos)
-		if clicked_area != null:
-			survey_area_clicked.emit(clicked_area.id)
-		else:
-			survey_drag_rejected.emit("拖拽距离太小，未生成调查区")
-		return
-
-	var city_region := _find_city_region_at(center)
-	if city_region == null:
-		survey_drag_rejected.emit("圆心不在任何已知城市区域范围内，请在色块内拖拽")
-		return
-
-	survey_drag_finished.emit(city_region.id, center, radius)
-
-
-func _find_city_region_at(map_pos: Vector2) -> CityRegionData:
-	for region in city_regions:
-		if region.map_bounds.has_point(map_pos):
-			return region
-	return null
-
-
-func _find_survey_area_at(map_pos: Vector2) -> SurveyAreaState:
-	for area in survey_areas:
-		if area.center_position.distance_to(map_pos) <= area.radius:
-			return area
+func _find_block_at_screen(screen_pos: Vector2) -> BlockData:
+	var map_pos := _screen_to_map(screen_pos)
+	## 从后往前检查，若未来存在边界重叠时优先使用最后配置的区块。
+	for index in range(blocks.size() - 1, -1, -1):
+		var block := blocks[index]
+		if block.map_bounds.has_point(map_pos):
+			return block
 	return null
 
 
@@ -156,8 +160,6 @@ func _draw() -> void:
 	_draw_blocks()
 	_draw_survey_areas()
 	_draw_storefronts()
-	if _is_dragging:
-		_draw_drag_preview()
 
 
 func _draw_city_regions() -> void:
@@ -184,6 +186,11 @@ func _draw_blocks() -> void:
 		var color: Color = BLOCK_TYPE_COLORS.get(block.block_type, Color(1, 1, 1, 0.3))
 		draw_rect(rect, color, true)
 		draw_rect(rect, Color(0, 0, 0, 0.4), false, 1.0)
+
+		if selected_block_ids.has(block.id):
+			draw_rect(rect, BLOCK_SELECTED_COLOR, false, 4.0)
+			draw_rect(rect.grow(-3.0), Color(1.0, 0.9, 0.2, 0.12), true)
+
 		draw_string(
 			ThemeDB.fallback_font, rect.position + Vector2(4, 14),
 			"%s(%d级)" % [block.name, block.tier],
@@ -192,14 +199,11 @@ func _draw_blocks() -> void:
 
 
 func _draw_survey_areas() -> void:
+	## 旧调查区仍可视化，直到后续Phase完成迁移；Phase 1不再通过拖拽创建。
 	for area in survey_areas:
 		var screen_center := _map_to_screen(area.center_position)
 		var screen_radius := area.radius * MAP_SCALE
-		draw_arc(screen_center, screen_radius, 0.0, TAU, 48, Color(0.2, 0.8, 1.0, 0.9), 2.0)
-		draw_string(
-			ThemeDB.fallback_font, screen_center + Vector2(-20, -screen_radius - 6),
-			area.name, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, Color(0.2, 0.8, 1.0)
-		)
+		draw_arc(screen_center, screen_radius, 0.0, TAU, 48, Color(0.2, 0.8, 1.0, 0.35), 1.0)
 
 
 func _draw_storefronts() -> void:
@@ -217,17 +221,3 @@ func _draw_storefronts() -> void:
 			ThemeDB.fallback_font, screen_pos + Vector2(8, 4),
 			sf.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, color
 		)
-
-
-func _draw_drag_preview() -> void:
-	var drag_info := _compute_drag_circle()
-	var screen_center := _map_to_screen(drag_info.center)
-	var screen_radius: float = drag_info.radius * MAP_SCALE
-
-	draw_arc(screen_center, screen_radius, 0.0, TAU, 48, Color(1.0, 0.9, 0.2, 0.9), 2.0)
-
-	var start_screen := _map_to_screen(_drag_start_map_pos)
-	var end_screen := _map_to_screen(_drag_current_map_pos)
-	draw_line(start_screen, end_screen, Color(1.0, 0.9, 0.2, 0.6), 1.5)
-	draw_circle(start_screen, 4.0, Color(1.0, 0.9, 0.2, 1.0))
-	draw_circle(end_screen, 4.0, Color(1.0, 0.9, 0.2, 1.0))

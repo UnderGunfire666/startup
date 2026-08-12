@@ -96,7 +96,7 @@ static func get_research_duration_hours(base_duration_hours: int, blocks: Array[
 	if blocks.is_empty():
 		return base_duration_hours
 
-	var max_duration := float(base_duration_hours)
+	var max_duration := 0.0
 	for block in blocks:
 		if block == null:
 			continue
@@ -105,6 +105,8 @@ static func get_research_duration_hours(base_duration_hours: int, blocks: Array[
 		var duration := float(base_duration_hours) * multiplier
 		max_duration = maxf(max_duration, duration)
 
+	if max_duration <= 0.0:
+		return base_duration_hours
 	return maxi(SURVEY_MIN_DURATION_HOURS, ceili(max_duration))
 
 static func get_base_density(block_type: String) -> float:

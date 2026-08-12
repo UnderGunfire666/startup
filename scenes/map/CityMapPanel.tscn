@@ -61,6 +61,10 @@ autowrap_mode = 3
 layout_mode = 2
 text = "清空区块选择"
 
+[node name="StartResearchButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=1845210362]
+layout_mode = 2
+text = "开始调查所选区块"
+
 [node name="HSeparator2" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=1280739347]
 layout_mode = 2
 

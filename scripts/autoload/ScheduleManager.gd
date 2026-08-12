@@ -26,7 +26,6 @@ func reset_for_new_game() -> void:
 	supervising_hours_today = 0
 
 
-## ── 每小时触发一次：只负责"坐镇覆盖率"统计和跨天重置，不再驱动行动执行 ──
 func _on_hour_tick(day: int, hour: int) -> void:
 	if hour == 0:
 		GameManager.player_state.start_new_day()
@@ -36,15 +35,17 @@ func _on_hour_tick(day: int, hour: int) -> void:
 		supervising_hours_today = 0
 		day_schedule_ended.emit(day - 1)
 
+	var supervised_id := GameManager.player_state.supervising_store_id
+	var supervised_store: Store = GameManager.get_store(supervised_id) if supervised_id != "" else null
+
 	if TimeManager.is_store_actually_operating():
 		operating_hours_today += 1
-		if GameManager.player_state.supervising_store_id == GameManager.active_store_id:
-			supervising_hours_today += 1
+
+	if supervised_store != null and _is_store_operating_at(TimeManager.get_current_hour_int(), supervised_store):
+		supervising_hours_today += 1
 
 
-## ── 排程校验（不变，仍然按小时寻址，因为"计划"本身就是按小时选起始点） ──
-
-func can_schedule_action(action_id: String, start_hour: int) -> Dictionary:
+func can_schedule_action(action_id: String, start_hour: int, target_id: String = "") -> Dictionary:
 	var action := ScheduleActionData.get_action(action_id)
 	if action == null:
 		return {"can": false, "reason_code": "invalid_action", "reason": "行动不存在"}
@@ -64,15 +65,18 @@ func can_schedule_action(action_id: String, start_hour: int) -> Dictionary:
 	if today_schedule.has_conflict(start_hour, action.duration_hours):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
 
-	var precondition := _check_preconditions(action, start_hour)
+	var precondition := _check_preconditions(action, start_hour, target_id)
 	if not precondition.can:
 		return precondition
 
 	return {"can": true, "reason_code": "", "reason": ""}
 
 
-func _check_preconditions(action: ActionDefinition, start_hour: int) -> Dictionary:
-	var state := GameManager.store_state
+func _check_preconditions(action: ActionDefinition, start_hour: int, target_id: String = "") -> Dictionary:
+	var state: Store = GameManager.get_store(target_id) if target_id != "" else GameManager.store_state
+
+	if state == null:
+		return {"can": false, "reason_code": "no_store", "reason": "没有可操作的店铺，请先完成开店"}
 
 	if action.requires_open_store and not state.is_open:
 		return {"can": false, "reason_code": "store_not_open", "reason": "尚未开业，无法安排「%s」" % action.name}
@@ -80,24 +84,18 @@ func _check_preconditions(action: ActionDefinition, start_hour: int) -> Dictiona
 	if action.requires_region_selected and state.selected_region_id == "":
 		return {"can": false, "reason_code": "no_region", "reason": "请先选定区域"}
 
-	## requires_inspected_storefront的旧检查已移除：
-	## StoreState.inspected_storefront_ids字段已被storefront_diligence状态机取代，
-	## 门面尽调的前置校验（比如"必须先初步看铺才能完整尽调"）改为在
-	## GameManager.advance_storefront_diligence()内部于结算时校验，
-	## 与region_research一直以来的校验方式（结算时校验，排程时不校验）保持一致。
-
 	if action.requires_selected_category and state.category_slots.is_empty():
 		return {"can": false, "reason_code": "no_category", "reason": "请先选择经营品类"}
 
-	if action.requires_today_has_settled and not _today_has_settled():
+	if action.requires_today_has_settled and not _today_has_settled(state):
 		return {"can": false, "reason_code": "no_business_today", "reason": "今天尚未发生任何营业，无法收档复盘"}
 
 	if action.requires_store_operating_hour:
 		var check_hour := start_hour
 		var end_hour := start_hour + action.duration_hours
 		while check_hour < end_hour:
-			if not _is_store_operating_at(check_hour):
-				var next_open := _next_operating_hour_after(check_hour)
+			if not _is_store_operating_at(check_hour, state):
+				var next_open := _next_operating_hour_after(check_hour, state)
 				var reason := "当前店铺在此时段不营业"
 				if next_open >= 0:
 					reason += "，下次营业时间为 %02d:00" % next_open
@@ -106,9 +104,37 @@ func _check_preconditions(action: ActionDefinition, start_hour: int) -> Dictiona
 
 	return {"can": true, "reason_code": "", "reason": ""}
 
+func _is_store_operating_at(hour: int, store: Store = null) -> bool:
+	var s := store if store != null else GameManager.store_state
+	if s == null or not s.is_open:
+		return false
+	for cat_slot in s.category_slots:
+		if cat_slot.is_open_at_hour(hour):
+			return true
+	return false
+
+
+func _next_operating_hour_after(hour: int, store: Store = null) -> int:
+	var s := store if store != null else GameManager.store_state
+	for offset in range(1, 25):
+		var h := (hour + offset) % 24
+		if _is_store_operating_at(h, s):
+			return h
+	return -1
+
+
+func _today_has_settled(store: Store = null) -> bool:
+	var s := store if store != null else GameManager.store_state
+	if s == null:
+		return false
+	var day := TimeManager.current_day
+	for entry in s.daily_history:
+		if entry.get("day", -1) == day:
+			return true
+	return false
 
 func add_action_to_schedule(action_id: String, start_hour: int, target_id: String = "") -> Dictionary:
-	var check := can_schedule_action(action_id, start_hour)
+	var check := can_schedule_action(action_id, start_hour, target_id)
 	if not check.can:
 		return check
 	var action := ScheduleActionData.get_action(action_id)
@@ -118,21 +144,12 @@ func add_action_to_schedule(action_id: String, start_hour: int, target_id: Strin
 	return {"can": true, "reason_code": "", "reason": "已加入排程"}
 
 
-func remove_action_from_schedule(hour: int) -> bool:
-	var removed := today_schedule.remove_entry_at_hour(hour)
-	if removed:
-		schedule_changed.emit()
-	return removed
-
-
-## ── 单步模式：立即开始，不占用日历格子 ──────────────────────
-
 func start_action_now(action_id: String, target_id: String = "") -> Dictionary:
 	if current_action != null and current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已经有一个行动正在进行，请先结束它"}
 
 	var current_hour := int(TimeManager.get_hour_of_day())
-	var check := can_schedule_action(action_id, current_hour)
+	var check := can_schedule_action(action_id, current_hour, target_id)
 	if not check.can:
 		return check
 
@@ -141,6 +158,12 @@ func start_action_now(action_id: String, target_id: String = "") -> Dictionary:
 	TimeManager.set_speed(TimeManager.Speed.X1)
 	schedule_changed.emit()
 	return {"can": true, "reason_code": "", "reason": "已开始「%s」" % action.name}
+
+func remove_action_from_schedule(hour: int) -> bool:
+	var removed := today_schedule.remove_entry_at_hour(hour)
+	if removed:
+		schedule_changed.emit()
+	return removed
 
 
 func stop_current_action() -> void:
@@ -192,15 +215,15 @@ func _begin_current_action(action_id: String, target_id: String, source_entry: S
 
 	var action := ScheduleActionData.get_action(action_id)
 	if action.action_effect_type == "store_supervision":
-		GameManager.player_state.supervising_store_id = GameManager.active_store_id
-
+		var supervised_store_id := target_id if target_id != "" else GameManager.active_store_id
+		GameManager.player_state.supervising_store_id = supervised_store_id
 
 func _finalize_current_action(elapsed_hours: float) -> void:
 	var action := ScheduleActionData.get_action(current_action.action_id)
 	var player := GameManager.player_state
 
 	## 目标失效检查：不追溯撤销已经发生的效果，只是提前收尾并记录原因。
-	var precondition := _check_preconditions(action, int(TimeManager.get_hour_of_day()))
+	var precondition := _check_preconditions(action, int(TimeManager.get_hour_of_day()), current_action.target_id)
 
 	var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
 		current_action.work_hours_before, elapsed_hours)
@@ -315,30 +338,3 @@ func _apply_region_research_effect(survey_area_id: String, elapsed_hours: float)
 	survey_area.last_used_day = TimeManager.current_day
 
 	return {"success": true, "reason": "调查进度已更新"}
-
-
-## ── 动态判定辅助（不变） ──────────────────────────────────
-
-func _is_store_operating_at(hour: int) -> bool:
-	if not GameManager.store_state.is_open:
-		return false
-	for cat_slot in GameManager.store_state.category_slots:
-		if cat_slot.is_open_at_hour(hour):
-			return true
-	return false
-
-
-func _next_operating_hour_after(hour: int) -> int:
-	for offset in range(1, 25):
-		var h := (hour + offset) % 24
-		if _is_store_operating_at(h):
-			return h
-	return -1
-
-
-func _today_has_settled() -> bool:
-	var day := TimeManager.current_day
-	for entry in GameManager.store_state.daily_history:
-		if entry.get("day", -1) == day:
-			return true
-	return false

@@ -1,18 +1,18 @@
-[gd_scene format=3 uid="uid://d071q4epvwcf"]
+[gd_scene format=3 uid="uid://b4c58l71l33me"]
 
-[ext_resource type="Script" uid="uid://c21ewdqh8jlkr" path="res://scenes/map/CityMapPanel.gd" id="1"]
-[ext_resource type="Script" uid="uid://6c624q5egquv" path="res://scenes/map/CityMapCanvas.gd" id="2"]
+[ext_resource type="Script" uid="uid://c21ewdqh8jlkr" path="res://scenes/map/CityMapPanel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://6c624q5egquv" path="res://scenes/map/CityMapCanvas.gd" id="2_canvas"]
 
-[node name="CityMapPanel" type="Control" unique_id=573075310]
+[node name="CityMapPanel" type="Control" unique_id=458384934]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1")
+script = ExtResource("1_panel")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=260352245]
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=150473177]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -21,56 +21,61 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="MapScrollContainer" type="ScrollContainer" parent="HBoxContainer" unique_id=1764559885]
+[node name="MapScrollContainer" type="ScrollContainer" parent="HBoxContainer" unique_id=1639071751]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="MapCanvas" type="Control" parent="HBoxContainer/MapScrollContainer" unique_id=822209105]
+[node name="MapCanvas" type="Control" parent="HBoxContainer/MapScrollContainer" unique_id=1716583733]
 layout_mode = 2
-script = ExtResource("2")
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("2_canvas")
 
-[node name="SidePanel" type="VBoxContainer" parent="HBoxContainer" unique_id=1033349112]
-custom_minimum_size = Vector2(320, 0)
+[node name="SidePanel" type="VBoxContainer" parent="HBoxContainer" unique_id=610076088]
+custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
-size_flags_horizontal = 0
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="InstructionLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=405720281]
+[node name="InstructionLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=389310202]
 layout_mode = 2
-text = "在地图上按住鼠标拖拽以框选调查区；点击已有调查区圆圈可查看报告。"
+text = "在地图上按住鼠标拖拽以框选调查区；点击已有调查区圆圈可查看进度。"
 autowrap_mode = 3
 
-[node name="ReportScroll" type="ScrollContainer" parent="HBoxContainer/SidePanel" unique_id=602785812]
+[node name="HSeparator1" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=1787666556]
+layout_mode = 2
+
+[node name="ReportScroll" type="ScrollContainer" parent="HBoxContainer/SidePanel" unique_id=1688077292]
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ReportLabel" type="Label" parent="HBoxContainer/SidePanel/ReportScroll" unique_id=1553362077]
+[node name="ReportLabel" type="Label" parent="HBoxContainer/SidePanel/ReportScroll" unique_id=671181307]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "尚未选择调查区。"
 autowrap_mode = 3
 
-[node name="AdvanceBasicButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=80804471]
+[node name="AdvanceBasicButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=1674692095]
 layout_mode = 2
-text = "推进基础调查"
+text = "开始区域调研（消耗时间）"
 
-[node name="AdvanceMarketButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=2047278613]
+[node name="HSeparator2" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=1280739347]
 layout_mode = 2
-text = "推进市场调查"
 
-[node name="AdvanceDueDiligenceButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=820255188]
+[node name="StorefrontScroll" type="ScrollContainer" parent="HBoxContainer/SidePanel" unique_id=1191282717]
 layout_mode = 2
-text = "推进深度尽调"
+size_flags_vertical = 3
 
-[node name="StatusLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=2069586496]
+[node name="StorefrontList" type="VBoxContainer" parent="HBoxContainer/SidePanel/StorefrontScroll" unique_id=1280761178]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="HSeparator3" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=468965880]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=759840533]
 layout_mode = 2
 autowrap_mode = 3
-
-[node name="StorefrontInfoLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=1495901125]
-layout_mode = 2
-
-[node name="DeepInspectionButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=967496441]
-layout_mode = 2
-text = "开始完整尽调"

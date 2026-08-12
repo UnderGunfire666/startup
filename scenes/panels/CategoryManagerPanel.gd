@@ -26,7 +26,7 @@ func refresh() -> void:
 		for cb in _product_checkboxes:
 			cb.queue_free()
 		_product_checkboxes.clear()
-		status_label.text = "⚠ 请先完成人物创建"
+		status_label.text = "⚠ 你还没有开店企划，请先去'我的店铺'新建一个" if GameManager.player_state.is_character_created else "⚠ 请先完成人物创建"
 		add_dropdown.disabled = true
 		add_button.disabled = true
 		return
@@ -82,7 +82,7 @@ func _on_category_dropdown_changed(idx: int) -> void:
 func _on_add_pressed() -> void:
 	var store := GameManager.store_state
 	if store == null:
-		status_label.text = "⚠ 请先完成人物创建"
+		status_label.text = "⚠ 你还没有开店企划，请先去'我的店铺'新建一个" if GameManager.player_state.is_character_created else "⚠ 请先完成人物创建"
 		return
 	if store.is_open:
 		status_label.text = "⚠ 门店已开业，品类与商品配置已锁定"

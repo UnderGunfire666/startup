@@ -1,5 +1,8 @@
 extends Node
 
+## GameManager.gd 顶部signal区新增
+signal active_store_changed(store_id: String)
+
 var player_state: PlayerState = PlayerState.new()
 var last_settlement_error: String = ""
 
@@ -120,18 +123,14 @@ func create_character(data: Dictionary) -> Dictionary:
 		"trait_ids": trait_ids,
 	})
 
-	## 阶段1：多店化后仍然自动provision第一家店，保证现有单店筹备流程
-	## （选区域→选门面→开业）不需要任何UI改动就能继续工作。
-	## 未来"开店企划"系统会用create_new_store()来创建第2、第3家店。
+	## 创建角色不再自动开店。"有角色"和"有开店企划"是两件事：
+	## 角色创建完成后玩家名下没有任何店铺，必须去"我的店铺"主动新建一个
+	## 企划（create_new_store()），才能开始选区域/门面/品类这些准备工作。
 	stores = []
-	var first_store := Store.new()
-	first_store.id = _generate_unique_id("store")	
-	first_store.name = "%s的店铺" % player_name
-	first_store.pre_open_stage = Store.PreOpenStage.REGION_RESEARCH
-	stores.append(first_store)
-	active_store_id = first_store.id
+	active_store_id = ""
 
 	TimeManager.reset()
+
 	ScheduleManager.reset_for_new_game()
 
 	return {
@@ -155,6 +154,7 @@ func create_new_store(store_name: String = "") -> Dictionary:
 	stores.append(new_store)
 	active_store_id = new_store.id
 	_sync_data_objects()
+	active_store_changed.emit(active_store_id)
 
 	return {"success": true, "reason": "已创建新店铺「%s」" % new_store.name, "store_id": new_store.id}
 
@@ -166,8 +166,8 @@ func switch_active_store(store_id: String) -> Dictionary:
 
 	active_store_id = store_id
 	_sync_data_objects()
+	active_store_changed.emit(active_store_id)
 	return {"success": true, "reason": "已切换到「%s」" % store.name}
-
 
 ## 决定②：一个门面不能被两家店同时占用（占用中或已签约都算）。
 func is_storefront_occupied(storefront_id: String, excluding_store_id: String = "") -> bool:

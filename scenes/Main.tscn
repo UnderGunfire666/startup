@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://hvruohq1ruyh"]
 
 [ext_resource type="Script" uid="uid://7eli4towpjap" path="res://scenes/Main.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://g0pco8g00opv" path="res://scenes/panels/StoreListPanel.tscn" id="2_storelist"]
 [ext_resource type="PackedScene" uid="uid://vksjgk4ij6wn" path="res://scenes/panels/OperationPanel.tscn" id="3_operation"]
 [ext_resource type="PackedScene" uid="uid://cwkkld07d8bw4" path="res://scenes/panels/CategoryManagerPanel.tscn" id="4_category"]
 [ext_resource type="PackedScene" uid="uid://qcx5mbxrqkiy" path="res://scenes/panels/ProcurementPanel.tscn" id="5_procurement"]
@@ -96,34 +97,39 @@ size_flags_vertical = 3
 current_tab = 0
 tabs_rearrange_group = 2
 
+[node name="StoreListPanel" parent="MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs" unique_id=1748695509 instance=ExtResource("2_storelist")]
+layout_mode = 2
+metadata/_tab_index = 0
+
 [node name="OperationPanel" parent="MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs" unique_id=1938189668 instance=ExtResource("3_operation")]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-metadata/_tab_index = 0
+metadata/_tab_index = 1
 
 [node name="CategoryManagerPanel" parent="MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs" unique_id=347895192 instance=ExtResource("4_category")]
 visible = false
 layout_mode = 2
 size_flags_vertical = 3
-metadata/_tab_index = 1
+metadata/_tab_index = 2
 
 [node name="ProcurementPanel" parent="MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs" unique_id=1190519864 instance=ExtResource("5_procurement")]
 visible = false
 layout_mode = 2
-metadata/_tab_index = 2
+metadata/_tab_index = 3
 
 [node name="ReportPanel" parent="MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs" unique_id=1631715561 instance=ExtResource("6_report")]
 visible = false
 layout_mode = 2
-metadata/_tab_index = 3
+metadata/_tab_index = 4
 
 [node name="HistoryPanel" parent="MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs" unique_id=1139785004 instance=ExtResource("7_history")]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-metadata/_tab_index = 4
+metadata/_tab_index = 5
 
 [node name="MapPanel" parent="MarginContainer/RootVBox/MainTabs" unique_id=1967529077 instance=ExtResource("14_citymap")]
 visible = false

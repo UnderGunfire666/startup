@@ -40,6 +40,9 @@ extends Control
 @onready var map_panel: Control = \
 	$MarginContainer/RootVBox/MainTabs/MapPanel
 
+@onready var store_list_panel: PanelContainer = \
+	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/StoreListPanel
+
 var settlement_history: Array[Dictionary] = []
 
 
@@ -52,6 +55,7 @@ func _ready() -> void:
 	operation_panel.settlement_done.connect(_on_settlement_done)
 	operation_panel.day_ended.connect(_on_day_ended)
 	save_load_bar.data_changed.connect(_on_data_changed)
+	GameManager.active_store_changed.connect(_on_active_store_changed)
 	_refresh_all_panels()
 
 
@@ -66,11 +70,12 @@ func _setup_tab_titles() -> void:
 	## 区域调研/门面选择两个子标签已移除，PlayerSubTabs现在只有创建角色。
 	player_sub_tabs.set_tab_title(0, "创建角色")
 
-	store_sub_tabs.set_tab_title(0, "营业")
-	store_sub_tabs.set_tab_title(1, "品类商品")
-	store_sub_tabs.set_tab_title(2, "进货")
-	store_sub_tabs.set_tab_title(3, "结算报告")
-	store_sub_tabs.set_tab_title(4, "历史统计")
+	store_sub_tabs.set_tab_title(0, "我的店铺")
+	store_sub_tabs.set_tab_title(1, "营业")
+	store_sub_tabs.set_tab_title(2, "品类商品")
+	store_sub_tabs.set_tab_title(3, "进货")
+	store_sub_tabs.set_tab_title(4, "结算报告")
+	store_sub_tabs.set_tab_title(5, "历史统计")
 
 
 func _on_character_created() -> void:
@@ -84,6 +89,8 @@ func _on_character_created() -> void:
 	_refresh_action_panel()
 	_refresh_schedule_panel()
 	_refresh_map_panel()
+	
+	store_list_panel.refresh()
 
 	## 创建完成后直接引导去地图页调研，区域调研/门面选择两个旧标签已移除。
 	main_tabs.current_tab = 4
@@ -98,7 +105,10 @@ func _refresh_all_panels() -> void:
 	_refresh_action_panel()
 	_refresh_schedule_panel()
 	_refresh_map_panel()
+	store_list_panel.refresh()
 
+func _on_active_store_changed(_store_id: String) -> void:
+	_refresh_all_panels()
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()

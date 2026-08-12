@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://g0pco8g00opv"]
+
+[ext_resource type="Script" uid="uid://sbxj5jk0nncb" path="res://scenes/panels/StoreListPanel.gd" id="1_script"]
+
+[node name="StoreListPanel" type="PanelContainer" unique_id=1863323790]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=2047084077]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="StatusLabel" type="Label" parent="VBox" unique_id=660730064]
+layout_mode = 2
+text = "请先完成人物创建"
+
+[node name="StoreScroll" type="ScrollContainer" parent="VBox" unique_id=1379711580]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StoreList" type="VBoxContainer" parent="VBox/StoreScroll" unique_id=1262759605]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator" type="HSeparator" parent="VBox" unique_id=290104427]
+layout_mode = 2
+
+[node name="NewStoreRow" type="HBoxContainer" parent="VBox" unique_id=364108211]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NewStoreNameInput" type="LineEdit" parent="VBox/NewStoreRow" unique_id=1774720687]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "新店铺名称（留空则自动命名）"
+
+[node name="CreateButton" type="Button" parent="VBox/NewStoreRow" unique_id=87268582]
+layout_mode = 2
+text = "+ 开设新店铺"

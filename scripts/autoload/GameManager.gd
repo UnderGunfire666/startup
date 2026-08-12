@@ -697,7 +697,7 @@ func remove_product_from_slot(category_id: String, product_id: String) -> bool:
 		return false
 	for i in range(slot.product_configs.size()):
 		if slot.product_configs[i].product_id == product_id:
-			store.category_slots[i].product_configs.remove_at(i)
+			slot.product_configs.remove_at(i)
 			return true
 	return false
 

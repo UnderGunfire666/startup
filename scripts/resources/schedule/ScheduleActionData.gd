@@ -20,6 +20,12 @@ static func get_actions() -> Array[ActionDefinition]:
 		{"requires_region_selected": false},
 	))
 
+	list.append(_make_work(
+		"move_to_block", "前往区块", "行动", 0, 0.0,
+		Vector2i(5, 24), "move_to_block",
+		{}
+	))
+
 	## storefront_inspection已移除：门面的"初步了解"状态改由区块了解度
 	## 达到阈值时自动触发(GameManager._discover_storefronts_in_block())，
 	## 不再需要一个专门的"看铺"行动。

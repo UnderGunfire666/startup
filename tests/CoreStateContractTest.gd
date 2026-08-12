@@ -106,4 +106,3 @@ func _test_active_store_switching() -> void:
 	_check(bool(second_switch.get("success", false)), "切换到分店应成功")
 	_check(GameManager.active_store_id == second_id, "切换后active_store_id应为分店")
 	_check(GameManager.store_state != null and GameManager.store_state.id == second_id, "切换后store_state应指向分店")
-}

@@ -59,20 +59,21 @@ func can_schedule_action(
 		return {"can": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
 
 	var duration_hours := _get_effective_duration_hours(action, target_ids, start_hour, target_id)
+	if action.action_effect_type == "move_to_block" and target_id == GameManager.player_state.current_block_id:
+		return {"can": true, "reason_code": "", "reason": "已经位于目标区块", "duration_hours": 0.0}
+
+	var duration_for_schedule := int(ceil(duration_hours))
+	if duration_for_schedule < 0:
+		return {"can": false, "reason_code": "invalid_duration", "reason": "行动耗时无效"}
+
 	if action.action_effect_type != "region_research":
-		if action.action_effect_type == "move_to_block":
-			if duration_hours < 0:
-				return {"can": false, "reason_code": "invalid_move_target", "reason": "无法计算移动时间"}
-			if start_hour < action.allowed_hour_range.x or (start_hour + int(ceil(duration_hours))) > action.allowed_hour_range.y:
-				return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
-		else:
-			if start_hour < action.allowed_hour_range.x or (start_hour + duration_hours) > action.allowed_hour_range.y:
-				return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
+		if start_hour < action.allowed_hour_range.x or (start_hour + duration_for_schedule) > action.allowed_hour_range.y:
+			return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
 	else:
 		if start_hour < action.allowed_hour_range.x or start_hour >= action.allowed_hour_range.y:
 			return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间开始" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
 
-	if duration_hours > 0 and today_schedule.has_conflict(start_hour, int(ceil(duration_hours))):
+	if duration_for_schedule > 0 and today_schedule.has_conflict(start_hour, duration_for_schedule):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
 	var precondition := _check_preconditions(action, start_hour, target_id, target_ids, true)
 	if not precondition.can:
@@ -116,7 +117,7 @@ func _get_move_to_block_duration_hours(target_block_id: String) -> float:
 		return -1.0
 	var current_block_id := GameManager.player_state.current_block_id
 	if current_block_id.is_empty():
-		return 0.0
+		return -1.0
 	var current_block := GameManager.get_block(current_block_id)
 	if current_block == null:
 		return -1.0

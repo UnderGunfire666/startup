@@ -47,8 +47,15 @@ func _test_action_target_definitions() -> void:
 func _test_region_research_is_player_level() -> void:
 	GameManager.start_new_game()
 	ScheduleManager.reset_for_new_game()
-	var character_result := GameManager.create_character("Action Target 测试者")
-	_assert_true(character_result.success, "创建角色应成功")
+	var character_result: Dictionary = GameManager.create_character({
+		"player_name": "Action Target 测试者",
+		"gender": "female",
+		"age": 28,
+		"difficulty_id": "normal",
+		"preset_id": "",
+		"trait_ids": [],
+	})
+	_assert_true(bool(character_result.get("success", false)), "创建角色应成功")
 	
 	var survey_result := GameManager.create_survey_area("A001", Vector2(500, 500), 300.0)
 	_assert_true(survey_result.success, "创建调查区应成功")
@@ -64,8 +71,15 @@ func _test_region_research_is_player_level() -> void:
 func _test_deep_inspection_requires_initial_viewing() -> void:
 	GameManager.start_new_game()
 	ScheduleManager.reset_for_new_game()
-	var character_result := GameManager.create_character("Deep Inspection 测试者")
-	_assert_true(character_result.success, "深度勘验测试角色创建应成功")
+	var character_result: Dictionary = GameManager.create_character({
+		"player_name": "Deep Inspection 测试者",
+		"gender": "female",
+		"age": 28,
+		"difficulty_id": "normal",
+		"preset_id": "",
+		"trait_ids": [],
+	})
+	_assert_true(bool(character_result.get("success", false)), "深度勘验测试角色创建应成功")
 
 	var not_viewed_check := ScheduleManager.can_schedule_action("deep_inspection", 9, "S004")
 	_assert_true(not not_viewed_check.can, "未进入initial_viewing的门面不得开始deep_inspection")
@@ -79,8 +93,15 @@ func _test_deep_inspection_requires_initial_viewing() -> void:
 func _test_store_actions_require_store() -> void:
 	GameManager.start_new_game()
 	ScheduleManager.reset_for_new_game()
-	var character_result := GameManager.create_character("Store Target 测试者")
-	_assert_true(character_result.success, "Store行动测试角色创建应成功")
+	var character_result: Dictionary = GameManager.create_character({
+		"player_name": "Store Target 测试者",
+		"gender": "female",
+		"age": 28,
+		"difficulty_id": "normal",
+		"preset_id": "",
+		"trait_ids": [],
+	})
+	_assert_true(bool(character_result.get("success", false)), "Store行动测试角色创建应成功")
 
 	var procurement_check := ScheduleManager.can_schedule_action("procurement", 9, "missing-store")
 	_assert_true(not procurement_check.can, "procurement 无有效Store时不得执行")

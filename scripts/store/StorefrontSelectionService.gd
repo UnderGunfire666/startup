@@ -17,6 +17,8 @@ static func select_storefront(
 		return {"success": false, "reason_code": "storefront_not_found", "reason": "目标门面不存在"}
 	if player_state == null or not player_state.is_character_created:
 		return {"success": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
+	if not store.signed_storefront_id.is_empty():
+		return {"success": false, "reason_code": "storefront_locked", "reason": "门面已签约，不能更换"}
 
 	var diligence_state: String = player_state.get_storefront_diligence(storefront.id)
 	if diligence_state != "full_diligence":

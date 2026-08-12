@@ -45,7 +45,12 @@ func _on_hour_tick(day: int, hour: int) -> void:
 		supervising_hours_today += 1
 
 
-func can_schedule_action(action_id: String, start_hour: int, target_id: String = "") -> Dictionary:
+func can_schedule_action(
+		action_id: String,
+		start_hour: int,
+		target_id: String = "",
+		target_ids: Array[String] = []
+) -> Dictionary:
 	var action := ScheduleActionData.get_action(action_id)
 	if action == null:
 		return {"can": false, "reason_code": "invalid_action", "reason": "行动不存在"}
@@ -66,18 +71,33 @@ func can_schedule_action(action_id: String, start_hour: int, target_id: String =
 	if today_schedule.has_conflict(start_hour, action.duration_hours):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
 
-	var precondition := _check_preconditions(action, start_hour, target_id)
+	var precondition := _check_preconditions(action, start_hour, target_id, target_ids)
 	if not precondition.can:
 		return precondition
 
 	return {"can": true, "reason_code": "", "reason": ""}
 
 
-func _check_preconditions(action: ActionDefinition, start_hour: int, target_id: String = "") -> Dictionary:
+func _check_preconditions(
+		action: ActionDefinition,
+		start_hour: int,
+		target_id: String = "",
+		target_ids: Array[String] = []
+) -> Dictionary:
 	## 行动目标不一定是Store：
-	## region_research → survey_area_id
+	## region_research → Block ID列表（Phase 2）
 	## deep_inspection → storefront_id
 	## 只有真正依赖Store状态的行动才解析Store并要求其存在。
+	if action.action_effect_type == "region_research":
+		if target_ids.is_empty():
+			return {"can": false, "reason_code": "no_blocks_selected", "reason": "请先在地图上选择至少一个区块"}
+		for block_id in target_ids:
+			var block := GameManager.get_block(block_id)
+			if block == null:
+				return {"can": false, "reason_code": "block_not_found", "reason": "调查区块不存在：%s" % block_id}
+			if GameManager.get_block_understanding(block_id) >= 100.0:
+				return {"can": false, "reason_code": "block_already_understood", "reason": "所选区块已完全了解：%s" % block.name}
+
 	var requires_store: bool = (
 		action.requires_open_store
 		or action.requires_region_selected
@@ -171,17 +191,21 @@ func add_action_to_schedule(action_id: String, start_hour: int, target_id: Strin
 	return {"can": true, "reason_code": "", "reason": "已加入排程"}
 
 
-func start_action_now(action_id: String, target_id: String = "") -> Dictionary:
+func start_action_now(
+		action_id: String,
+		target_id: String = "",
+		target_ids: Array[String] = []
+) -> Dictionary:
 	if current_action != null and current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已经有一个行动正在进行，请先结束它"}
 
 	var current_hour := int(TimeManager.get_hour_of_day())
-	var check := can_schedule_action(action_id, current_hour, target_id)
+	var check := can_schedule_action(action_id, current_hour, target_id, target_ids)
 	if not check.can:
 		return check
 
 	var action := ScheduleActionData.get_action(action_id)
-	_begin_current_action(action_id, target_id, null)
+	_begin_current_action(action_id, target_id, target_ids, null)
 	TimeManager.set_speed(TimeManager.Speed.X1)
 	schedule_changed.emit()
 	return {"can": true, "reason_code": "", "reason": "已开始「%s」" % action.name}
@@ -227,14 +251,20 @@ func _check_and_start_planned_entry() -> void:
 			continue
 		if e.start_hour <= current_hour:
 			today_schedule.entries.erase(e)
-			_begin_current_action(e.action_id, e.target_id, e)
+			_begin_current_action(e.action_id, e.target_id, [], e)
 			return
 
 
-func _begin_current_action(action_id: String, target_id: String, source_entry: ScheduledActionEntry) -> void:
+func _begin_current_action(
+		action_id: String,
+		target_id: String,
+		target_ids: Array[String],
+		source_entry: ScheduledActionEntry
+) -> void:
 	current_action = CurrentActionState.new()
 	current_action.action_id = action_id
 	current_action.target_id = target_id
+	current_action.target_ids = target_ids.duplicate()
 	current_action.start_game_seconds = TimeManager.total_game_seconds
 	current_action.work_hours_before = GameManager.player_state.work_hours_today
 	current_action.source_entry = source_entry
@@ -250,7 +280,12 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	var player := GameManager.player_state
 
 	## 目标失效检查：不追溯撤销已经发生的效果，只是提前收尾并记录原因。
-	var precondition := _check_preconditions(action, int(TimeManager.get_hour_of_day()), current_action.target_id)
+	var precondition := _check_preconditions(
+		action,
+		int(TimeManager.get_hour_of_day()),
+		current_action.target_id,
+		current_action.target_ids
+	)
 
 	var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
 		current_action.work_hours_before, elapsed_hours)
@@ -293,7 +328,14 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 				var progress_ratio := elapsed_hours / float(action.duration_hours)
 				hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
 
-				if current_action.target_id != "":
+				if action.action_effect_type == "region_research":
+					var block_effect_result := _apply_region_research_effect(
+						current_action.target_ids, elapsed_hours
+					)
+					if not block_effect_result.is_empty() and not block_effect_result.success:
+						final_status = "failed"
+						failure_reason = block_effect_result.reason
+				elif current_action.target_id != "":
 					var effect_result := _apply_understanding_effect(
 						action.action_effect_type, current_action.target_id, elapsed_hours
 					)
@@ -331,37 +373,40 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 
 ## ── 三层了解度行动效果分发 ─────────────────────────────────
 ## target_id的含义按行动类型不同：
-## region_research → survey_area_id（玩家在地图上框选的调查范围）
+## region_research → Phase 2 使用target_ids中的Block ID
 ## storefront_inspection / deep_inspection → storefront_id
 
 func _apply_understanding_effect(effect_type: String, target_id: String, elapsed_hours: float) -> Dictionary:
 	match effect_type:
-		"region_research":
-			return _apply_region_research_effect(target_id, elapsed_hours)
 		"deep_inspection":
 			return GameManager.advance_storefront_diligence(target_id, "full_diligence")
 		_:
 			return {}
 
 
-func _apply_region_research_effect(survey_area_id: String, elapsed_hours: float) -> Dictionary:
-	var survey_area := GameManager.player_state.get_survey_area(survey_area_id)
-	if survey_area == null:
-		return {"success": false, "reason": "调查范围不存在，请先在地图上框选区域"}
+func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: float) -> Dictionary:
+	if block_ids.is_empty():
+		return {"success": false, "reason": "没有选择调查区块"}
 
 	var gain := RegionConfig.FAMILIARITY_GAIN_PER_HOUR * elapsed_hours
 	var applied := false
+	var affected_city_regions: Dictionary = {}
 
-	for coverage in survey_area.block_coverages:
-		if coverage.combined_weight <= 0.0:
+	for block_id in block_ids:
+		var block := GameManager.get_block(block_id)
+		if block == null:
 			continue
-		GameManager.advance_block_understanding(coverage.block_id, gain * coverage.combined_weight)
+		var current := GameManager.get_block_understanding(block_id)
+		if current >= 100.0:
+			continue
+		GameManager.advance_block_understanding(block_id, gain)
+		affected_city_regions[block.city_region_id] = true
 		applied = true
 
 	if not applied:
-		return {"success": false, "reason": "调查范围未命中任何区块"}
+		return {"success": false, "reason": "所选区块均已完全了解或不存在"}
 
-	GameManager.recalculate_region_intel(survey_area.city_region_id)
-	survey_area.last_used_day = TimeManager.current_day
+	for city_region_id in affected_city_regions.keys():
+		GameManager.recalculate_region_intel(str(city_region_id))
 
-	return {"success": true, "reason": "调查进度已更新"}
+	return {"success": true, "reason": "所选区块调查进度已更新"}

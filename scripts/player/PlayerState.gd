@@ -35,6 +35,10 @@ var storefront_diligence: Dictionary = {}
 var survey_areas: Array[SurveyAreaState] = []
 var focused_city_region_id: String = ""
 
+## 玩家当前所在区块。空字符串表示尚未定位到城市地图区块；Phase 6移动系统建立后，
+## 所有跨区块移动都必须从这个状态出发并消耗游戏时间。
+var current_block_id: String = ""
+
 ## 玩家当前亲自坐镇在哪家店，同一时刻只能坐镇一家；空字符串=不在任何店坐镇。
 var supervising_store_id: String = ""
 
@@ -55,6 +59,8 @@ func reset_to_defaults() -> void:
 
 	base_trait_points = 0
 	selected_trait_ids.clear()
+	current_block_id = ""
+	supervising_store_id = ""
 
 
 func get_used_trait_points() -> int:
@@ -121,6 +127,19 @@ func remove_survey_area(id: String) -> bool:
 			return true
 	return false
 
+
+func set_current_block(block_id: String) -> bool:
+	if block_id.is_empty():
+		current_block_id = ""
+		return true
+
+	var block := GameManager.get_block(block_id)
+	if block == null:
+		return false
+
+	current_block_id = block_id
+	return true
+
 ## 用于后续接入调研、行动、谈判与经营结算。
 ## 对数值型 effect 采用“加总”规则；倍率类字段由调用方自行约定默认值。
 func get_trait_modifier(effect_key: String, default_value: float = 0.0) -> float:
@@ -164,6 +183,7 @@ func apply_character_setup(data: Dictionary) -> void:
 
 	base_trait_points = int(bracket.trait_points)
 	selected_trait_ids = selected_ids
+	current_block_id = ""
 
 	var energy_bonus := get_trait_modifier("max_energy_add", 0.0)
 	max_energy = maxf(1.0, float(bracket.max_energy) + energy_bonus)
@@ -242,6 +262,7 @@ func to_save_dict() -> Dictionary:
 		"storefront_diligence": storefront_diligence,
 		"survey_areas": _survey_areas_to_save_data(),
 		"focused_city_region_id": focused_city_region_id,
+		"current_block_id": current_block_id,
 		"supervising_store_id": supervising_store_id,
 	}
 
@@ -279,6 +300,7 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p.block_understanding = data.get("block_understanding", {})
 	p.storefront_diligence = data.get("storefront_diligence", {})
 	p.focused_city_region_id = data.get("focused_city_region_id", "")
+	p.current_block_id = str(data.get("current_block_id", ""))
 	p.supervising_store_id = data.get("supervising_store_id", "")
 
 	var survey_area_raw: Array = data.get("survey_areas", [])

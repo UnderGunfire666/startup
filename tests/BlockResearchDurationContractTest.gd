@@ -34,8 +34,7 @@ func _test_baseline_area() -> void:
 
 func _test_larger_block_takes_longer() -> void:
 	var small_duration := BlockConfig.get_research_duration_hours(2, [_make_block(100.0)])
-	var large_duration := BlockConfig.get_research_duration_hours(400, [_make_block(400.0)])
-	large_duration = BlockConfig.get_research_duration_hours(2, [_make_block(400.0)])
+	var large_duration := BlockConfig.get_research_duration_hours(2, [_make_block(400.0)])
 	_expect(large_duration > small_duration, "面积更大的区块应需要更长调查时间")
 	_expect(large_duration == 4, "面积400的区块按当前公式应需要4小时")
 

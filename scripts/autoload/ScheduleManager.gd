@@ -56,7 +56,8 @@ func can_schedule_action(action_id: String, start_hour: int, target_id: String =
 	if start_hour < action.allowed_hour_range.x or \
 			(start_hour + action.duration_hours) > action.allowed_hour_range.y:
 		return {
-			"can": false, "reason_code": "outside_allowed_hours",
+			"can": false,
+			"reason_code": "outside_allowed_hours",
 			"reason": "%s仅可在%02d:00至%02d:00之间安排" % [
 				action.name, action.allowed_hour_range.x, action.allowed_hour_range.y
 			]
@@ -73,10 +74,24 @@ func can_schedule_action(action_id: String, start_hour: int, target_id: String =
 
 
 func _check_preconditions(action: ActionDefinition, start_hour: int, target_id: String = "") -> Dictionary:
-	var state: Store = GameManager.get_store(target_id) if target_id != "" else GameManager.store_state
+	## 行动目标不一定是Store：
+	## region_research → survey_area_id
+	## deep_inspection → storefront_id
+	## 只有真正依赖Store状态的行动才解析Store并要求其存在。
+	var requires_store: bool = (
+		action.requires_open_store
+		or action.requires_region_selected
+		or action.requires_selected_category
+		or action.requires_today_has_settled
+		or action.requires_store_operating_hour
+		or action.action_effect_type == "store_supervision"
+	)
 
-	if state == null:
-		return {"can": false, "reason_code": "no_store", "reason": "没有可操作的店铺，请先完成开店"}
+	var state: Store = null
+	if requires_store:
+		state = GameManager.get_store(target_id) if target_id != "" else GameManager.store_state
+		if state == null:
+			return {"can": false, "reason_code": "no_store", "reason": "没有可操作的店铺，请先完成开店"}
 
 	if action.requires_open_store and not state.is_open:
 		return {"can": false, "reason_code": "store_not_open", "reason": "尚未开业，无法安排「%s」" % action.name}

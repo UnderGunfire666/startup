@@ -33,7 +33,7 @@ func _test_action_target_definitions() -> void:
 	_assert_true(procurement_action != null, "procurement 应存在")
 
 	if region_action != null:
-		_assert_true(region_action.action_effect_type == "region_research", "region_research target 应解释为调查区")
+		_assert_true(region_action.action_effect_type == "region_research", "region_research target 应解释为调查区块")
 	if deep_action != null:
 		_assert_true(deep_action.action_effect_type == "deep_inspection", "deep_inspection target 应解释为门面")
 		_assert_true(deep_action.requires_inspected_storefront, "deep_inspection 应要求已初步看铺门面")
@@ -56,14 +56,14 @@ func _test_region_research_is_player_level() -> void:
 	})
 	_assert_true(bool(character_result.get("success", false)), "创建角色应成功")
 
-	var survey_result := GameManager.create_survey_area("CR001", Vector2(125, 110), 180.0)
-	_assert_true(bool(survey_result.get("success", false)), "创建调查区应成功")
-	if not bool(survey_result.get("success", false)):
-		return
-
-	var survey_area_id: String = str(survey_result.get("survey_area_id", ""))
-	var check := ScheduleManager.can_schedule_action("region_research", 8, survey_area_id)
+	var check := ScheduleManager.can_schedule_action(
+		"region_research",
+		8,
+		"",
+		["cc_primary_school_1"]
+	)
 	_assert_true(bool(check.get("can", false)), "region_research 不应要求Store")
+	_assert_true(int(check.get("duration_hours", 0)) == 16, "region_research 应使用当天剩余调查窗口")
 	_assert_true(GameManager.stores.is_empty(), "region_research 测试期间不应偷偷创建Store")
 
 

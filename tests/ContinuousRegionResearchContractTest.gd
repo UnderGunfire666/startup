@@ -19,6 +19,7 @@ func _ready() -> void:
 
 	_test_research_window()
 	_test_area_controls_hourly_progress()
+	_test_continuous_progress_and_energy()
 	_test_completed_block_rejects_new_action()
 
 	print("========== 测试结束：%d 通过 / %d 失败 ==========" % [_passed, _failed])
@@ -66,6 +67,45 @@ func _test_area_controls_hourly_progress() -> void:
 	var large_gain := ScheduleManager._get_region_research_hourly_gain(large_block)
 	_expect(small_gain > large_gain, "面积更大的区块每小时了解度增长应更慢")
 	_expect(is_equal_approx(small_gain, 50.0), "面积90区块按2小时工作量每小时应增加50了解度")
+
+func _test_continuous_progress_and_energy() -> void:
+	GameManager.start_new_game()
+	ScheduleManager.reset_for_new_game()
+	var character_result: Dictionary = GameManager.create_character({
+		"player_name": "持续调查测试者",
+		"gender": "female",
+		"age": 28,
+		"difficulty_id": "normal",
+		"preset_id": "",
+		"trait_ids": [],
+	})
+	_expect(bool(character_result.get("success", false)), "持续调查测试角色创建应成功")
+	if not bool(character_result.get("success", false)):
+		return
+
+	GameManager.player_state.block_understanding["cc_primary_school_1"] = 0.0
+	GameManager.player_state.energy = GameManager.player_state.max_energy
+	TimeManager.total_game_seconds = TimeManager.DAY_START_SECONDS
+
+	var start_result := ScheduleManager.start_action_now(
+		"region_research",
+		"",
+		["cc_primary_school_1"]
+	)
+	_expect(bool(start_result.get("can", false)), "持续区域调查应能启动")
+	if not bool(start_result.get("can", false)):
+		return
+
+	TimeManager.total_game_seconds += 3600.0
+	ScheduleManager._advance_continuous_region_research_to_elapsed()
+	_expect(is_equal_approx(GameManager.get_block_understanding("cc_primary_school_1"), 50.0), "调查1小时后应获得50点了解度")
+	_expect(is_equal_approx(GameManager.player_state.energy, 92.0), "调查1小时应消耗8点精力")
+	_expect(ScheduleManager.current_action != null and ScheduleManager.current_action.is_active, "区块未完全了解时调查应继续")
+
+	TimeManager.total_game_seconds += 3600.0
+	ScheduleManager._advance_continuous_region_research_to_elapsed()
+	_expect(is_equal_approx(GameManager.get_block_understanding("cc_primary_school_1"), 100.0), "调查达到所需工作量后应完全了解区块")
+	_expect(ScheduleManager.current_action == null, "区块完全了解后持续调查应自动结束")
 
 func _test_completed_block_rejects_new_action() -> void:
 	GameManager.player_state.block_understanding["cc_primary_school_1"] = 100.0

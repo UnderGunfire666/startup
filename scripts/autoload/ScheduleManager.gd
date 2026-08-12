@@ -52,14 +52,32 @@ func can_schedule_action(
 		return {"can": false, "reason_code": "invalid_action", "reason": "行动不存在"}
 	if action.requires_character_created and not GameManager.player_state.is_character_created:
 		return {"can": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
-	if start_hour < action.allowed_hour_range.x or (start_hour + action.duration_hours) > action.allowed_hour_range.y:
+
+	var duration_hours := _get_effective_duration_hours(action, target_ids)
+	if start_hour < action.allowed_hour_range.x or (start_hour + duration_hours) > action.allowed_hour_range.y:
 		return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
-	if today_schedule.has_conflict(start_hour, action.duration_hours):
+	if today_schedule.has_conflict(start_hour, duration_hours):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
 	var precondition := _check_preconditions(action, start_hour, target_id, target_ids, true)
 	if not precondition.can:
 		return precondition
-	return {"can": true, "reason_code": "", "reason": ""}
+	return {
+		"can": true,
+		"reason_code": "",
+		"reason": "",
+		"duration_hours": duration_hours,
+	}
+
+func _get_effective_duration_hours(action: ActionDefinition, target_ids: Array[String]) -> int:
+	if action.action_effect_type != "region_research" or target_ids.is_empty():
+		return action.duration_hours
+
+	var blocks: Array[BlockData] = []
+	for block_id in target_ids:
+		var block := GameManager.get_block(block_id)
+		if block != null:
+			blocks.append(block)
+	return BlockConfig.get_research_duration_hours(action.duration_hours, blocks)
 
 func _check_preconditions(
 		action: ActionDefinition,
@@ -178,7 +196,7 @@ func start_action_now(
 	_begin_current_action(action_id, target_id, target_ids, null)
 	TimeManager.set_speed(TimeManager.Speed.X1)
 	schedule_changed.emit()
-	return {"can": true, "reason_code": "", "reason": "已开始「%s」" % action.name}
+	return {"can": true, "reason_code": "", "reason": "已开始「%s」，预计耗时 %d 小时" % [action.name, int(check.duration_hours)]}
 
 func remove_action_from_schedule(hour: int) -> bool:
 	var removed := today_schedule.remove_entry_at_hour(hour)
@@ -194,10 +212,9 @@ func stop_current_action() -> void:
 
 func tick() -> void:
 	if current_action != null and current_action.is_active:
-		var action := ScheduleActionData.get_action(current_action.action_id)
 		var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
-		if elapsed_hours >= float(action.duration_hours) - 0.0001:
-			_finalize_current_action(float(action.duration_hours))
+		if elapsed_hours >= current_action.duration_hours - 0.0001:
+			_finalize_current_action(current_action.duration_hours)
 			return
 	if current_action == null or not current_action.is_active:
 		_check_and_start_planned_entry()
@@ -234,6 +251,7 @@ func _begin_current_action(
 	current_action.is_active = true
 
 	var action := ScheduleActionData.get_action(action_id)
+	current_action.duration_hours = float(_get_effective_duration_hours(action, target_ids))
 	if action.action_effect_type == "store_supervision":
 		var supervised_store_id := target_id if target_id != "" else GameManager.active_store_id
 		GameManager.player_state.supervising_store_id = supervised_store_id
@@ -282,7 +300,7 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	else:
 		match action.effect_scaling:
 			"proportional":
-				var progress_ratio := elapsed_hours / float(action.duration_hours)
+				var progress_ratio := elapsed_hours / current_action.duration_hours
 				hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
 				if action.action_effect_type == "region_research":
 					var block_effect_result := _apply_region_research_effect(current_action.target_ids, elapsed_hours)
@@ -295,15 +313,15 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 						final_status = "failed"
 						failure_reason = effect_result.reason
 			"binary":
-				if elapsed_hours >= float(action.duration_hours) - 0.0001:
-					action_completed.emit(action.id, elapsed_hours, action.duration_hours)
+				if elapsed_hours >= current_action.duration_hours - 0.0001:
+					action_completed.emit(action.id, elapsed_hours, int(current_action.duration_hours))
 
 	var record: ScheduledActionEntry = current_action.source_entry
 	if record == null:
 		record = ScheduledActionEntry.new()
-		record.action_id = current_action.action_id
-		record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
-		record.duration_hours = action.duration_hours
+	record.action_id = current_action.action_id
+	record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
+	record.duration_hours = int(current_action.duration_hours)
 	record.target_id = current_action.target_id
 	record.hours_completed = elapsed_hours
 	record.status = final_status

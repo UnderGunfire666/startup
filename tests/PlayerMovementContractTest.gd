@@ -65,7 +65,7 @@ func _test_same_block_move_is_zero() -> void:
 		[]
 	)
 	_expect(bool(check.get("can", false)), "移动到当前区块应允许")
-	_expect(float(check.get("duration_hours", -1.0)) == 0.0, "移动到当前区块耗时应为0")
+	_expect(is_equal_approx(float(check.get("duration_hours", -1.0)), 0.0), "移动到当前区块耗时应为0")
 
 func _test_cross_block_move_has_duration() -> void:
 	var blocks := _find_test_block_pair()
@@ -91,6 +91,12 @@ func _test_move_does_not_teleport() -> void:
 
 	GameManager.player_state.current_block_id = blocks[0].id
 	TimeManager.total_game_seconds = TimeManager.DAY_START_SECONDS
+	var check := ScheduleManager.can_schedule_action("move_to_block", 8, blocks[1].id)
+	_expect(bool(check.get("can", false)), "跨区块移动应能通过前置校验")
+	if not bool(check.get("can", false)):
+		return
+
+	var expected_duration := float(check.get("duration_hours", 0.0))
 	var start_result := ScheduleManager.start_action_now("move_to_block", blocks[1].id)
 	_expect(bool(start_result.get("can", false)), "跨区块移动应能开始")
 	if not bool(start_result.get("can", false)):
@@ -98,9 +104,8 @@ func _test_move_does_not_teleport() -> void:
 
 	_expect(GameManager.player_state.current_block_id == blocks[0].id, "移动开始后玩家不能立即传送到目标区块")
 
-	var duration_hours := float(start_result.get("duration_hours", 0.0))
-	if duration_hours > 0.0:
-		TimeManager.total_game_seconds += duration_hours * 3600.0
+	if expected_duration > 0.0:
+		TimeManager.total_game_seconds += expected_duration * 3600.0
 		ScheduleManager.tick()
 
 	_expect(GameManager.player_state.current_block_id == blocks[1].id, "移动完成后玩家应位于目标区块")

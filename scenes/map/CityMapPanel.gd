@@ -1,13 +1,14 @@
 extends Control
 ## 地图页：鼠标点选一个或多个区块。
-## Phase 1 只负责区块选择状态与UI展示，不改变调查时间、体力或行动结算。
-## 旧SurveyArea数据仍可读取，但不再通过地图拖拽创建调查区。
+## Phase 2：调查行动直接绑定选中的 Block，不再通过 SurveyArea 启动调查。
+## SurveyArea 数据仍保留在存档层，后续阶段再清理。
 
 @onready var map_canvas: CityMapCanvas = $HBoxContainer/MapScrollContainer/MapCanvas
 @onready var instruction_label: Label = $HBoxContainer/SidePanel/InstructionLabel
 @onready var report_label: Label = $HBoxContainer/SidePanel/ReportScroll/ReportLabel
 @onready var status_label: Label = $HBoxContainer/SidePanel/StatusLabel
 @onready var clear_selection_button: Button = $HBoxContainer/SidePanel/ClearSelectionButton
+@onready var start_research_button: Button = $HBoxContainer/SidePanel/StartResearchButton
 
 ## 已发现门面列表容器。
 @onready var storefront_list: VBoxContainer = $HBoxContainer/SidePanel/StorefrontScroll/StorefrontList
@@ -18,13 +19,14 @@ func _ready() -> void:
 	map_canvas.selected_blocks_changed.connect(_on_selected_blocks_changed)
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
+	start_research_button.pressed.connect(_on_start_research_pressed)
 
-	instruction_label.text = "点击地图上的区块进行选择；再次点击已选区块可取消选择。可同时选择多个区块。Phase 1 仅建立选择，不开始调查。"
+	instruction_label.text = "点击地图上的区块进行选择；再次点击已选区块可取消选择。可同时选择多个区块。当前阶段可直接调查所选区块。"
 	refresh()
 
 
 func refresh() -> void:
-	map_canvas.refresh_survey_areas(GameManager.player_state.survey_areas)
+	## Phase 2 不再让地图依赖 SurveyArea 作为调查入口。
 	map_canvas.refresh_storefronts(GameManager.all_storefronts)
 	_refresh_report()
 	_refresh_storefront_list()
@@ -39,6 +41,26 @@ func _on_clear_selection_pressed() -> void:
 	status_label.text = "已清空区块选择"
 
 
+func _on_start_research_pressed() -> void:
+	var selected_blocks := map_canvas.get_selected_blocks()
+	if selected_blocks.is_empty():
+		status_label.text = "⚠ 请先选择至少一个区块"
+		return
+
+	var block_ids: Array[String] = []
+	for block in selected_blocks:
+		if GameManager.get_block_understanding(block.id) < 100.0:
+			block_ids.append(block.id)
+
+	if block_ids.is_empty():
+		status_label.text = "⚠ 所选区块都已经完全了解"
+		_refresh_report()
+		return
+
+	var result := ScheduleManager.start_action_now("region_research", "", block_ids)
+	status_label.text = ("✅ " if result.get("can", false) else "⚠ ") + str(result.get("reason", ""))
+
+
 func _on_storefront_clicked(storefront_id: String) -> void:
 	status_label.text = "已点击门面：%s" % storefront_id
 
@@ -47,19 +69,22 @@ func _refresh_report() -> void:
 	var selected_blocks := map_canvas.get_selected_blocks()
 	if selected_blocks.is_empty():
 		report_label.text = "尚未选择区块。\n\n选择区块后，这里会显示当前选择及其了解度。"
+		start_research_button.disabled = true
 		return
 
 	var lines: Array[String] = []
 	lines.append("已选择区块：%d 个" % selected_blocks.size())
 	lines.append("")
 
+	var has_incomplete_block := false
 	for block in selected_blocks:
-		lines.append("• %s：%.0f%%了解度" % [
-			block.name,
-			GameManager.get_block_understanding(block.id),
-		])
+		var understanding := GameManager.get_block_understanding(block.id)
+		if understanding < 100.0:
+			has_incomplete_block = true
+		lines.append("• %s：%.0f%%了解度" % [block.name, understanding])
 
 	report_label.text = "\n".join(lines)
+	start_research_button.disabled = has_incomplete_block == false or (ScheduleManager.current_action != null and ScheduleManager.current_action.is_active)
 
 
 ## 遍历所有已发现门面，维持当前地图页的选址/尽调功能。

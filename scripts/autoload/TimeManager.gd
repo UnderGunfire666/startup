@@ -38,10 +38,10 @@ func set_speed(new_speed: int) -> void:
 func reset() -> void:
 	speed = Speed.PAUSED
 	current_day = 1
-	total_game_seconds = DAY_START_SECONDS   # ← 改动：不再是0.0
+	total_game_seconds = DAY_START_SECONDS
 	_simulation_active = false
-	_last_emitted_hour = -1
-	_last_emitted_day = -1
+	_last_emitted_hour = get_current_hour_int()
+	_last_emitted_day = current_day
 	_emit_clock()
 
 
@@ -88,7 +88,7 @@ func _advance(game_delta: float) -> void:
 		total_game_seconds += step
 		game_delta -= step
 
-		ScheduleManager.tick()   # ← 新增：每一步都检查当前行动状态/排程队列
+		ScheduleManager.tick()
 
 		_after_time_advance()
 
@@ -150,6 +150,6 @@ func apply_save_dict(data: Dictionary) -> void:
 	current_day = int(data.get("current_day", 1))
 	total_game_seconds = float(data.get("total_game_seconds", DAY_START_SECONDS))
 	_simulation_active = false
-	_last_emitted_hour = -1
-	_last_emitted_day = -1
+	_last_emitted_hour = get_current_hour_int()
+	_last_emitted_day = current_day
 	_emit_clock()

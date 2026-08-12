@@ -114,13 +114,33 @@ func _test_spatial_research_and_diligence() -> void:
 	_check(ScheduleManager.current_action != null,
 		"开始区域调研后应存在current_action")
 
-	## region_research 时长为2小时；从8:00推进到10:00，验证行动完成和了解度效果。
+	## 区域调研每小时获得固定了解度；当前 initial_survey 阈值为25。
+	## 第一轮 8:00→10:00 只获得约20，因此第二轮必须继续调研，
+	## 让测试真实跨过发现阈值，而不是降低正式游戏数值。
 	TimeManager._advance(7200.0)
 
 	_check(ScheduleManager.current_action == null,
 		"区域调研满2小时后current_action应结束")
 	_check(GameManager.get_block_understanding("cc_primary_school_1") > 0.0,
 		"区域调研应实际增加覆盖区块的了解度")
+	_check(GameManager.get_storefront_diligence("S004") == "not_viewed",
+		"第一轮区域调研未达到发现阈值时S004不应提前进入initial_viewing")
+
+	var second_research_result: Dictionary = ScheduleManager.start_action_now(
+		"region_research", survey_area_id
+	)
+	_check(bool(second_research_result.get("can", false)),
+		"第二轮区域调研应允许继续执行：%s" % str(second_research_result.get("reason", "")))
+	_check(ScheduleManager.current_action != null,
+		"第二轮区域调研开始后应存在current_action")
+
+	## 第二轮 10:00→12:00，使了解度从约20跨过25阈值。
+	TimeManager._advance(7200.0)
+
+	_check(ScheduleManager.current_action == null,
+		"第二轮区域调研满2小时后current_action应结束")
+	_check(GameManager.get_block_understanding("cc_primary_school_1") >= 25.0,
+		"累计区域调研后中央实验小学区块应达到门面发现阈值")
 	_check(GameManager.get_storefront_diligence("S004") == "initial_viewing",
 		"中央实验小学区块达到发现阈值后S004应自动进入initial_viewing")
 
@@ -130,7 +150,7 @@ func _test_spatial_research_and_diligence() -> void:
 	_check(bool(diligence_result.get("can", false)),
 		"S004进入initial_viewing后应允许开始深度勘验：%s" % str(diligence_result.get("reason", "")))
 
-	## 深度勘验时长3小时：10:00→13:00。
+	## 深度勘验时长3小时：12:00→15:00。
 	TimeManager._advance(10800.0)
 
 	_check(ScheduleManager.current_action == null,
@@ -174,7 +194,7 @@ func _test_first_store_open_and_settlement() -> void:
 	_check(store1 != null and store1.is_open, "首店开业后is_open应为true")
 	_check(GameManager.get_open_stores().size() == 1, "首店开业后应有且仅有1家营业店")
 
-	## 深度勘验把时钟推进到了13:00；重置到8:00后测试真实营业时段。
+	## 深度勘验把时钟推进到了15:00；重置到8:00后测试真实营业时段。
 	TimeManager.reset()
 	GameManager.begin_slot_simulation()
 	_check(GameManager.active_simulations.size() == 1,

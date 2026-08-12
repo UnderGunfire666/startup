@@ -34,6 +34,7 @@ func _expect(condition: bool, description: String) -> void:
 		print("❌ %s" % description)
 
 func _test_research_window() -> void:
+	GameManager.player_state.current_block_id = "cc_primary_school_1"
 	var check := ScheduleManager.can_schedule_action(
 		"region_research",
 		8,
@@ -84,6 +85,7 @@ func _test_continuous_progress_and_energy() -> void:
 		return
 
 	GameManager.player_state.block_understanding["cc_primary_school_1"] = 0.0
+	GameManager.player_state.current_block_id = "cc_primary_school_1"
 	GameManager.player_state.energy = GameManager.player_state.max_energy
 	var energy_before: float = GameManager.player_state.energy
 	TimeManager.total_game_seconds = TimeManager.DAY_START_SECONDS
@@ -109,6 +111,7 @@ func _test_continuous_progress_and_energy() -> void:
 	_expect(ScheduleManager.current_action == null, "区块完全了解后持续调查应自动结束")
 
 func _test_completed_block_rejects_new_action() -> void:
+	GameManager.player_state.current_block_id = "cc_primary_school_1"
 	GameManager.player_state.block_understanding["cc_primary_school_1"] = 100.0
 	var check := ScheduleManager.can_schedule_action(
 		"region_research",

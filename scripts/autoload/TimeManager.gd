@@ -54,10 +54,11 @@ func get_current_hour_int() -> int:
 
 
 func is_store_actually_operating() -> bool:
-	if not GameManager.store_state.is_open:
+	var store: Store = GameManager.store_state
+	if store == null or not store.is_open:
 		return false
 	var hour := get_current_hour_int()
-	for cat_slot in GameManager.store_state.category_slots:
+	for cat_slot in store.category_slots:
 		if cat_slot.is_open_at_hour(hour):
 			return true
 	return false

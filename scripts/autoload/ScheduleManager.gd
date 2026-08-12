@@ -25,6 +25,8 @@ func reset_for_new_game() -> void:
 
 func _on_hour_tick(day: int, hour: int) -> void:
 	if hour == 0:
+		if current_action != null and current_action.is_active and current_action.continuous_mode:
+			_finalize_current_action(current_action.applied_hours)
 		GameManager.player_state.start_new_day()
 		today_schedule.clear()
 		completed_entries_today.clear()
@@ -41,6 +43,9 @@ func _on_hour_tick(day: int, hour: int) -> void:
 	if supervised_store != null and _is_store_operating_at(TimeManager.get_current_hour_int(), supervised_store):
 		supervising_hours_today += 1
 
+	if current_action != null and current_action.is_active and current_action.continuous_mode:
+		_advance_continuous_region_research_to_elapsed()
+
 func can_schedule_action(
 		action_id: String,
 		start_hour: int,
@@ -53,9 +58,13 @@ func can_schedule_action(
 	if action.requires_character_created and not GameManager.player_state.is_character_created:
 		return {"can": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
 
-	var duration_hours := _get_effective_duration_hours(action, target_ids)
-	if start_hour < action.allowed_hour_range.x or (start_hour + duration_hours) > action.allowed_hour_range.y:
-		return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
+	var duration_hours := _get_effective_duration_hours(action, target_ids, start_hour)
+	if action.action_effect_type != "region_research":
+		if start_hour < action.allowed_hour_range.x or (start_hour + duration_hours) > action.allowed_hour_range.y:
+			return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
+	else:
+		if start_hour < action.allowed_hour_range.x or start_hour >= action.allowed_hour_range.y:
+			return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间开始" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
 	if today_schedule.has_conflict(start_hour, duration_hours):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
 	var precondition := _check_preconditions(action, start_hour, target_id, target_ids, true)
@@ -68,8 +77,16 @@ func can_schedule_action(
 		"duration_hours": duration_hours,
 	}
 
-func _get_effective_duration_hours(action: ActionDefinition, target_ids: Array[String]) -> int:
-	if action.action_effect_type != "region_research" or target_ids.is_empty():
+func _get_effective_duration_hours(
+		action: ActionDefinition,
+		target_ids: Array[String],
+		start_hour: int = -1
+) -> int:
+	if action.action_effect_type == "region_research":
+		if start_hour >= 0:
+			return maxi(1, action.allowed_hour_range.y - start_hour)
+		return action.duration_hours
+	if target_ids.is_empty():
 		return action.duration_hours
 
 	var blocks: Array[BlockData] = []
@@ -193,9 +210,11 @@ func start_action_now(
 	if not check.can:
 		return check
 	var action := ScheduleActionData.get_action(action_id)
-	_begin_current_action(action_id, target_id, target_ids, null)
+	_begin_current_action(action_id, target_id, target_ids, null, current_hour)
 	TimeManager.set_speed(TimeManager.Speed.X1)
 	schedule_changed.emit()
+	if action.action_effect_type == "region_research":
+		return {"can": true, "reason_code": "", "reason": "已开始「%s」，将持续调查直到区块全部了解、精力不足或到达 %02d:00" % [action.name, action.allowed_hour_range.y]}
 	return {"can": true, "reason_code": "", "reason": "已开始「%s」，预计耗时 %d 小时" % [action.name, int(check.duration_hours)]}
 
 func remove_action_from_schedule(hour: int) -> bool:
@@ -208,12 +227,22 @@ func stop_current_action() -> void:
 	if current_action == null or not current_action.is_active:
 		return
 	var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
+	if current_action.continuous_mode:
+		_advance_continuous_region_research_to_elapsed(elapsed_hours)
+		if current_action == null or not current_action.is_active:
+			return
 	_finalize_current_action(elapsed_hours)
 
 func tick() -> void:
 	if current_action != null and current_action.is_active:
 		var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
-		if elapsed_hours >= current_action.duration_hours - 0.0001:
+		if current_action.continuous_mode:
+			if TimeManager.get_current_hour_int() >= _get_region_research_end_hour():
+				_advance_continuous_region_research_to_elapsed(elapsed_hours)
+				if current_action != null and current_action.is_active:
+					_finalize_current_action(current_action.applied_hours)
+				return
+		elif elapsed_hours >= current_action.duration_hours - 0.0001:
 			_finalize_current_action(current_action.duration_hours)
 			return
 	if current_action == null or not current_action.is_active:
@@ -232,14 +261,15 @@ func _check_and_start_planned_entry() -> void:
 			continue
 		if e.start_hour <= current_hour:
 			today_schedule.entries.erase(e)
-			_begin_current_action(e.action_id, e.target_id, [], e)
+			_begin_current_action(e.action_id, e.target_id, [], e, current_hour)
 			return
 
 func _begin_current_action(
 		action_id: String,
 		target_id: String,
 		target_ids: Array[String],
-		source_entry: ScheduledActionEntry
+		source_entry: ScheduledActionEntry,
+		start_hour: int = -1
 ) -> void:
 	current_action = CurrentActionState.new()
 	current_action.action_id = action_id
@@ -251,14 +281,96 @@ func _begin_current_action(
 	current_action.is_active = true
 
 	var action := ScheduleActionData.get_action(action_id)
-	current_action.duration_hours = float(_get_effective_duration_hours(action, target_ids))
+	if action.action_effect_type == "region_research":
+		current_action.continuous_mode = true
+		var research_start := start_hour if start_hour >= 0 else TimeManager.get_current_hour_int()
+		current_action.duration_hours = float(maxi(1, action.allowed_hour_range.y - research_start))
+	else:
+		current_action.duration_hours = float(_get_effective_duration_hours(action, target_ids))
 	if action.action_effect_type == "store_supervision":
 		var supervised_store_id := target_id if target_id != "" else GameManager.active_store_id
 		GameManager.player_state.supervising_store_id = supervised_store_id
 
+func _get_region_research_end_hour() -> int:
+	var action := ScheduleActionData.get_action("region_research")
+	return action.allowed_hour_range.y if action != null else 24
+
+func _get_region_research_required_hours(block: BlockData) -> float:
+	if block == null:
+		return 0.0
+	var action := ScheduleActionData.get_action("region_research")
+	if action == null:
+		return 0.0
+	var blocks: Array[BlockData] = [block]
+	return float(BlockConfig.get_research_duration_hours(action.duration_hours, blocks))
+
+func _get_region_research_hourly_gain(block: BlockData) -> float:
+	var required_hours := _get_region_research_required_hours(block)
+	if required_hours <= 0.0:
+		return 0.0
+	return 100.0 / required_hours
+
+func _advance_continuous_region_research_to_elapsed(target_elapsed_hours: float = -1.0) -> void:
+	if current_action == null or not current_action.is_active or not current_action.continuous_mode:
+		return
+	if target_elapsed_hours < 0.0:
+		target_elapsed_hours = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
+	var delta_hours := maxf(0.0, target_elapsed_hours - current_action.applied_hours)
+	if delta_hours <= 0.0001:
+		return
+
+	var action := ScheduleActionData.get_action(current_action.action_id)
+	if action == null:
+		return
+
+	var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
+		current_action.work_hours_before + current_action.applied_hours,
+		delta_hours
+	)
+	var total_cost := 0.0
+	var weighted_effect_mult := 0.0
+	for seg in segments:
+		total_cost += action.base_energy_cost_per_hour * seg.hours * seg.energy_mult
+		weighted_effect_mult += seg.effect_mult * seg.hours
+
+	if total_cost > GameManager.player_state.energy + 0.0001:
+		_finalize_current_action(current_action.applied_hours)
+		action_interrupt.emit("energy_insufficient", "精力不足，无法继续调查")
+		return
+
+	GameManager.player_state.apply_energy_delta(-total_cost)
+	GameManager.player_state.work_hours_today += delta_hours
+	GameManager.player_state.fatigue_state = ScheduleConfig.get_fatigue_tier(GameManager.player_state.work_hours_today).state
+	current_action.applied_hours += delta_hours
+
+	if delta_hours > 0.0:
+		weighted_effect_mult /= delta_hours
+		hour_effect_applied.emit(action.id, delta_hours, 1.0, weighted_effect_mult)
+		var block_effect_result := _apply_region_research_effect_continuous(current_action.target_ids, delta_hours)
+		if not block_effect_result.success:
+			_finalize_current_action(current_action.applied_hours)
+			return
+
+	if _all_region_research_blocks_complete(current_action.target_ids):
+		_finalize_current_action(current_action.applied_hours)
+		return
+	if TimeManager.get_current_hour_int() >= _get_region_research_end_hour():
+		_finalize_current_action(current_action.applied_hours)
+
+func _all_region_research_blocks_complete(block_ids: Array[String]) -> bool:
+	if block_ids.is_empty():
+		return true
+	for block_id in block_ids:
+		if GameManager.get_block_understanding(block_id) < 100.0:
+			return false
+	return true
+
 func _finalize_current_action(elapsed_hours: float) -> void:
+	if current_action == null or not current_action.is_active:
+		return
 	var action := ScheduleActionData.get_action(current_action.action_id)
 	var player := GameManager.player_state
+	var is_continuous_research := current_action.continuous_mode
 	var precondition := _check_preconditions(
 		action,
 		int(TimeManager.get_hour_of_day()),
@@ -267,54 +379,59 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 		false
 	)
 
-	var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
-		current_action.work_hours_before, elapsed_hours)
-	var total_cost := 0.0
-	var total_recovery := 0.0
-	var weighted_effect_mult := 0.0
-
-	for seg in segments:
-		if action.energy_recovery_per_hour > 0.0:
-			total_recovery += action.energy_recovery_per_hour * seg.hours
-		else:
-			total_cost += action.base_energy_cost_per_hour * seg.hours * seg.energy_mult
-		weighted_effect_mult += seg.effect_mult * seg.hours
-
-	if elapsed_hours > 0.0:
-		weighted_effect_mult /= elapsed_hours
-	if action.energy_recovery_per_hour > 0.0:
-		player.apply_energy_delta(total_recovery)
-	else:
-		player.apply_energy_delta(-total_cost)
-	if action.work_hour_counting:
-		player.work_hours_today += elapsed_hours
-	player.fatigue_state = ScheduleConfig.get_fatigue_tier(player.work_hours_today).state
-	if action.action_effect_type == "store_supervision":
-		GameManager.player_state.supervising_store_id = ""
-
 	var final_status := "completed"
 	var failure_reason := ""
+
+	if is_continuous_research:
+		elapsed_hours = minf(elapsed_hours, current_action.applied_hours)
+	else:
+		var segments := ScheduleConfig.split_duration_by_fatigue_tiers(
+			current_action.work_hours_before, elapsed_hours)
+		var total_cost := 0.0
+		var total_recovery := 0.0
+		var weighted_effect_mult := 0.0
+
+		for seg in segments:
+			if action.energy_recovery_per_hour > 0.0:
+				total_recovery += action.energy_recovery_per_hour * seg.hours
+			else:
+				total_cost += action.base_energy_cost_per_hour * seg.hours * seg.energy_mult
+			weighted_effect_mult += seg.effect_mult * seg.hours
+
+		if elapsed_hours > 0.0:
+			weighted_effect_mult /= elapsed_hours
+		if action.energy_recovery_per_hour > 0.0:
+			player.apply_energy_delta(total_recovery)
+		else:
+			player.apply_energy_delta(-total_cost)
+		if action.work_hour_counting:
+			player.work_hours_today += elapsed_hours
+		player.fatigue_state = ScheduleConfig.get_fatigue_tier(player.work_hours_today).state
+		if action.action_effect_type == "store_supervision":
+			GameManager.player_state.supervising_store_id = ""
+
+		if precondition.can:
+			match action.effect_scaling:
+				"proportional":
+					var progress_ratio := elapsed_hours / current_action.duration_hours
+					hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
+					if action.action_effect_type == "region_research":
+						var block_effect_result := _apply_region_research_effect(current_action.target_ids, elapsed_hours)
+						if not block_effect_result.is_empty() and not block_effect_result.success:
+							final_status = "failed"
+							failure_reason = block_effect_result.reason
+					elif current_action.target_id != "":
+						var effect_result := _apply_understanding_effect(action.action_effect_type, current_action.target_id, elapsed_hours)
+						if not effect_result.is_empty() and not effect_result.success:
+							final_status = "failed"
+							failure_reason = effect_result.reason
+				"binary":
+					if elapsed_hours >= current_action.duration_hours - 0.0001:
+						action_completed.emit(action.id, elapsed_hours, int(current_action.duration_hours))
+
 	if not precondition.can:
 		final_status = "failed"
 		failure_reason = precondition.reason
-	else:
-		match action.effect_scaling:
-			"proportional":
-				var progress_ratio := elapsed_hours / current_action.duration_hours
-				hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
-				if action.action_effect_type == "region_research":
-					var block_effect_result := _apply_region_research_effect(current_action.target_ids, elapsed_hours)
-					if not block_effect_result.is_empty() and not block_effect_result.success:
-						final_status = "failed"
-						failure_reason = block_effect_result.reason
-				elif current_action.target_id != "":
-					var effect_result := _apply_understanding_effect(action.action_effect_type, current_action.target_id, elapsed_hours)
-					if not effect_result.is_empty() and not effect_result.success:
-						final_status = "failed"
-						failure_reason = effect_result.reason
-			"binary":
-				if elapsed_hours >= current_action.duration_hours - 0.0001:
-					action_completed.emit(action.id, elapsed_hours, int(current_action.duration_hours))
 
 	var record: ScheduledActionEntry = current_action.source_entry
 	if record == null:
@@ -357,6 +474,30 @@ func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: floa
 		if current >= 100.0:
 			continue
 		GameManager.advance_block_understanding(block_id, gain)
+		affected_city_regions[block.city_region_id] = true
+		applied = true
+
+	if not applied:
+		return {"success": false, "reason": "所选区块均已完全了解或不存在"}
+	for city_region_id in affected_city_regions.keys():
+		GameManager.recalculate_region_intel(str(city_region_id))
+	return {"success": true, "reason": "所选区块调查进度已更新"}
+
+func _apply_region_research_effect_continuous(block_ids: Array[String], elapsed_hours: float) -> Dictionary:
+	if block_ids.is_empty():
+		return {"success": false, "reason": "没有选择调查区块"}
+
+	var applied := false
+	var affected_city_regions: Dictionary = {}
+	for block_id in block_ids:
+		var block := GameManager.get_block(block_id)
+		if block == null:
+			continue
+		var current := GameManager.get_block_understanding(block_id)
+		if current >= 100.0:
+			continue
+		var gain_per_hour := _get_region_research_hourly_gain(block)
+		GameManager.advance_block_understanding(block_id, gain_per_hour * elapsed_hours)
 		affected_city_regions[block.city_region_id] = true
 		applied = true
 

@@ -5,6 +5,12 @@ extends PanelContainer
 ## 结算结果依然是数组（门店可含多个品类/多个商品实例）。
 ## 当自动完成的是一天的最后一个时段（night）时，TimeManager 会额外
 ## 广播 day_completed，本面板转发为 day_ended 信号，供 Main.gd 弹出日结面板。
+##
+## 多店重构修正：
+## - GameManager.store_state 在角色创建完成前是null，凡是用到的地方都加了null判断。
+## - owner_present 字段已从Store迁移到PlayerState.supervising_store_id，
+##   勾选框现在反映"玩家是否正坐镇在当前激活的这家店"。
+## - current_day 死字段已清理，改用 TimeManager.current_day。
 
 signal settlement_done(results: Array)
 signal day_ended(day: int, summary: Dictionary)
@@ -35,7 +41,6 @@ const CUSTOMER_FEED_MAX_LINES: int = 20
 
 func _ready() -> void:
 	open_store_button.pressed.connect(_on_open_store_pressed)
-	owner_present_check.button_pressed = GameManager.store_state.owner_present
 	owner_present_check.toggled.connect(_on_owner_present_toggled)
 
 	pause_button.toggled.connect(func(pressed: bool):
@@ -56,7 +61,10 @@ func _ready() -> void:
 	refresh_display()
 
 func _on_owner_present_toggled(pressed: bool) -> void:
-	GameManager.store_state.owner_present = pressed
+	var store := GameManager.store_state
+	if store == null:
+		return
+	GameManager.player_state.supervising_store_id = store.id if pressed else ""
 
 func _on_open_store_pressed() -> void:
 	var result := GameManager.open_store()
@@ -98,11 +106,27 @@ func _update_speed_button_states() -> void:
 
 func refresh_display() -> void:
 	var state := GameManager.store_state
+	if state == null:
+		day_label.text = "尚未创建角色"
+		open_status_label.text = "⚠ 请先完成人物创建"
+		cash_label.text = ""
+		inventory_label.text = ""
+		reputation_label.text = ""
+		stress_label.text = ""
+		opening_prep_box.visible = false
+		owner_present_check.button_pressed = false
+		pause_button.disabled = true
+		speed1_button.disabled = true
+		speed2_button.disabled = true
+		speed5_button.disabled = true
+		return
 
 	_refresh_opening_prep()
 	_update_speed_button_states()
 
-	day_label.text  = "第 %d 天" % state.current_day
+	owner_present_check.button_pressed = (GameManager.player_state.supervising_store_id == state.id)
+
+	day_label.text  = "第 %d 天" % TimeManager.current_day
 
 	if state.category_slots.is_empty():
 		open_status_label.text = "⚠ 门店尚未添加任何品类（请前往品类管理面板添加）"
@@ -144,7 +168,7 @@ func _refresh_opening_prep() -> void:
 	for child in opening_checklist.get_children():
 		child.queue_free()
 
-	if state.is_open:
+	if state == null or state.is_open:
 		opening_prep_box.visible = false
 		return
 

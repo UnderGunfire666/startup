@@ -38,7 +38,7 @@ func _on_hour_tick(day: int, hour: int) -> void:
 
 	if TimeManager.is_store_actually_operating():
 		operating_hours_today += 1
-		if GameManager.store_state.owner_present:
+		if GameManager.player_state.supervising_store_id == GameManager.active_store_id:
 			supervising_hours_today += 1
 
 
@@ -80,8 +80,11 @@ func _check_preconditions(action: ActionDefinition, start_hour: int) -> Dictiona
 	if action.requires_region_selected and state.selected_region_id == "":
 		return {"can": false, "reason_code": "no_region", "reason": "请先选定区域"}
 
-	if action.requires_inspected_storefront and state.inspected_storefront_ids.is_empty():
-		return {"can": false, "reason_code": "not_inspected", "reason": "目标门面尚未完成实地考察"}
+	## requires_inspected_storefront的旧检查已移除：
+	## StoreState.inspected_storefront_ids字段已被storefront_diligence状态机取代，
+	## 门面尽调的前置校验（比如"必须先初步看铺才能完整尽调"）改为在
+	## GameManager.advance_storefront_diligence()内部于结算时校验，
+	## 与region_research一直以来的校验方式（结算时校验，排程时不校验）保持一致。
 
 	if action.requires_selected_category and state.category_slots.is_empty():
 		return {"can": false, "reason_code": "no_category", "reason": "请先选择经营品类"}
@@ -189,7 +192,7 @@ func _begin_current_action(action_id: String, target_id: String, source_entry: S
 
 	var action := ScheduleActionData.get_action(action_id)
 	if action.action_effect_type == "store_supervision":
-		GameManager.store_state.owner_present = true
+		GameManager.player_state.supervising_store_id = GameManager.active_store_id
 
 
 func _finalize_current_action(elapsed_hours: float) -> void:
@@ -226,7 +229,7 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	player.fatigue_state = ScheduleConfig.get_fatigue_tier(player.work_hours_today).state
 
 	if action.action_effect_type == "store_supervision":
-		GameManager.store_state.owner_present = false
+		GameManager.player_state.supervising_store_id = ""
 
 	var final_status := "completed"
 	var failure_reason := ""
@@ -239,12 +242,14 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 			"proportional":
 				var progress_ratio := elapsed_hours / float(action.duration_hours)
 				hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
-				if action.action_effect_type == "region_research" and current_action.target_id != "":
-					var gain := RegionConfig.FAMILIARITY_GAIN_PER_HOUR * elapsed_hours
-					var research_result: Dictionary = GameManager.research_region(current_action.target_id, gain)
-					if not research_result.success:
+
+				if current_action.target_id != "":
+					var effect_result := _apply_understanding_effect(
+						action.action_effect_type, current_action.target_id, elapsed_hours
+					)
+					if not effect_result.is_empty() and not effect_result.success:
 						final_status = "failed"
-						failure_reason = research_result.reason
+						failure_reason = effect_result.reason
 			"binary":
 				if elapsed_hours >= float(action.duration_hours) - 0.0001:
 					action_completed.emit(action.id, elapsed_hours, action.duration_hours)
@@ -272,6 +277,44 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	## 否则保持当前速度，让时间继续流逝，下一次tick()会自动接上排程队列里的下一项。
 
 	schedule_changed.emit()
+
+
+## ── 三层了解度行动效果分发 ─────────────────────────────────
+## target_id的含义按行动类型不同：
+## region_research → survey_area_id（玩家在地图上框选的调查范围）
+## storefront_inspection / deep_inspection → storefront_id
+
+func _apply_understanding_effect(effect_type: String, target_id: String, elapsed_hours: float) -> Dictionary:
+	match effect_type:
+		"region_research":
+			return _apply_region_research_effect(target_id, elapsed_hours)
+		"deep_inspection":
+			return GameManager.advance_storefront_diligence(target_id, "full_diligence")
+		_:
+			return {}
+
+
+func _apply_region_research_effect(survey_area_id: String, elapsed_hours: float) -> Dictionary:
+	var survey_area := GameManager.player_state.get_survey_area(survey_area_id)
+	if survey_area == null:
+		return {"success": false, "reason": "调查范围不存在，请先在地图上框选区域"}
+
+	var gain := RegionConfig.FAMILIARITY_GAIN_PER_HOUR * elapsed_hours
+	var applied := false
+
+	for coverage in survey_area.block_coverages:
+		if coverage.combined_weight <= 0.0:
+			continue
+		GameManager.advance_block_understanding(coverage.block_id, gain * coverage.combined_weight)
+		applied = true
+
+	if not applied:
+		return {"success": false, "reason": "调查范围未命中任何区块"}
+
+	GameManager.recalculate_region_intel(survey_area.city_region_id)
+	survey_area.last_used_day = TimeManager.current_day
+
+	return {"success": true, "reason": "调查进度已更新"}
 
 
 ## ── 动态判定辅助（不变） ──────────────────────────────────

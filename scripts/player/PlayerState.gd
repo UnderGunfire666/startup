@@ -27,6 +27,17 @@ var work_hours_today: float = 0.0
 var fatigue_state: String = "normal"
 var energy_debt: float = 0.0
 
+## ── 空间系统知识(玩家层，不因开店数量而分裂，多店重构阶段1迁移自Store) ──
+var region_intel_levels: Dictionary = {}
+var region_intel_progress: Dictionary = {}
+var block_understanding: Dictionary = {}
+var storefront_diligence: Dictionary = {}
+var survey_areas: Array[SurveyAreaState] = []
+var focused_city_region_id: String = ""
+
+## 玩家当前亲自坐镇在哪家店，同一时刻只能坐镇一家；空字符串=不在任何店坐镇。
+var supervising_store_id: String = ""
+
 func reset_to_defaults() -> void:
 	is_character_created = false
 	player_name = ""
@@ -70,6 +81,45 @@ func get_selected_trait_for_type(trait_type: String) -> String:
 			return trait_id
 	return ""
 
+func get_region_intel_level(city_region_id: String) -> int:
+	return int(region_intel_levels.get(city_region_id, 0))
+
+
+func get_region_intel_progress(city_region_id: String) -> float:
+	return float(region_intel_progress.get(city_region_id, 0.0))
+
+
+func get_block_understanding(block_id: String) -> float:
+	return float(block_understanding.get(block_id, 0.0))
+
+
+func get_storefront_diligence(storefront_id: String) -> String:
+	return str(storefront_diligence.get(storefront_id, "not_viewed"))
+
+
+func get_survey_area(id: String) -> SurveyAreaState:
+	for area in survey_areas:
+		if area.id == id:
+			return area
+	return null
+
+
+func add_survey_area(area: SurveyAreaState) -> void:
+	if area == null or area.id.is_empty():
+		return
+	for i in range(survey_areas.size()):
+		if survey_areas[i].id == area.id:
+			survey_areas[i] = area
+			return
+	survey_areas.append(area)
+
+
+func remove_survey_area(id: String) -> bool:
+	for i in range(survey_areas.size()):
+		if survey_areas[i].id == id:
+			survey_areas.remove_at(i)
+			return true
+	return false
 
 ## 用于后续接入调研、行动、谈判与经营结算。
 ## 对数值型 effect 采用“加总”规则；倍率类字段由调用方自行约定默认值。
@@ -160,9 +210,15 @@ func start_new_day() -> void:
 	work_hours_today = 0.0
 	fatigue_state = "normal"
 
+func _survey_areas_to_save_data() -> Array:
+	var result: Array = []
+	for area in survey_areas:
+		result.append(area.to_save_dict())
+	return result
+
 func to_save_dict() -> Dictionary:
 	return {
-		"version": 2,
+		"version": 3,
 		"is_character_created": is_character_created,
 		"player_name": player_name,
 		"gender": gender,
@@ -179,6 +235,14 @@ func to_save_dict() -> Dictionary:
 
 		"base_trait_points": base_trait_points,
 		"selected_trait_ids": selected_trait_ids,
+		
+		"region_intel_levels": region_intel_levels,
+		"region_intel_progress": region_intel_progress,
+		"block_understanding": block_understanding,
+		"storefront_diligence": storefront_diligence,
+		"survey_areas": _survey_areas_to_save_data(),
+		"focused_city_region_id": focused_city_region_id,
+		"supervising_store_id": supervising_store_id,
 	}
 
 
@@ -209,7 +273,20 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	for trait_id in raw_trait_ids:
 		typed_trait_ids.append(str(trait_id))
 	p.selected_trait_ids = typed_trait_ids
+	
+	p.region_intel_levels = data.get("region_intel_levels", {})
+	p.region_intel_progress = data.get("region_intel_progress", {})
+	p.block_understanding = data.get("block_understanding", {})
+	p.storefront_diligence = data.get("storefront_diligence", {})
+	p.focused_city_region_id = data.get("focused_city_region_id", "")
+	p.supervising_store_id = data.get("supervising_store_id", "")
 
+	var survey_area_raw: Array = data.get("survey_areas", [])
+	var survey_area_typed: Array[SurveyAreaState] = []
+	for raw_area in survey_area_raw:
+		if raw_area is Dictionary:
+			survey_area_typed.append(SurveyAreaState.from_save_dict(raw_area))
+	p.survey_areas = survey_area_typed
 	return p
 
 func get_required_region_familiarity() -> float:

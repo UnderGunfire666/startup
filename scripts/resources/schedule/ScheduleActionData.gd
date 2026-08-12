@@ -20,11 +20,9 @@ static func get_actions() -> Array[ActionDefinition]:
 		{"requires_region_selected": false},
 	))
 
-	list.append(_make_work(
-		"storefront_inspection", "考察门面", "调研", 2, 10.0,
-		Vector2i(9, 24), "storefront_inspection",
-		{"requires_region_selected": true}
-	))
+	## storefront_inspection已移除：门面的"初步了解"状态改由区块了解度
+	## 达到阈值时自动触发(GameManager._discover_storefronts_in_block())，
+	## 不再需要一个专门的"看铺"行动。
 
 	list.append(_make_work(
 		"deep_inspection", "深度勘验", "调研", 3, 14.0,

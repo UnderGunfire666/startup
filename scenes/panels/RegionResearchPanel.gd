@@ -34,9 +34,6 @@ func _clear_region_cards() -> void:
 
 func _build_region_card(region: RegionData) -> Control:
 	var state := GameManager.store_state
-	var player := GameManager.player_state
-	var familiarity := state.get_region_familiarity(region.id)
-	var interest := state.get_region_interest(region.id)
 	var is_current := state.selected_region_id == region.id
 
 	var card := VBoxContainer.new()
@@ -55,27 +52,17 @@ func _build_region_card(region: RegionData) -> Control:
 	public_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.add_child(public_info)
 
-	var progress_info := Label.new()
-	progress_info.text = "了解程度：%.0f%%（你需要≥%.0f%%才能开店）｜兴趣程度：%.0f%%（你需要≥%.0f%%）" % [
-		familiarity, player.get_required_region_familiarity(),
-		interest, player.get_required_region_interest(),
+	## 注意：本面板属于过渡期遗留UI。选址的了解度门槛已随本次重构移除，
+	## 这里不再展示"了解程度/兴趣程度"进度条——该系统的替代方案是地图上
+	## 按区块了解度逐步解锁信息，详见CityMapPanel。这个面板未来会被
+	## "直接点地图上的门面"流程取代，届时会整体移除。
+	var detail_info := Label.new()
+	detail_info.text = "停留性：%s ｜ 竞争强度：%s ｜ 周末客流倍率：%.1fx ｜ 主力人群：%s" % [
+		region.dwell_time, region.competition_level, region.weekend_modifier,
+		"、".join(region.primary_groups),
 	]
-	progress_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card.add_child(progress_info)
-
-	if familiarity > 0.0:
-		var detail_info := Label.new()
-		detail_info.text = "停留性：%s ｜ 竞争强度：%s ｜ 周末客流倍率：%.1fx ｜ 主力人群：%s" % [
-			region.dwell_time, region.competition_level, region.weekend_modifier,
-			"、".join(region.primary_groups),
-		]
-		detail_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_child(detail_info)
-	else:
-		var locked_info := Label.new()
-		locked_info.text = "停留性、竞争强度、客流细节：考察后逐步了解"
-		locked_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_child(locked_info)
+	detail_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card.add_child(detail_info)
 
 	var button_row := HBoxContainer.new()
 	button_row.add_theme_constant_override("separation", 10)

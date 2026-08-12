@@ -17,6 +17,20 @@ func _ready() -> void:
 	refresh()
 
 func refresh() -> void:
+	var store := GameManager.store_state
+	if store == null:
+		add_dropdown.clear()
+		_pending_options.clear()
+		for child in category_list.get_children():
+			child.queue_free()
+		for cb in _product_checkboxes:
+			cb.queue_free()
+		_product_checkboxes.clear()
+		status_label.text = "⚠ 请先完成人物创建"
+		add_dropdown.disabled = true
+		add_button.disabled = true
+		return
+
 	_pending_options = GameManager.get_category_options_for_current_store()
 	add_dropdown.clear()
 	for opt in _pending_options:
@@ -30,11 +44,10 @@ func refresh() -> void:
 		add_dropdown.add_item(label)
 	if not _pending_options.is_empty():
 		_on_category_dropdown_changed(0)
-	_refresh_category_list()
+	_refresh_category_list(store)
 
-	var is_open := GameManager.store_state.is_open
-	add_dropdown.disabled = is_open
-	add_button.disabled = is_open
+	add_dropdown.disabled = store.is_open
+	add_button.disabled = store.is_open
 
 
 func _on_category_dropdown_changed(idx: int) -> void:
@@ -44,11 +57,12 @@ func _on_category_dropdown_changed(idx: int) -> void:
 	if idx < 0 or idx >= _pending_options.size():
 		return
 
+	var store := GameManager.store_state
 	var opt := _pending_options[idx]
 	var cat: CategoryData = opt.category
 	var existing_slot: StoreCategorySlot = null
-	if opt.already_added:
-		existing_slot = GameManager.store_state.get_slot_by_category(cat.id)
+	if opt.already_added and store != null:
+		existing_slot = store.get_slot_by_category(cat.id)
 
 	for p in GameManager.get_products_for_category(cat.id):
 		var cb := CheckBox.new()
@@ -59,14 +73,18 @@ func _on_category_dropdown_changed(idx: int) -> void:
 		if already_in_slot:
 			cb.button_pressed = true
 			cb.disabled = true
-		if GameManager.store_state.is_open:
+		if store != null and store.is_open:
 			cb.disabled = true
 		product_checklist.add_child(cb)
 		_product_checkboxes.append(cb)
 
 
 func _on_add_pressed() -> void:
-	if GameManager.store_state.is_open:
+	var store := GameManager.store_state
+	if store == null:
+		status_label.text = "⚠ 请先完成人物创建"
+		return
+	if store.is_open:
 		status_label.text = "⚠ 门店已开业，品类与商品配置已锁定"
 		return
 
@@ -128,35 +146,35 @@ func _add_products_to_existing_category(cat: CategoryData) -> void:
 		status_label.text = "⚠ 补充商品失败"
 
 
-func _refresh_category_list() -> void:
+func _refresh_category_list(store: Store) -> void:
 	for child in category_list.get_children():
 		child.queue_free()
-	for slot in GameManager.store_state.category_slots:
+	for slot in store.category_slots:
 		var cat := GameManager.get_category(slot.category_id)
 		if cat == null:
 			continue
-		category_list.add_child(_build_category_block(cat, slot))
+		category_list.add_child(_build_category_block(cat, slot, store))
 
 
-func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Control:
+func _build_category_block(cat: CategoryData, slot: StoreCategorySlot, store: Store) -> Control:
 	var block := VBoxContainer.new()
 
 	var header := Label.new()
 	header.text = "【%s】面积%.0f㎡" % [cat.name, slot.allocated_area]
 	block.add_child(header)
 
-	block.add_child(_build_hour_range_editor(cat, slot))
+	block.add_child(_build_hour_range_editor(cat, slot, store))
 
 	for pc in slot.product_configs:
 		var product := GameManager.get_product(pc.product_id)
 		if product == null:
 			continue
-		block.add_child(_build_product_row(cat, product, pc))
+		block.add_child(_build_product_row(cat, product, pc, store))
 
 	var remove_cat_btn := Button.new()
 	remove_cat_btn.text = "移除整个品类"
 	remove_cat_btn.size_flags_horizontal = 0
-	if GameManager.store_state.is_open:
+	if store.is_open:
 		remove_cat_btn.disabled = true
 		remove_cat_btn.text = "门店已开业，无法移除"
 	remove_cat_btn.pressed.connect(func():
@@ -168,7 +186,7 @@ func _build_category_block(cat: CategoryData, slot: StoreCategorySlot) -> Contro
 	block.add_child(HSeparator.new())
 	return block
 
-func _build_hour_range_editor(cat: CategoryData, slot: StoreCategorySlot) -> Control:
+func _build_hour_range_editor(cat: CategoryData, slot: StoreCategorySlot, store: Store) -> Control:
 	var box := VBoxContainer.new()
 
 	var current_label := Label.new()
@@ -190,7 +208,7 @@ func _build_hour_range_editor(cat: CategoryData, slot: StoreCategorySlot) -> Con
 
 	var add_range_btn := Button.new()
 	add_range_btn.text = "添加时间段"
-	add_range_btn.disabled = GameManager.store_state.is_open
+	add_range_btn.disabled = store.is_open
 	add_range_btn.pressed.connect(func():
 		var start_h := start_option.selected
 		var end_h := end_option.selected
@@ -214,7 +232,7 @@ func _build_hour_range_editor(cat: CategoryData, slot: StoreCategorySlot) -> Con
 		del_row.add_child(label)
 		var del_btn := Button.new()
 		del_btn.text = "删除"
-		del_btn.disabled = GameManager.store_state.is_open
+		del_btn.disabled = store.is_open
 		del_btn.pressed.connect(func():
 			var new_ranges := slot.open_hour_ranges.duplicate()
 			new_ranges.remove_at(i)
@@ -229,7 +247,7 @@ func _build_hour_range_editor(cat: CategoryData, slot: StoreCategorySlot) -> Con
 	return box
 
 func _build_product_row(cat: CategoryData, product: ProductData,
-		pc: StoreProductConfig) -> Control:
+		pc: StoreProductConfig, store: Store) -> Control:
 	var vrow := VBoxContainer.new()
 
 	var name_label := Label.new()
@@ -263,7 +281,7 @@ func _build_product_row(cat: CategoryData, product: ProductData,
 	var remove_btn := Button.new()
 	remove_btn.text = "移除商品"
 	remove_btn.size_flags_horizontal = 0
-	if GameManager.store_state.is_open:
+	if store.is_open:
 		remove_btn.disabled = true
 	remove_btn.pressed.connect(func():
 		GameManager.remove_product_from_slot(cat.id, product.id)

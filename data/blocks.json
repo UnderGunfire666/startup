@@ -1,0 +1,402 @@
+[
+  {
+	"id": "cc_primary_school_1",
+	"name": "中央实验小学",
+	"city_region_id": "CR001",
+	"map_bounds": {"x": 50, "y": 50, "w": 150, "h": 120},
+	"center_position": {"x": 125, "y": 110},
+	"block_type": "school",
+	"tier": 1,
+	"area": 90,
+	"development_factor": 1.0,
+	"accessibility": 0.75,
+	"active_time_profile": {"morning": 1.2, "noon": 0.8, "evening": 0.6, "night": 0.1},
+	"group_supply_weights": {
+	  "student": 0.60, "office_worker": 0.15, "worker": 0.0,
+	  "family_household": 0.25, "high_spend_household": 0.0
+	},
+	"spending_profile": {"price_sensitivity": 0.7, "quality_preference": 0.3, "spend_potential_tier": "low"},
+	"business_demand_tags": ["breakfast", "printing_stationery", "convenience"],
+	"competition_profile": {
+	  "competition_level": "low", "rent_pressure": "medium",
+	  "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.05
+	},
+	"tags": ["school_gate"],
+	"notes": "早晚接送高峰明显，午间和深夜几乎无活动"
+  },
+  {
+	"id": "cc_tower_office_2",
+	"name": "金融街写字楼",
+	"city_region_id": "CR001",
+	"map_bounds": {"x": 300, "y": 50, "w": 250, "h": 200},
+	"center_position": {"x": 425, "y": 150},
+	"block_type": "office",
+	"tier": 2,
+	"area": 180,
+	"development_factor": 1.0,
+	"accessibility": 0.85,
+	"active_time_profile": {"morning": 1.0, "noon": 1.3, "evening": 1.0, "night": 0.3},
+	"group_supply_weights": {
+	  "student": 0.0, "office_worker": 0.88, "worker": 0.05,
+	  "family_household": 0.02, "high_spend_household": 0.05
+	},
+	"spending_profile": {"price_sensitivity": 0.4, "quality_preference": 0.6, "spend_potential_tier": "medium"},
+	"business_demand_tags": ["cafe", "quick_meal", "convenience"],
+	"competition_profile": {
+	  "competition_level": "high", "rent_pressure": "high",
+	  "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.1
+	},
+	"tags": ["subway_nearby"],
+	"notes": "工作日午间咖啡/简餐需求极强，周末几乎无人"
+  },
+  {
+	"id": "cc_university_3",
+	"name": "新港大学城",
+	"city_region_id": "CR001",
+	"map_bounds": {"x": 600, "y": 100, "w": 350, "h": 300},
+	"center_position": {"x": 775, "y": 250},
+	"block_type": "school",
+	"tier": 3,
+	"area": 200,
+	"development_factor": 1.0,
+	"accessibility": 0.7,
+	"active_time_profile": {"morning": 0.8, "noon": 1.2, "evening": 1.2, "night": 0.5},
+	"group_supply_weights": {
+	  "student": 0.75, "office_worker": 0.15, "worker": 0.03,
+	  "family_household": 0.05, "high_spend_household": 0.02
+	},
+	"spending_profile": {"price_sensitivity": 0.75, "quality_preference": 0.3, "spend_potential_tier": "low"},
+	"business_demand_tags": ["quick_meal", "beverage_dessert", "printing_stationery"],
+	"competition_profile": {
+	  "competition_level": "high", "rent_pressure": "medium",
+	  "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.1
+	},
+	"tags": ["campus_gate", "night_snack"],
+	"notes": "学生密集，价格敏感度高，晚间和夜宵需求明显；同类平价店竞争激烈"
+  },
+  {
+	"id": "cc_vendor_lane_1",
+	"name": "老城摊贩巷",
+	"city_region_id": "CR001",
+	"map_bounds": {"x": 150, "y": 400, "w": 200, "h": 150},
+	"center_position": {"x": 250, "y": 475},
+	"block_type": "commercial",
+	"tier": 1,
+	"area": 100,
+	"development_factor": 0.9,
+	"accessibility": 0.6,
+	"active_time_profile": {"morning": 0.8, "noon": 1.0, "evening": 1.2, "night": 0.6},
+	"group_supply_weights": {
+	  "student": 0.15, "office_worker": 0.30, "worker": 0.15,
+	  "family_household": 0.35, "high_spend_household": 0.05
+	},
+	"spending_profile": {"price_sensitivity": 0.8, "quality_preference": 0.2, "spend_potential_tier": "low"},
+	"business_demand_tags": ["quick_meal", "convenience"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "low",
+	  "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.3
+	},
+	"tags": [],
+	"notes": "价格战强，但租金明显低于核心商场"
+  },
+  {
+	"id": "cc_business_center_3",
+	"name": "中环商业中心",
+	"city_region_id": "CR001",
+	"map_bounds": {"x": 700, "y": 500, "w": 350, "h": 300},
+	"center_position": {"x": 875, "y": 650},
+	"block_type": "commercial",
+	"tier": 3,
+	"area": 220,
+	"development_factor": 1.0,
+	"accessibility": 0.6,
+	"active_time_profile": {"morning": 0.6, "noon": 1.2, "evening": 1.4, "night": 0.8},
+	"group_supply_weights": {
+	  "student": 0.10, "office_worker": 0.25, "worker": 0.05,
+	  "family_household": 0.30, "high_spend_household": 0.30
+	},
+	"spending_profile": {"price_sensitivity": 0.3, "quality_preference": 0.7, "spend_potential_tier": "high"},
+	"business_demand_tags": ["premium_dining", "cafe"],
+	"competition_profile": {
+	  "competition_level": "high", "rent_pressure": "high",
+	  "rent_trend": "up", "business_risk": "high", "external_attraction": 0.6
+	},
+	"tags": ["landmark"],
+	"notes": "高客流高竞争高租金，大众平价业态在此不占优"
+  },
+  {
+	"id": "rs_middle_school_2",
+	"name": "河畔中学",
+	"city_region_id": "CR002",
+	"map_bounds": {"x": 1300, "y": 50, "w": 200, "h": 150},
+	"center_position": {"x": 1400, "y": 125},
+	"block_type": "school",
+	"tier": 2,
+	"area": 130,
+	"development_factor": 1.0,
+	"accessibility": 0.7,
+	"active_time_profile": {"morning": 1.2, "noon": 0.8, "evening": 0.6, "night": 0.1},
+	"group_supply_weights": {
+	  "student": 0.68, "office_worker": 0.17, "worker": 0.0,
+	  "family_household": 0.15, "high_spend_household": 0.0
+	},
+	"spending_profile": {"price_sensitivity": 0.65, "quality_preference": 0.3, "spend_potential_tier": "low"},
+	"business_demand_tags": ["printing_stationery", "quick_meal"],
+	"competition_profile": {
+	  "competition_level": "low", "rent_pressure": "low",
+	  "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.05
+	},
+	"tags": ["school_gate"],
+	"notes": "假期与放学节奏明显，接送时段是主要机会"
+  },
+  {
+	"id": "rs_small_office_1",
+	"name": "创业园小企业群",
+	"city_region_id": "CR002",
+	"map_bounds": {"x": 1550, "y": 50, "w": 200, "h": 150},
+	"center_position": {"x": 1650, "y": 125},
+	"block_type": "office",
+	"tier": 1,
+	"area": 110,
+	"development_factor": 0.9,
+	"accessibility": 0.7,
+	"active_time_profile": {"morning": 1.0, "noon": 1.3, "evening": 1.0, "night": 0.3},
+	"group_supply_weights": {
+	  "student": 0.0, "office_worker": 0.85, "worker": 0.10,
+	  "family_household": 0.03, "high_spend_household": 0.02
+	},
+	"spending_profile": {"price_sensitivity": 0.55, "quality_preference": 0.45, "spend_potential_tier": "medium"},
+	"business_demand_tags": ["cafe", "quick_meal", "printing_stationery"],
+	"competition_profile": {
+	  "competition_level": "low", "rent_pressure": "low",
+	  "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.05
+	},
+	"tags": [],
+	"notes": "客流规模有限，依赖复购而非人流量"
+  },
+  {
+	"id": "rs_mid_residential_2",
+	"name": "河畔花园",
+	"city_region_id": "CR002",
+	"map_bounds": {"x": 1300, "y": 300, "w": 300, "h": 250},
+	"center_position": {"x": 1450, "y": 425},
+	"block_type": "residential",
+	"tier": 2,
+	"area": 300,
+	"development_factor": 1.0,
+	"accessibility": 0.75,
+	"active_time_profile": {"morning": 1.1, "noon": 0.6, "evening": 1.3, "night": 0.4},
+	"group_supply_weights": {
+	  "student": 0.05, "office_worker": 0.05, "worker": 0.0,
+	  "family_household": 0.70, "high_spend_household": 0.20
+	},
+	"spending_profile": {"price_sensitivity": 0.45, "quality_preference": 0.55, "spend_potential_tier": "medium"},
+	"business_demand_tags": ["convenience", "community_service", "quick_meal"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "medium",
+	  "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.0
+	},
+	"tags": [],
+	"notes": "午间弱，需要晚间和周末运营支撑"
+  },
+  {
+	"id": "rs_large_plant_3",
+	"name": "河畔智能制造园",
+	"city_region_id": "CR002",
+	"map_bounds": {"x": 1650, "y": 300, "w": 350, "h": 300},
+	"center_position": {"x": 1825, "y": 450},
+	"block_type": "industrial",
+	"tier": 3,
+	"area": 260,
+	"development_factor": 1.0,
+	"accessibility": 0.6,
+	"active_time_profile": {"morning": 1.0, "noon": 1.2, "evening": 1.0, "night": 0.6},
+	"group_supply_weights": {
+	  "student": 0.0, "office_worker": 0.22, "worker": 0.70,
+	  "family_household": 0.06, "high_spend_household": 0.02
+	},
+	"spending_profile": {"price_sensitivity": 0.75, "quality_preference": 0.2, "spend_potential_tier": "low"},
+	"business_demand_tags": ["quick_meal", "convenience"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "medium",
+	  "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.0
+	},
+	"tags": ["night_shift"],
+	"notes": "有夜班，班次变化大，依赖单一企业存在风险"
+  },
+  {
+	"id": "rs_commercial_street_2",
+	"name": "河畔生活商业街",
+	"city_region_id": "CR002",
+	"map_bounds": {"x": 1300, "y": 650, "w": 300, "h": 250},
+	"center_position": {"x": 1450, "y": 775},
+	"block_type": "commercial",
+	"tier": 2,
+	"area": 190,
+	"development_factor": 1.0,
+	"accessibility": 0.7,
+	"active_time_profile": {"morning": 0.6, "noon": 1.2, "evening": 1.4, "night": 0.8},
+	"group_supply_weights": {
+	  "student": 0.15, "office_worker": 0.25, "worker": 0.10,
+	  "family_household": 0.35, "high_spend_household": 0.15
+	},
+	"spending_profile": {"price_sensitivity": 0.5, "quality_preference": 0.5, "spend_potential_tier": "medium"},
+	"business_demand_tags": ["quick_meal", "beverage_dessert", "convenience"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "medium",
+	  "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.3
+	},
+	"tags": ["parking_available"],
+	"notes": "需要停车/交通配合，目的消费明显"
+  },
+  {
+	"id": "rs_industry_office_park_3",
+	"name": "河畔科创产业园",
+	"city_region_id": "CR002",
+	"map_bounds": {"x": 1700, "y": 650, "w": 350, "h": 300},
+	"center_position": {"x": 1875, "y": 800},
+	"block_type": "office",
+	"tier": 3,
+	"area": 240,
+	"development_factor": 1.0,
+	"accessibility": 0.75,
+	"active_time_profile": {"morning": 1.0, "noon": 1.3, "evening": 1.0, "night": 0.3},
+	"group_supply_weights": {
+	  "student": 0.0, "office_worker": 0.65, "worker": 0.30,
+	  "family_household": 0.02, "high_spend_household": 0.03
+	},
+	"spending_profile": {"price_sensitivity": 0.5, "quality_preference": 0.5, "spend_potential_tier": "medium"},
+	"business_demand_tags": ["quick_meal", "cafe", "convenience"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "medium",
+	  "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.05
+	},
+	"tags": [],
+	"notes": "工作日午间极强，周末明显走低，适合午餐+咖啡组合"
+  },
+  {
+	"id": "pt_construction_site_1",
+	"name": "松岭新城工地",
+	"city_region_id": "CR003",
+	"map_bounds": {"x": 50, "y": 1050, "w": 180, "h": 150},
+	"center_position": {"x": 140, "y": 1125},
+	"block_type": "industrial",
+	"tier": 1,
+	"area": 120,
+	"development_factor": 0.8,
+	"accessibility": 0.5,
+	"active_time_profile": {"morning": 1.0, "noon": 1.2, "evening": 1.0, "night": 0.2},
+	"group_supply_weights": {
+	  "student": 0.0, "office_worker": 0.10, "worker": 0.85,
+	  "family_household": 0.05, "high_spend_household": 0.0
+	},
+	"spending_profile": {"price_sensitivity": 0.85, "quality_preference": 0.1, "spend_potential_tier": "low"},
+	"business_demand_tags": ["quick_meal", "convenience"],
+	"competition_profile": {
+	  "competition_level": "low", "rent_pressure": "low",
+	  "rent_trend": "down", "business_risk": "high", "external_attraction": 0.0
+	},
+	"tags": [],
+	"notes": "项目结束后客流衰退风险高，不宜长期重投入"
+  },
+  {
+	"id": "pt_small_factory_2",
+	"name": "松岭食品厂",
+	"city_region_id": "CR003",
+	"map_bounds": {"x": 300, "y": 1050, "w": 220, "h": 180},
+	"center_position": {"x": 410, "y": 1140},
+	"block_type": "industrial",
+	"tier": 2,
+	"area": 160,
+	"development_factor": 1.0,
+	"accessibility": 0.55,
+	"active_time_profile": {"morning": 1.0, "noon": 1.2, "evening": 1.0, "night": 0.2},
+	"group_supply_weights": {
+	  "student": 0.0, "office_worker": 0.15, "worker": 0.80,
+	  "family_household": 0.05, "high_spend_household": 0.0
+	},
+	"spending_profile": {"price_sensitivity": 0.8, "quality_preference": 0.15, "spend_potential_tier": "low"},
+	"business_demand_tags": ["quick_meal", "convenience"],
+	"competition_profile": {
+	  "competition_level": "low", "rent_pressure": "low",
+	  "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.0
+	},
+	"tags": [],
+	"notes": "依赖厂区班次与企业稳定性"
+  },
+  {
+	"id": "pt_basic_residential_1",
+	"name": "松岭老社区",
+	"city_region_id": "CR003",
+	"map_bounds": {"x": 50, "y": 1300, "w": 250, "h": 200},
+	"center_position": {"x": 175, "y": 1400},
+	"block_type": "residential",
+	"tier": 1,
+	"area": 220,
+	"development_factor": 0.9,
+	"accessibility": 0.6,
+	"active_time_profile": {"morning": 1.1, "noon": 0.6, "evening": 1.3, "night": 0.4},
+	"group_supply_weights": {
+	  "student": 0.05, "office_worker": 0.05, "worker": 0.0,
+	  "family_household": 0.85, "high_spend_household": 0.05
+	},
+	"spending_profile": {"price_sensitivity": 0.8, "quality_preference": 0.2, "spend_potential_tier": "low"},
+	"business_demand_tags": ["convenience", "community_service"],
+	"competition_profile": {
+	  "competition_level": "low", "rent_pressure": "low",
+	  "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.0
+	},
+	"tags": [],
+	"notes": "总量有限、价格敏感，熟客与口碑经营为主"
+  },
+  {
+	"id": "pt_high_end_residential_3",
+	"name": "松岭湖畔别院",
+	"city_region_id": "CR003",
+	"map_bounds": {"x": 650, "y": 1300, "w": 300, "h": 250},
+	"center_position": {"x": 800, "y": 1425},
+	"block_type": "residential",
+	"tier": 3,
+	"area": 260,
+	"development_factor": 1.0,
+	"accessibility": 0.55,
+	"active_time_profile": {"morning": 0.9, "noon": 0.7, "evening": 1.3, "night": 0.6},
+	"group_supply_weights": {
+	  "student": 0.05, "office_worker": 0.05, "worker": 0.0,
+	  "family_household": 0.45, "high_spend_household": 0.45
+	},
+	"spending_profile": {"price_sensitivity": 0.2, "quality_preference": 0.8, "spend_potential_tier": "high"},
+	"business_demand_tags": ["premium_dining", "community_service"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "medium",
+	  "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.0
+	},
+	"tags": [],
+	"notes": "客流稀疏但客单潜力高，品质要求高"
+  },
+  {
+	"id": "pt_small_commercial_square_2",
+	"name": "松岭商业广场",
+	"city_region_id": "CR003",
+	"map_bounds": {"x": 350, "y": 1600, "w": 300, "h": 250},
+	"center_position": {"x": 500, "y": 1725},
+	"block_type": "commercial",
+	"tier": 2,
+	"area": 150,
+	"development_factor": 0.9,
+	"accessibility": 0.65,
+	"active_time_profile": {"morning": 0.7, "noon": 1.1, "evening": 1.3, "night": 0.5},
+	"group_supply_weights": {
+	  "student": 0.15, "office_worker": 0.15, "worker": 0.10,
+	  "family_household": 0.45, "high_spend_household": 0.15
+	},
+	"spending_profile": {"price_sensitivity": 0.6, "quality_preference": 0.4, "spend_potential_tier": "medium"},
+	"business_demand_tags": ["quick_meal", "community_service", "convenience"],
+	"competition_profile": {
+	  "competition_level": "medium", "rent_pressure": "low",
+	  "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.2
+	},
+	"tags": [],
+	"notes": "客流受周边社区与活动影响大，适合乡镇级社区消费"
+  }
+]

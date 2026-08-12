@@ -1,14 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bbgtk87haxjj"]
 
-[ext_resource type="Script" path="res://scenes/panels/CharacterCreationPanel.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://4o3vcvt255pb" path="res://scenes/panels/CharacterCreationPanel.gd" id="1_script"]
 
-[node name="CharacterCreationPanel" type="PanelContainer"]
-layout_mode = 2
+[node name="CharacterCreationPanel" type="PanelContainer" unique_id=401777073]
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_script")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1037604614]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -17,160 +16,160 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="RootVBox" type="VBoxContainer" parent="MarginContainer"]
+[node name="RootVBox" type="VBoxContainer" parent="MarginContainer" unique_id=1101997213]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="MarginContainer/RootVBox"]
+[node name="TitleLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=781474509]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "创建创业者"
 
-[node name="DescriptionLabel" type="Label" parent="MarginContainer/RootVBox"]
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=1562927499]
 layout_mode = 2
-autowrap_mode = 3
 text = "难度只决定初始资金。选择预设人物可快速开始，也可自行填写信息并选择特质。"
+autowrap_mode = 3
 
-[node name="HSeparatorTop" type="HSeparator" parent="MarginContainer/RootVBox"]
+[node name="HSeparatorTop" type="HSeparator" parent="MarginContainer/RootVBox" unique_id=1691007311]
 layout_mode = 2
 
-[node name="SplitBox" type="HSplitContainer" parent="MarginContainer/RootVBox"]
+[node name="SplitBox" type="HSplitContainer" parent="MarginContainer/RootVBox" unique_id=527495827]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+split_offsets = PackedInt32Array(-40)
 split_offset = -40
 
-[node name="LeftPanel" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox"]
+[node name="LeftPanel" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox" unique_id=520124177]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.0
 theme_override_constants/separation = 8
 
-[node name="DifficultyRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="DifficultyRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=1695692872]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="DifficultyLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/DifficultyRow"]
-layout_mode = 2
+[node name="DifficultyLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/DifficultyRow" unique_id=707506611]
 custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
 text = "难度"
 
-[node name="DifficultyOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/DifficultyRow"]
+[node name="DifficultyOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/DifficultyRow" unique_id=1154325619]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="NameRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="NameRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=1335727962]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="NameLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/NameRow"]
-layout_mode = 2
+[node name="NameLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/NameRow" unique_id=1985229761]
 custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
 text = "姓名"
 
-[node name="NameInput" type="LineEdit" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/NameRow"]
+[node name="NameInput" type="LineEdit" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/NameRow" unique_id=175200513]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "请输入创业者姓名"
 max_length = 20
 
-[node name="GenderRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="GenderRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=50542920]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="GenderLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow"]
-layout_mode = 2
+[node name="GenderLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow" unique_id=926586506]
 custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
 text = "性别"
 
-[node name="MaleButton" type="CheckButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow"]
+[node name="MaleButton" type="CheckButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow" unique_id=1446976577]
 layout_mode = 2
 text = "男"
 
-[node name="FemaleButton" type="CheckButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow"]
+[node name="FemaleButton" type="CheckButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow" unique_id=385793206]
 layout_mode = 2
 text = "女"
 
-[node name="AgeRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="AgeRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=1303991270]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="AgeLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow"]
-layout_mode = 2
+[node name="AgeLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow" unique_id=1020287367]
 custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
 text = "年龄"
 
-[node name="AgeOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow"]
+[node name="AgeOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow" unique_id=1247848748]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HSeparatorLeft" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="HSeparatorLeft" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=985925820]
 layout_mode = 2
 
-[node name="PresetTitle" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="PresetTitle" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=953547476]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "快速开始：预设人物"
 
-[node name="PresetScroll" type="ScrollContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+[node name="PresetScroll" type="ScrollContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=1493697422]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
-[node name="PresetList" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/PresetScroll"]
+[node name="PresetList" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/PresetScroll" unique_id=56544768]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="RightPanel" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox"]
+[node name="RightPanel" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox" unique_id=794286267]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 1.2
 theme_override_constants/separation = 8
 
-[node name="PointSummaryLabel" type="RichTextLabel" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+[node name="PointSummaryLabel" type="RichTextLabel" parent="MarginContainer/RootVBox/SplitBox/RightPanel" unique_id=1379172594]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 bbcode_enabled = true
 fit_content = true
 
-[node name="HSeparatorRight" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+[node name="HSeparatorRight" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/RightPanel" unique_id=1469385038]
 layout_mode = 2
 
-[node name="TraitTitle" type="Label" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+[node name="TraitTitle" type="Label" parent="MarginContainer/RootVBox/SplitBox/RightPanel" unique_id=677914583]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "特质选择"
 
-[node name="TraitHint" type="Label" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+[node name="TraitHint" type="Label" parent="MarginContainer/RootVBox/SplitBox/RightPanel" unique_id=1681778002]
 layout_mode = 2
-autowrap_mode = 3
 text = "每种类型最多选择一个。正向特质消耗点数；负向特质返还点数。"
+autowrap_mode = 3
 
-[node name="TraitScroll" type="ScrollContainer" parent="MarginContainer/RootVBox/SplitBox/RightPanel"]
+[node name="TraitScroll" type="ScrollContainer" parent="MarginContainer/RootVBox/SplitBox/RightPanel" unique_id=1369838488]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
-[node name="TraitList" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox/RightPanel/TraitScroll"]
+[node name="TraitList" type="VBoxContainer" parent="MarginContainer/RootVBox/SplitBox/RightPanel/TraitScroll" unique_id=928855155]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="HSeparatorBottom" type="HSeparator" parent="MarginContainer/RootVBox"]
+[node name="HSeparatorBottom" type="HSeparator" parent="MarginContainer/RootVBox" unique_id=860419466]
 layout_mode = 2
 
-[node name="ConfirmButton" type="Button" parent="MarginContainer/RootVBox"]
+[node name="ConfirmButton" type="Button" parent="MarginContainer/RootVBox" unique_id=219360231]
 layout_mode = 2
 disabled = true
 text = "确认创建，进入区域调研"
 
-[node name="StatusLabel" type="Label" parent="MarginContainer/RootVBox"]
+[node name="StatusLabel" type="Label" parent="MarginContainer/RootVBox" unique_id=1656177805]
 layout_mode = 2
 autowrap_mode = 3

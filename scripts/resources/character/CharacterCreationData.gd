@@ -216,7 +216,7 @@ static func get_presets() -> Array[Dictionary]:
 			"id": "steady_shopkeeper",
 			"name": "稳健小店主",
 			"gender": "female",
-			"age": 37,
+			"age": 27,
 			"trait_ids": [
 				"energetic",
 				"stress_resistant",
@@ -228,7 +228,7 @@ static func get_presets() -> Array[Dictionary]:
 			"id": "site_selector",
 			"name": "精明选址者",
 			"gender": "male",
-			"age": 47,
+			"age": 27,
 			"trait_ids": [
 				"lethargic",
 				"market_instinct",
@@ -241,12 +241,11 @@ static func get_presets() -> Array[Dictionary]:
 			"id": "night_market_adventurer",
 			"name": "夜市冒险家",
 			"gender": "male",
-			"age": 37,
+			"age": 47,
 			"trait_ids": [
 				"energetic",
-				"information_isolated",
-				"stress_resistant",
-				"socially_awkward",
+				"anxious",
+				"negotiator",
 			],
 			"description": "耐力和抗压较强，但市场情报与商务协作能力偏弱。"
 		},

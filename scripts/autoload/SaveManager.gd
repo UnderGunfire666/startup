@@ -1,13 +1,20 @@
 extends Node
 ## Autoload单例，负责游戏存档的写入与读取。
+## v2变更：store_state单例改为stores数组+active_store_id，
+## 存档结构相应调整。不做旧格式兼容（已确认不需要存档迁移）。
 
 const SAVE_PATH := "user://savegame.json"
 
 func save_game() -> bool:
+	var store_data: Array = []
+	for store in GameManager.stores:
+		store_data.append(store.to_save_dict())
+
 	var data := {
 		"player_state": GameManager.player_state.to_save_dict(),
-		"store_state": GameManager.store_state.to_save_dict(),
-		"time_manager": TimeManager.to_save_dict(),   # ← 新增
+		"stores": store_data,
+		"active_store_id": GameManager.active_store_id,
+		"time_manager": TimeManager.to_save_dict(),
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -15,6 +22,7 @@ func save_game() -> bool:
 		return false
 	file.store_string(JSON.stringify(data, "\t"))
 	return true
+
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -28,17 +36,26 @@ func load_game() -> bool:
 		return false
 
 	var player_data: Dictionary = parsed.get("player_state", {})
-	var store_data: Dictionary = parsed.get("store_state", {})
-	var time_data: Dictionary = parsed.get("time_manager", {})   # ← 新增
+	var stores_raw: Array = parsed.get("stores", [])
+	var time_data: Dictionary = parsed.get("time_manager", {})
 
 	GameManager.player_state = PlayerState.from_save_dict(player_data)
-	GameManager.store_state = StoreState.from_save_dict(store_data)
-	TimeManager.apply_save_dict(time_data)   # ← 新增：旧存档没有这个键时走默认值，不会报错
+
+	var loaded_stores: Array[Store] = []
+	for raw_store in stores_raw:
+		if raw_store is Dictionary:
+			loaded_stores.append(Store.from_save_dict(raw_store))
+	GameManager.stores = loaded_stores
+	GameManager.active_store_id = str(parsed.get("active_store_id", ""))
+
+	TimeManager.apply_save_dict(time_data)
 	GameManager._sync_data_objects()
 	return true
 
+
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
+
 
 func delete_save() -> void:
 	if FileAccess.file_exists(SAVE_PATH):

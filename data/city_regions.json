@@ -1,0 +1,59 @@
+[
+  {
+	"id": "CR001",
+	"name": "中央商务城区",
+	"region_type": "urban",
+	"tier": 1,
+	"map_bounds": {"x": 0, "y": 0, "w": 1200, "h": 900},
+	"background_population": 120000,
+	"density_band": "high",
+	"location_modifiers": {
+	  "rent_baseline": 1.4,
+	  "traffic_baseline": 1.3,
+	  "competition_baseline": 1.4,
+	  "spending_power_baseline": 1.2,
+	  "development_potential": 1.1
+	},
+	"weekend_activity_modifier": 1.1,
+	"tags": [],
+	"notes": "高密度办公、大学与商业混合"
+  },
+  {
+	"id": "CR002",
+	"name": "河畔近郊新区",
+	"region_type": "suburban",
+	"tier": 2,
+	"map_bounds": {"x": 1250, "y": 0, "w": 1400, "h": 1000},
+	"background_population": 60000,
+	"density_band": "medium",
+	"location_modifiers": {
+	  "rent_baseline": 1.0,
+	  "traffic_baseline": 0.9,
+	  "competition_baseline": 0.9,
+	  "spending_power_baseline": 1.0,
+	  "development_potential": 1.3
+	},
+	"weekend_activity_modifier": 1.15,
+	"tags": [],
+	"notes": "中高端住宅、产业园与家庭消费"
+  },
+  {
+	"id": "CR003",
+	"name": "松岭乡镇商业街",
+	"region_type": "town",
+	"tier": 3,
+	"map_bounds": {"x": 0, "y": 1000, "w": 1050, "h": 900},
+	"background_population": 15000,
+	"density_band": "low",
+	"location_modifiers": {
+	  "rent_baseline": 0.6,
+	  "traffic_baseline": 0.6,
+	  "competition_baseline": 0.5,
+	  "spending_power_baseline": 0.7,
+	  "development_potential": 0.8
+	},
+	"weekend_activity_modifier": 1.0,
+	"tags": [],
+	"notes": "低密度熟客商业、工地与基础社区需求"
+  }
+]

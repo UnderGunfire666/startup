@@ -1,5 +1,6 @@
 extends PanelContainer
-## "日程"标签：提前规划一整天的行动。改为逐小时列表展示，而不是双小时格子。
+## "日程"标签：提前规划一整天的行动。
+## v3变更：同ActionPanel.gd，排除调研类行动的排程入口。
 
 @onready var day_label: Label = $MarginContainer/RootVBox/DayLabel
 @onready var status_label: Label = $MarginContainer/RootVBox/StatusLabel
@@ -12,6 +13,9 @@ extends PanelContainer
 
 var _last_displayed_hour: int = -1
 
+const EXCLUDED_FROM_LIST: Array[String] = [
+	"region_research", "deep_inspection",
+]
 
 func _ready() -> void:
 	TimeManager.clock_updated.connect(_on_clock_updated)
@@ -27,8 +31,6 @@ func refresh() -> void:
 
 func _on_clock_updated(hour: int, _m: int, _s: int, _l: String) -> void:
 	_refresh_day_label()
-	## 24格视图没必要跟着时钟每帧重绘，小时数变化时再刷新一次即可，
-	## 这样能达到跟旧的"每小时一次hour_executed"相同的刷新频率。
 	if hour != _last_displayed_hour:
 		_last_displayed_hour = hour
 		_refresh_hour_list()
@@ -65,6 +67,9 @@ func _build_action_list() -> void:
 	var start_hour := _get_selected_start_hour()
 
 	for action in ScheduleActionData.get_actions():
+		if action.action_effect_type in EXCLUDED_FROM_LIST:
+			continue
+
 		var check := ScheduleManager.can_schedule_action(action.id, start_hour)
 
 		var row := HBoxContainer.new()
@@ -72,15 +77,6 @@ func _build_action_list() -> void:
 		label.text = "%s（%d小时）" % [action.name, action.duration_hours]
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
-
-		var region_option: OptionButton = null
-		if action.action_effect_type == "region_research":
-			region_option = OptionButton.new()
-			region_option.custom_minimum_size = Vector2(120, 0)
-			for r in GameManager.all_regions:
-				region_option.add_item(r.name)
-				region_option.set_item_metadata(region_option.item_count - 1, r.id)
-			row.add_child(region_option)
 
 		var add_btn := Button.new()
 		if check.can:
@@ -91,10 +87,7 @@ func _build_action_list() -> void:
 			add_btn.tooltip_text = check.reason
 
 		add_btn.pressed.connect(func():
-			var target_id := ""
-			if region_option != null and region_option.selected >= 0:
-				target_id = str(region_option.get_item_metadata(region_option.selected))
-			var result := ScheduleManager.add_action_to_schedule(action.id, start_hour, target_id)
+			var result := ScheduleManager.add_action_to_schedule(action.id, start_hour, "")
 			if result.can:
 				status_label.text = "✅ 已加入排程"
 			else:
@@ -105,9 +98,6 @@ func _build_action_list() -> void:
 		action_list.add_child(row)
 
 
-## 24行列表，每行代表一个小时。依次检查：正在进行中的行动 > 排程队列里
-## 还没开始的计划 > 今天已经结束的记录，三者覆盖范围可能重叠
-## （比如提前排的计划到点后转成了current_action），按"当前状态优先"取第一个匹配的。
 func _refresh_hour_list() -> void:
 	for child in hour_list.get_children():
 		child.queue_free()
@@ -154,18 +144,29 @@ func _describe_hour(hour: int) -> String:
 	return "（空）"
 
 
-## hours_completed为-1表示"不适用"（还没结束/还不知道实际完成量），
-## duration_hours为-1表示"进行中，还不确定要显示的计划时长"（正在执行的current_action已经在别处传了真实值，这里不会用到-1分支）。
+func _describe_target(action: ActionDefinition, target_id: String) -> String:
+	if action == null or target_id == "":
+		return ""
+
+	match action.action_effect_type:
+		"region_research":
+			var area := GameManager.player_state.get_survey_area(target_id)
+			if area != null:
+				return "｜目标：%s" % area.name
+		"deep_inspection":
+			var sf := GameManager.get_storefront(target_id)
+			if sf != null:
+				return "｜目标：%s" % sf.name
+
+	return ""
+
+
 func _format_entry_text(
 		icon: String, action: ActionDefinition, target_id: String,
 		start_h: int, end_h: int, hours_completed: float, duration_hours: int
 ) -> String:
 	var name := action.name if action != null else "未知行动"
-	var target_text := ""
-	if target_id != "":
-		var region := GameManager.get_region(target_id)
-		if region != null:
-			target_text = "｜目标：%s" % region.name
+	var target_text := _describe_target(action, target_id)
 
 	if hours_completed >= 0.0:
 		return "%s %s（%d-%d时，已完成%.2f/%d小时）%s" % [

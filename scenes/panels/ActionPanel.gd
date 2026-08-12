@@ -1,7 +1,11 @@
 extends PanelContainer
 ## "行动"标签：单步交互主界面。点行动就开始，跑完/喊停自动暂停。
-## 模式切换（单步/整日排程）的开关放在这里，因为它决定的是
-## "一个行动执行完之后要不要自动暂停"，跟具体在哪个标签操作无关。
+##
+## v3变更：region_research/storefront_inspection/deep_inspection三个
+## 调研类行动不再在这里的行动列表里出现——调研统一改到"地图"页触发。
+## 但"当前进行中的行动"展示逻辑保留对它们的支持，因为地图页触发后，
+## ScheduleManager.current_action仍然可能是这三种类型之一，这里要能
+## 正确显示进度和目标名称。
 
 @onready var day_hour_label: Label = $MarginContainer/RootVBox/StatusBox/DayHourLabel
 @onready var current_action_label: Label = $MarginContainer/RootVBox/StatusBox/CurrentActionLabel
@@ -29,6 +33,12 @@ var _last_minute: int = 0
 var _last_second: int = 0
 var _last_period_label: String = ""
 
+## 调研类行动统一改到"地图"页触发，不在这里的可选列表里出现。
+const EXCLUDED_FROM_LIST: Array[String] = [
+	"region_research", "deep_inspection",
+]
+
+
 func _ready() -> void:
 	_seed_clock_cache()
 
@@ -50,8 +60,7 @@ func _ready() -> void:
 
 	_refresh_all()
 
-## 开局或还没收到过clock_updated时，先用TimeManager当前的连续小时数
-## 估算一份初始时间，避免label在第一次真正的clock_updated到来之前空着。
+
 func _seed_clock_cache() -> void:
 	var hour_float := TimeManager.get_hour_of_day()
 	_last_hour = int(hour_float) % 24
@@ -64,7 +73,7 @@ func _update_day_hour_label() -> void:
 	day_hour_label.text = "第 %d 天 ｜ %02d:%02d:%02d ｜ %s" % [
 		TimeManager.current_day, _last_hour, _last_minute, _last_second, _last_period_label
 	]
-	
+
 func refresh() -> void:
 	_refresh_all()
 
@@ -84,11 +93,7 @@ func _refresh_current_action_box() -> void:
 	current_action_box.visible = true
 
 	var elapsed: float = (TimeManager.total_game_seconds - state.start_game_seconds) / 3600.0
-	var target_text := ""
-	if state.target_id != "":
-		var region := GameManager.get_region(state.target_id)
-		if region != null:
-			target_text = "（目标：%s）" % region.name
+	var target_text := _describe_target(action, state.target_id)
 
 	current_action_progress_label.text = "进行中：%s%s（已进行 %.2f / %d 小时）" % [
 		action.name if action != null else state.action_id,
@@ -102,13 +107,32 @@ func _on_stop_pressed() -> void:
 	_refresh_all()
 
 
+func _describe_target(action: ActionDefinition, target_id: String) -> String:
+	if action == null or target_id == "":
+		return ""
+
+	match action.action_effect_type:
+		"region_research":
+			var area := GameManager.player_state.get_survey_area(target_id)
+			if area != null:
+				return "（目标：%s）" % area.name
+		"deep_inspection":
+			var sf := GameManager.get_storefront(target_id)
+			if sf != null:
+				return "（目标：%s）" % sf.name
+
+	return ""
+
 func _build_action_list() -> void:
 	for child in action_list.get_children():
 		child.queue_free()
 
 	var busy := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
-	
+
 	for action in ScheduleActionData.get_actions():
+		if action.action_effect_type in EXCLUDED_FROM_LIST:
+			continue
+
 		var row := VBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
 
@@ -136,17 +160,6 @@ func _build_action_list() -> void:
 		info.add_child(desc)
 		top_row.add_child(info)
 
-		## 区域调研需要额外选一个目标区域，用局部变量记录选中的region_id，
-		## 靠闭包传给下面的开始按钮，不需要新增任何持久状态。
-		var region_option: OptionButton = null
-		if action.action_effect_type == "region_research":
-			region_option = OptionButton.new()
-			region_option.custom_minimum_size = Vector2(140, 0)
-			for r in GameManager.all_regions:
-				region_option.add_item(r.name)
-				region_option.set_item_metadata(region_option.item_count - 1, r.id)
-			top_row.add_child(region_option)
-
 		var start_btn := Button.new()
 		start_btn.custom_minimum_size = Vector2(110, 0)
 
@@ -165,10 +178,7 @@ func _build_action_list() -> void:
 				start_btn.tooltip_text = check.reason
 
 		start_btn.pressed.connect(func():
-			var target_id := ""
-			if region_option != null and region_option.selected >= 0:
-				target_id = str(region_option.get_item_metadata(region_option.selected))
-			var result := ScheduleManager.start_action_now(action.id, target_id)
+			var result := ScheduleManager.start_action_now(action.id, "")
 			if not result.can:
 				warning_label.visible = true
 				warning_label.text = "⚠ %s" % result.reason
@@ -179,6 +189,7 @@ func _build_action_list() -> void:
 		row.add_child(top_row)
 		action_list.add_child(row)
 		action_list.add_child(HSeparator.new())
+
 
 func _refresh_status() -> void:
 	_update_day_hour_label()
@@ -209,13 +220,13 @@ func _update_current_action_label() -> void:
 	if not ScheduleManager.completed_entries_today.is_empty():
 		var last: ScheduledActionEntry = ScheduleManager.completed_entries_today.back()
 		var action := ScheduleActionData.get_action(last.action_id)
-		var name := action.name if action != null else last.action_id
+		var action_name := action.name if action != null else last.action_id
 		var status_text: String = {
 			"completed": "已完成",
 			"failed": "已中止：%s" % last.failure_reason,
 		}.get(last.status, last.status)
 		current_action_label.text = "刚执行：%s（%s，进行了 %.2f 小时）" % [
-			name, status_text, last.hours_completed
+			action_name, status_text, last.hours_completed
 		]
 		return
 
@@ -238,7 +249,10 @@ func _update_fatigue_label() -> void:
 
 
 func _update_store_status_label() -> void:
-	if not GameManager.store_state.is_open:
+	var store := GameManager.store_state
+	if store == null:
+		store_status_label.text = "店铺状态：尚未创建角色"
+	elif not store.is_open:
 		store_status_label.text = "店铺状态：尚未开业"
 	elif TimeManager.is_store_actually_operating():
 		store_status_label.text = "店铺状态：营业中"

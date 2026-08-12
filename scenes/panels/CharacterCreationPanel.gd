@@ -187,7 +187,6 @@ func _build_preset_cards() -> void:
 
 		var button := Button.new()
 		button.text = "使用此预设"
-		button.disabled = GameManager.store_state.is_open
 		button.pressed.connect(func() -> void:
 			_apply_preset(preset)
 		)
@@ -330,12 +329,14 @@ func _refresh_summary() -> void:
 
 	var name_filled := not name_input.text.strip_edges().is_empty()
 	var points_valid := remaining_points >= 0
+	var store := GameManager.store_state
+	var store_already_open := store != null and store.is_open
 
 	confirm_button.disabled = (
 		not _has_selection
 		or not name_filled
 		or not points_valid
-		or GameManager.store_state.is_open
+		or store_already_open
 	)
 
 

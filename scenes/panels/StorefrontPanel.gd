@@ -16,7 +16,13 @@ func refresh() -> void:
 	_clear_cards()
 	status_label.text = ""
 
-	var state := GameManager.store_state
+	var state: Store = GameManager.store_state
+	if state == null:
+		region_hint_label.text = "请先在「我的店铺」创建开店企划"
+		region_hint_label.visible = true
+		current_label.text = "当前门面：暂无开店企划"
+		return
+
 	var region := GameManager.get_region(state.selected_region_id)
 
 	if region == null:
@@ -50,8 +56,9 @@ func _clear_cards() -> void:
 
 
 func _build_storefront_card(sf: StorefrontData) -> Control:
-	var state := GameManager.store_state
-	var is_current := state.selected_storefront_id == sf.id
+	var state: Store = GameManager.store_state
+	var is_current := state != null and state.selected_storefront_id == sf.id
+	var diligence := GameManager.get_storefront_diligence(sf.id)
 
 	var card := VBoxContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -83,6 +90,16 @@ func _build_storefront_card(sf: StorefrontData) -> Control:
 	cat_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.add_child(cat_info)
 
+	var diligence_info := Label.new()
+	var diligence_text := {
+		"not_viewed": "未完成初步看铺",
+		"initial_viewing": "已初步看铺，待完整尽调",
+		"full_diligence": "已完成完整尽调，可选定",
+	}.get(diligence, "未知尽调状态")
+	diligence_info.text = "尽调状态：%s" % diligence_text
+	diligence_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card.add_child(diligence_info)
+
 	if sf.notes != "":
 		var notes_info := Label.new()
 		notes_info.text = "备注：%s" % sf.notes
@@ -93,8 +110,11 @@ func _build_storefront_card(sf: StorefrontData) -> Control:
 	if is_current:
 		select_button.text = "当前已选定"
 		select_button.disabled = true
-	elif state.is_open:
+	elif state != null and state.is_open:
 		select_button.text = "门店已开业，无法更换"
+		select_button.disabled = true
+	elif diligence != "full_diligence":
+		select_button.text = "完成完整尽调后可选定"
 		select_button.disabled = true
 	else:
 		select_button.text = "选定此门面"

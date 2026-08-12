@@ -69,11 +69,9 @@ func _test_multiple_blocks_can_be_selected() -> void:
 	var canvas := _make_canvas()
 	_click(canvas, Vector2(15, 15))
 	_click(canvas, Vector2(45, 15))
-	_expect(canvas.selected_block_ids == ["TEST_B001"], "同一区块重复点击不应产生重复ID")
-	_click(canvas, Vector2(35, 15))
-	_expect(canvas.selected_block_ids == ["TEST_B001"], "同一区块内部点击仍只操作该区块")
-	_click(canvas, Vector2(35, 25))
-	_expect(canvas.selected_block_ids == ["TEST_B001"], "同一区块多次点击不应新增其他区块")
+	_expect(canvas.selected_block_ids == ["TEST_B001", "TEST_B002"], "鼠标点击不同区块后应允许同时选择多个区块")
+	_click(canvas, Vector2(45, 15))
+	_expect(canvas.selected_block_ids == ["TEST_B001"], "再次点击第二个区块应只取消第二个区块")
 	canvas.free()
 
 

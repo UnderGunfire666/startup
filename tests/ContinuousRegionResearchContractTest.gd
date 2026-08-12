@@ -85,6 +85,7 @@ func _test_continuous_progress_and_energy() -> void:
 
 	GameManager.player_state.block_understanding["cc_primary_school_1"] = 0.0
 	GameManager.player_state.energy = GameManager.player_state.max_energy
+	var energy_before: float = GameManager.player_state.energy
 	TimeManager.total_game_seconds = TimeManager.DAY_START_SECONDS
 
 	var start_result := ScheduleManager.start_action_now(
@@ -99,7 +100,7 @@ func _test_continuous_progress_and_energy() -> void:
 	TimeManager.total_game_seconds += 3600.0
 	ScheduleManager._advance_continuous_region_research_to_elapsed()
 	_expect(is_equal_approx(GameManager.get_block_understanding("cc_primary_school_1"), 50.0), "调查1小时后应获得50点了解度")
-	_expect(is_equal_approx(GameManager.player_state.energy, 92.0), "调查1小时应消耗8点精力")
+	_expect(is_equal_approx(energy_before - GameManager.player_state.energy, 8.0), "调查1小时应消耗8点精力")
 	_expect(ScheduleManager.current_action != null and ScheduleManager.current_action.is_active, "区块未完全了解时调查应继续")
 
 	TimeManager.total_game_seconds += 3600.0

@@ -93,6 +93,18 @@ func _check_preconditions(action: ActionDefinition, start_hour: int, target_id: 
 		if state == null:
 			return {"can": false, "reason_code": "no_store", "reason": "没有可操作的店铺，请先完成开店"}
 
+	if action.requires_inspected_storefront:
+		if target_id.is_empty():
+			return {"can": false, "reason_code": "storefront_not_inspected", "reason": "请先选择需要勘验的门面"}
+		var storefront := GameManager.get_storefront(target_id)
+		if storefront == null:
+			return {"can": false, "reason_code": "storefront_not_found", "reason": "目标门面不存在"}
+		var diligence_state: String = GameManager.get_storefront_diligence(target_id)
+		if diligence_state == "not_viewed":
+			return {"can": false, "reason_code": "storefront_not_inspected", "reason": "请先完成初步看铺，再进行完整尽调"}
+		if diligence_state == "full_diligence":
+			return {"can": false, "reason_code": "storefront_already_diligent", "reason": "该门面已经完成完整尽调"}
+
 	if action.requires_open_store and not state.is_open:
 		return {"can": false, "reason_code": "store_not_open", "reason": "尚未开业，无法安排「%s」" % action.name}
 

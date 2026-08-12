@@ -58,14 +58,21 @@ func can_schedule_action(
 	if action.requires_character_created and not GameManager.player_state.is_character_created:
 		return {"can": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
 
-	var duration_hours := _get_effective_duration_hours(action, target_ids, start_hour)
+	var duration_hours := _get_effective_duration_hours(action, target_ids, start_hour, target_id)
 	if action.action_effect_type != "region_research":
-		if start_hour < action.allowed_hour_range.x or (start_hour + duration_hours) > action.allowed_hour_range.y:
-			return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
+		if action.action_effect_type == "move_to_block":
+			if duration_hours < 0:
+				return {"can": false, "reason_code": "invalid_move_target", "reason": "无法计算移动时间"}
+			if start_hour < action.allowed_hour_range.x or (start_hour + int(ceil(duration_hours))) > action.allowed_hour_range.y:
+				return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
+		else:
+			if start_hour < action.allowed_hour_range.x or (start_hour + duration_hours) > action.allowed_hour_range.y:
+				return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间安排" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
 	else:
 		if start_hour < action.allowed_hour_range.x or start_hour >= action.allowed_hour_range.y:
 			return {"can": false, "reason_code": "outside_allowed_hours", "reason": "%s仅可在%02d:00至%02d:00之间开始" % [action.name, action.allowed_hour_range.x, action.allowed_hour_range.y]}
-	if today_schedule.has_conflict(start_hour, duration_hours):
+
+	if duration_hours > 0 and today_schedule.has_conflict(start_hour, int(ceil(duration_hours))):
 		return {"can": false, "reason_code": "time_conflict", "reason": "该时间已被其他行动占用，或超出当天24点"}
 	var precondition := _check_preconditions(action, start_hour, target_id, target_ids, true)
 	if not precondition.can:
@@ -80,21 +87,40 @@ func can_schedule_action(
 func _get_effective_duration_hours(
 		action: ActionDefinition,
 		target_ids: Array[String],
-		start_hour: int = -1
-) -> int:
+		start_hour: int = -1,
+		target_id: String = ""
+) -> float:
 	if action.action_effect_type == "region_research":
 		if start_hour >= 0:
-			return maxi(1, action.allowed_hour_range.y - start_hour)
-		return action.duration_hours
+			return float(maxi(1, action.allowed_hour_range.y - start_hour))
+		return float(action.duration_hours)
+
+	if action.action_effect_type == "move_to_block":
+		return _get_move_to_block_duration_hours(target_id)
+
 	if target_ids.is_empty():
-		return action.duration_hours
+		return float(action.duration_hours)
 
 	var blocks: Array[BlockData] = []
 	for block_id in target_ids:
 		var block := GameManager.get_block(block_id)
 		if block != null:
 			blocks.append(block)
-	return BlockConfig.get_research_duration_hours(action.duration_hours, blocks)
+	return float(BlockConfig.get_research_duration_hours(action.duration_hours, blocks))
+
+func _get_move_to_block_duration_hours(target_block_id: String) -> float:
+	if target_block_id.is_empty():
+		return -1.0
+	var target_block := GameManager.get_block(target_block_id)
+	if target_block == null:
+		return -1.0
+	var current_block_id := GameManager.player_state.current_block_id
+	if current_block_id.is_empty():
+		return 0.0
+	var current_block := GameManager.get_block(current_block_id)
+	if current_block == null:
+		return -1.0
+	return MovementConfig.get_travel_hours(current_block, target_block)
 
 func _check_preconditions(
 		action: ActionDefinition,
@@ -103,6 +129,17 @@ func _check_preconditions(
 		target_ids: Array[String] = [],
 		reject_completed_blocks: bool = false
 ) -> Dictionary:
+	if action.action_effect_type == "move_to_block":
+		if target_id.is_empty():
+			return {"can": false, "reason_code": "no_move_target", "reason": "请先选择要前往的区块"}
+		var move_target := GameManager.get_block(target_id)
+		if move_target == null:
+			return {"can": false, "reason_code": "block_not_found", "reason": "目标区块不存在：%s" % target_id}
+		if GameManager.player_state.current_block_id == target_id:
+			return {"can": true, "reason_code": "", "reason": "已经位于目标区块"}
+		if GameManager.player_state.current_block_id.is_empty():
+			return {"can": false, "reason_code": "player_location_unknown", "reason": "玩家当前位置尚未确定，无法计算移动时间"}
+
 	if action.action_effect_type == "region_research":
 		if target_ids.is_empty():
 			return {"can": false, "reason_code": "no_blocks_selected", "reason": "请先在地图上选择至少一个区块"}
@@ -112,6 +149,16 @@ func _check_preconditions(
 				return {"can": false, "reason_code": "block_not_found", "reason": "调查区块不存在：%s" % block_id}
 			if reject_completed_blocks and GameManager.get_block_understanding(block_id) >= 100.0:
 				return {"can": false, "reason_code": "block_already_understood", "reason": "所选区块已完全了解：%s" % block.name}
+
+		var current_block_id := GameManager.player_state.current_block_id
+		if current_block_id.is_empty():
+			return {"can": false, "reason_code": "player_location_unknown", "reason": "玩家当前位置尚未确定，请先移动到目标区块"}
+		if current_block_id != target_ids[0]:
+			var current_block := GameManager.get_block(current_block_id)
+			var target_block := GameManager.get_block(target_ids[0])
+			var current_name := current_block.name if current_block != null else current_block_id
+			var target_name := target_block.name if target_block != null else target_ids[0]
+			return {"can": false, "reason_code": "player_not_at_target_block", "reason": "当前位于「%s」，请先前往「%s」" % [current_name, target_name]}
 
 	var requires_store: bool = (
 		action.requires_open_store
@@ -193,7 +240,7 @@ func add_action_to_schedule(action_id: String, start_hour: int, target_id: Strin
 	if not check.can:
 		return check
 	var action := ScheduleActionData.get_action(action_id)
-	var entry := today_schedule.add_entry(action_id, start_hour, action.duration_hours)
+	var entry := today_schedule.add_entry(action_id, start_hour, int(ceil(float(check.duration_hours))))
 	entry.target_id = target_id
 	schedule_changed.emit()
 	return {"can": true, "reason_code": "", "reason": "已加入排程"}
@@ -211,11 +258,14 @@ func start_action_now(
 		return check
 	var action := ScheduleActionData.get_action(action_id)
 	_begin_current_action(action_id, target_id, target_ids, null, current_hour)
+	if action.action_effect_type == "move_to_block" and float(check.duration_hours) <= 0.0:
+		_finalize_current_action(0.0)
+		return {"can": true, "reason_code": "", "reason": "已位于目标区块，无需移动", "duration_hours": 0.0}
 	TimeManager.set_speed(TimeManager.Speed.X1)
 	schedule_changed.emit()
 	if action.action_effect_type == "region_research":
-		return {"can": true, "reason_code": "", "reason": "已开始「%s」，将持续调查直到区块全部了解、精力不足或到达 %02d:00" % [action.name, action.allowed_hour_range.y]}
-	return {"can": true, "reason_code": "", "reason": "已开始「%s」，预计耗时 %d 小时" % [action.name, int(check.duration_hours)]}
+		return {"can": true, "reason_code": "", "reason": "已开始「%s」，将持续调查直到区块全部了解、精力不足或到达 %02d:00" % [action.name, action.allowed_hour_range.y], "duration_hours": check.duration_hours}
+	return {"can": true, "reason_code": "", "reason": "已开始「%s」，预计耗时 %.2f 小时" % [action.name, float(check.duration_hours)], "duration_hours": check.duration_hours}
 
 func remove_action_from_schedule(hour: int) -> bool:
 	var removed := today_schedule.remove_entry_at_hour(hour)
@@ -285,8 +335,11 @@ func _begin_current_action(
 		current_action.continuous_mode = true
 		var research_start := start_hour if start_hour >= 0 else TimeManager.get_current_hour_int()
 		current_action.duration_hours = float(maxi(1, action.allowed_hour_range.y - research_start))
+	elif action.action_effect_type == "move_to_block":
+		current_action.duration_hours = _get_move_to_block_duration_hours(target_id)
+		current_action.continuous_mode = false
 	else:
-		current_action.duration_hours = float(_get_effective_duration_hours(action, target_ids))
+		current_action.duration_hours = _get_effective_duration_hours(action, target_ids)
 	if action.action_effect_type == "store_supervision":
 		var supervised_store_id := target_id if target_id != "" else GameManager.active_store_id
 		GameManager.player_state.supervising_store_id = supervised_store_id
@@ -413,9 +466,14 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 		if precondition.can:
 			match action.effect_scaling:
 				"proportional":
-					var progress_ratio := elapsed_hours / current_action.duration_hours
+					var progress_ratio := 0.0
+					if current_action.duration_hours > 0.0:
+						progress_ratio = elapsed_hours / current_action.duration_hours
 					hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
-					if action.action_effect_type == "region_research":
+					if action.action_effect_type == "move_to_block":
+						if current_action.target_id != "" and GameManager.get_block(current_action.target_id) != null:
+							GameManager.player_state.set_current_block(current_action.target_id)
+					elif action.action_effect_type == "region_research":
 						var block_effect_result := _apply_region_research_effect(current_action.target_ids, elapsed_hours)
 						if not block_effect_result.is_empty() and not block_effect_result.success:
 							final_status = "failed"
@@ -436,10 +494,10 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	var record: ScheduledActionEntry = current_action.source_entry
 	if record == null:
 		record = ScheduledActionEntry.new()
-		record.action_id = current_action.action_id
-		record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
-		record.duration_hours = int(current_action.duration_hours)
-		record.target_id = current_action.target_id
+	record.action_id = current_action.action_id
+	record.start_hour = int((current_action.start_game_seconds / 3600.0) as float) % 24
+	record.duration_hours = int(ceil(current_action.duration_hours))
+	record.target_id = current_action.target_id
 	record.hours_completed = elapsed_hours
 	record.status = final_status
 	record.failure_reason = failure_reason

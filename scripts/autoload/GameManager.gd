@@ -504,6 +504,11 @@ func select_storefront(storefront_id: String) -> Dictionary:
 	if sf.region_id != store.selected_region_id:
 		return {"success": false, "reason": "该门面不属于当前选定区域"}
 
+	## 选址必须建立在玩家完成完整尽调的知识基础上。
+	## initial_viewing 只代表门面已被发现/初步看铺，不足以落实到企划。
+	if get_storefront_diligence(storefront_id) != "full_diligence":
+		return {"success": false, "reason": "请先完成该门面的完整尽调后再选定"}
+
 	## 决定②：门面占用校验。
 	if is_storefront_occupied(storefront_id, store.id):
 		return {"success": false, "reason": "该门面已被你名下其他店铺占用"}
@@ -543,7 +548,7 @@ func purchase_ingredients(cart: Dictionary) -> Dictionary:
 		return {
 			"success": false,
 			"reason": "现金不足，需要%.0f 元，当前仅有%.0f 元"
-				% [total_cost, player_state.cash]
+			% [total_cost, player_state.cash]
 		}
 
 	for ingredient_id in cart:
@@ -692,7 +697,7 @@ func remove_product_from_slot(category_id: String, product_id: String) -> bool:
 		return false
 	for i in range(slot.product_configs.size()):
 		if slot.product_configs[i].product_id == product_id:
-			slot.product_configs.remove_at(i)
+			store.category_slots[i].product_configs.remove_at(i)
 			return true
 	return false
 

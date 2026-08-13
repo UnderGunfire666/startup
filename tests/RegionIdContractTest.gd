@@ -1,17 +1,20 @@
 extends Node
+## CityRegion 归属契约测试。
+## 旧RegionData/region_id体系已废弃（GameManager不再持有all_regions/get_region()），
+## 门面地理归属现完全以StorefrontData.city_region_id为唯一权威来源。
 
 var _pass_count: int = 0
 var _fail_count: int = 0
 
 func _ready() -> void:
-	print("========== Region ID 契约测试开始 ==========")
+	print("========== CityRegion 归属契约测试开始 ==========")
 	_test_static_mapping()
 	_test_region_intel_store_mapping()
 	print("========== 测试结束：%d 通过 / %d 失败 ==========" % [_pass_count, _fail_count])
 	if _fail_count == 0:
-		print("🎉 Region ID 契约全部通过")
+		print("🎉 CityRegion 归属契约全部通过")
 	else:
-		print("⚠ Region ID 契约存在失败")
+		print("⚠ CityRegion 归属契约存在失败")
 	queue_free()
 
 func _check(condition: bool, label: String) -> void:
@@ -23,18 +26,13 @@ func _check(condition: bool, label: String) -> void:
 		print("❌ %s" % label)
 
 func _test_static_mapping() -> void:
-	print("\n── 1. 旧区域 ID / 城市区域 ID 映射 ──")
+	print("\n── 1. 门面 city_region_id 归属 ──")
 	var s004: StorefrontData = GameManager.get_storefront("S004")
 	var s001: StorefrontData = GameManager.get_storefront("S001")
-	var a001: RegionData = GameManager.get_region("A001")
-	var a002: RegionData = GameManager.get_region("A002")
 	var cr001: CityRegionData = GameManager.get_city_region("CR001")
 	var cr002: CityRegionData = GameManager.get_city_region("CR002")
-	_check(a001 != null and a002 != null, "旧Region A001/A002应存在")
 	_check(cr001 != null and cr002 != null, "CityRegion CR001/CR002应存在")
-	_check(s004 != null and s004.region_id == "A001", "S004应属于旧Region A001")
 	_check(s004 != null and s004.city_region_id == "CR001", "S004应属于CityRegion CR001")
-	_check(s001 != null and s001.region_id == "A002", "S001应属于旧Region A002")
 	_check(s001 != null and s001.city_region_id == "CR002", "S001应属于CityRegion CR002")
 
 func _test_region_intel_store_mapping() -> void:
@@ -58,7 +56,6 @@ func _test_region_intel_store_mapping() -> void:
 	if store == null:
 		return
 
-	store.selected_region_id = "A001"
 	store.selected_storefront_id = "S004"
 	store.daily_history.append({"day": 1, "slot": "08:00"})
 

@@ -2,35 +2,6 @@ class_name GameData
 
 const DATA_DIR := "res://data/"
 
-static func get_regions() -> Array[RegionData]:
-	var raw: Array = _load_json_array(DATA_DIR + "regions.json")
-	var list: Array[RegionData] = []
-	for entry in raw:
-		var r: RegionData = RegionData.new()
-		r.id = entry.get("id", "")
-		r.name = entry.get("name", "")
-		r.radiation_population = entry.get("radiation_population", 0)
-		r.population_density = entry.get("population_density", "medium")
-		r.primary_groups = _to_string_array(entry.get("primary_groups", []))
-		r.secondary_groups = _to_string_array(entry.get("secondary_groups", []))
-		r.spending_power = entry.get("spending_power", "medium")
-		r.dwell_time = entry.get("dwell_time", "medium")
-		r.traffic_sources = _to_string_array(entry.get("traffic_sources", []))
-		r.competition_level = entry.get("competition_level", "medium")
-		r.rent_baseline = entry.get("rent_baseline", "medium")
-		var traffic_raw: Array = entry.get("hourly_foot_traffic_by_hour", [])
-		var traffic_typed: Array[int] = []
-		for v in traffic_raw:
-			traffic_typed.append(int(v))
-		while traffic_typed.size() < 24:
-			traffic_typed.append(0)
-		r.hourly_foot_traffic_by_hour = traffic_typed
-		r.weekend_modifier = entry.get("weekend_modifier", 1.0)
-		r.notes = entry.get("notes", "")
-		r.research_cost = float(entry.get("research_cost", 800.0))
-		list.append(r)
-	return list
-
 static func get_city_regions() -> Array[CityRegionData]:
 	var raw := _load_json_array("res://data/city_regions.json")
 	var result: Array[CityRegionData] = []

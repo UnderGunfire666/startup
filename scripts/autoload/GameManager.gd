@@ -6,10 +6,8 @@ signal active_store_changed(store_id: String)
 var player_state: PlayerState = PlayerState.new()
 var last_settlement_error: String = ""
 
-var current_region: RegionData = null
 var current_storefront: StorefrontData = null
 
-var all_regions: Array[RegionData] = []
 var all_storefronts: Array[StorefrontData] = []
 var all_categories: Array[CategoryData] = []
 var all_products: Array[ProductData] = []
@@ -36,7 +34,6 @@ var store_state: Store:
 
 
 func _ready() -> void:
-	all_regions     = GameData.get_regions()
 	all_storefronts = GameData.get_storefronts()
 	all_categories  = GameData.get_categories()
 	all_products    = GameData.get_products()
@@ -109,7 +106,6 @@ func create_character(data: Dictionary) -> Dictionary:
 
 	## 创建角色会开启全新开局，不能保留此前的调研、门面、品类和库存状态。
 	player_state = PlayerState.new()
-	current_region = null
 	current_storefront = null
 	last_settlement_error = ""
 
@@ -197,12 +193,6 @@ func get_open_stores() -> Array[Store]:
 		if s.is_open:
 			result.append(s)
 	return result
-
-
-func get_region(id: String) -> RegionData:
-	for r in all_regions:
-		if r.id == id: return r
-	return null
 
 
 func get_city_region(id: String) -> CityRegionData:
@@ -309,9 +299,7 @@ func recalculate_region_intel(city_region_id: String) -> void:
 		total += get_block_understanding(b.id)
 	var average := total / float(region_blocks.size())
 
-	## 经营时间加成：Store 的 selected_region_id 属于旧 Region ID 体系，
-	## 这里通过 Store 选定的门面解析真实 city_region_id，避免把 A001
-	## 之类的旧 Region ID 与 CR001 之类的 CityRegion ID 直接比较。
+	## 经营时间加成：通过 Store 选定的门面解析 city_region_id（门面归属的唯一权威来源）。
 	var days: Dictionary = {}
 	for s in stores:
 		if s.selected_storefront_id.is_empty():
@@ -458,8 +446,10 @@ func get_product_unit_ingredient_cost_for_store(store: Store, product: ProductDa
 
 
 # ── 选址（对"当前激活店铺"操作） ───────────────────────────────
+## 决定：选址不再需要"先选区域"这一步（RegionData/region_id体系已废弃）。
+## 门面的city_region_id就是唯一权威归属来源，选定门面 = 直接落实到企划。
 
-func select_region(region_id: String) -> Dictionary:
+func select_storefront(storefront_id: String) -> Dictionary:
 	if not player_state.is_character_created:
 		return {"success": false, "reason": "请先完成人物创建"}
 
@@ -468,47 +458,11 @@ func select_region(region_id: String) -> Dictionary:
 		return {"success": false, "reason": "当前没有激活的店铺"}
 
 	if store.is_open:
-		return {"success": false, "reason": "门店已开业，不能更换区域"}
-
-	var region := get_region(region_id)
-	if region == null:
-		return {"success": false, "reason": "区域不存在"}
-
-	store.selected_region_id = region_id
-	store.selected_storefront_id = ""
-	store.signed_storefront_id = ""
-	store.pre_open_stage = Store.PreOpenStage.STOREFRONT_SELECTION
-	current_region = region
-	current_storefront = null
-
-	return {"success": true, "reason": "已选定区域：「%s」" % region.name}
-
-
-func get_storefronts_for_region(region_id: String) -> Array[StorefrontData]:
-	var result: Array[StorefrontData] = []
-	for s in all_storefronts:
-		if s.region_id == region_id:
-			result.append(s)
-	return result
-
-
-func select_storefront(storefront_id: String) -> Dictionary:
-	var store := get_active_store()
-	if store == null:
-		return {"success": false, "reason": "当前没有激活的店铺"}
-
-	if store.is_open:
 		return {"success": false, "reason": "门店已开业，不能更换门面"}
-
-	if store.selected_region_id == "":
-		return {"success": false, "reason": "请先选定区域"}
 
 	var sf := get_storefront(storefront_id)
 	if sf == null:
 		return {"success": false, "reason": "门面不存在"}
-
-	if sf.region_id != store.selected_region_id:
-		return {"success": false, "reason": "该门面不属于当前选定区域"}
 
 	## 选址必须建立在玩家完成完整尽调的知识基础上。
 	## initial_viewing 只代表门面已被发现/初步看铺，不足以落实到企划。
@@ -520,6 +474,7 @@ func select_storefront(storefront_id: String) -> Dictionary:
 		return {"success": false, "reason": "该门面已被你名下其他店铺占用"}
 
 	store.selected_storefront_id = storefront_id
+	store.signed_storefront_id = ""
 	store.pre_open_stage = Store.PreOpenStage.STORE_SETUP
 	store.category_slots.clear()
 	_sync_data_objects()
@@ -609,10 +564,8 @@ func set_ingredient_stock(ingredient_id: String, amount: float) -> void:
 func _sync_data_objects() -> void:
 	var store := get_active_store()
 	if store == null:
-		current_region = null
 		current_storefront = null
 		return
-	current_region = get_region(store.selected_region_id)
 	current_storefront = get_storefront(store.selected_storefront_id)
 
 
@@ -845,7 +798,6 @@ func start_new_game() -> void:
 	stores = []
 	active_store_id = ""
 	player_state = PlayerState.new()
-	current_region = null
 	current_storefront = null
 
 
@@ -856,12 +808,15 @@ func begin_slot_simulation() -> void:
 
 
 func _begin_slot_simulation_for_store(store: Store) -> void:
-	var region := get_region(store.selected_region_id)
 	var storefront := get_storefront(store.selected_storefront_id)
-	if region == null or storefront == null or store.category_slots.is_empty():
+	if storefront == null or store.category_slots.is_empty():
+		return
+	var city_region := get_city_region(storefront.city_region_id)
+	if city_region == null:
 		return
 
 	var hour := TimeManager.get_current_hour_int()
+	var is_weekend := (TimeManager.current_day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
 	var total_area: float = storefront.area
 
 	for cat_slot in store.category_slots:
@@ -886,8 +841,12 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 			product_instance.average_price = pc.get_effective_price(product_template)
 			product_instance.recipe = product_template.recipe
 
-			var params: Dictionary = SettlementEngine.calculate_params(
-				region, scaled_storefront, category, product_instance,
+			var trade_area := TradeAreaCalculator.calculate_snapshot(
+				scaled_storefront, category.id, product_template.id, hour,
+				city_region, all_blocks, is_weekend)
+
+			var params: Dictionary = SettlementEngine.calculate_params_from_trade_area(
+				trade_area, scaled_storefront, category, product_instance,
 				store, player_state, hour, cat_slot.open_hour_ranges, cat_slot.has_key_staff)
 
 			var entry := {

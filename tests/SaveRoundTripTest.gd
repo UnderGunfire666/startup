@@ -52,7 +52,7 @@ func _test_build_state() -> void:
 	GameManager.player_state.stress = 23.5
 	GameManager.player_state.block_understanding["cc_primary_school_1"] = 37.5
 	GameManager.player_state.storefront_diligence["S004"] = "full_diligence"
-	GameManager.player_state.focused_city_region_id = "A001"
+	GameManager.player_state.focused_city_region_id = "CR001"
 	GameManager.player_state.supervising_store_id = ""
 
 	var first_result: Dictionary = GameManager.create_new_store("存档首店")
@@ -63,7 +63,6 @@ func _test_build_state() -> void:
 	var store1: Store = GameManager.get_store(_store1_id)
 	_check(store1 != null, "首店实例应存在")
 	if store1 != null:
-		store1.selected_region_id = "A001"
 		store1.selected_storefront_id = "S004"
 		store1.signed_storefront_id = "S004"
 		store1.is_open = true
@@ -81,7 +80,6 @@ func _test_build_state() -> void:
 	var store2: Store = GameManager.get_store(_store2_id)
 	_check(store2 != null, "分店实例应存在")
 	if store2 != null:
-		store2.selected_region_id = "A002"
 		store2.selected_storefront_id = "S001"
 		store2.is_open = true
 		store2.pre_open_stage = Store.PreOpenStage.OPEN_FOR_BUSINESS
@@ -89,8 +87,8 @@ func _test_build_state() -> void:
 		store2.ingredient_stock["soybean"] = 23.0
 		store2.ingredient_avg_cost["soybean"] = 9.25
 
-	GameManager.player_state.region_intel_levels["A001"] = 3
-	GameManager.player_state.region_intel_progress["A001"] = 12.5
+	GameManager.player_state.region_intel_levels["CR001"] = 3
+	GameManager.player_state.region_intel_progress["CR001"] = 12.5
 
 	TimeManager.reset()
 	TimeManager._advance(7200.0)
@@ -130,9 +128,9 @@ func _test_save_and_load() -> void:
 		"加载后区块了解度应恢复")
 	_check(GameManager.player_state.storefront_diligence.get("S004", "") == "full_diligence",
 		"加载后门面尽调状态应恢复")
-	_check(GameManager.player_state.region_intel_levels.get("A001", 0) == 3,
+	_check(GameManager.player_state.region_intel_levels.get("CR001", 0) == 3,
 		"加载后区域知识等级应恢复")
-	_check(is_equal_approx(float(GameManager.player_state.region_intel_progress.get("A001", 0.0)), 12.5),
+	_check(is_equal_approx(float(GameManager.player_state.region_intel_progress.get("CR001", 0.0)), 12.5),
 		"加载后区域知识进度应恢复")
 
 	_check(GameManager.stores.size() == 2, "加载后应恢复2个Store")
@@ -147,8 +145,6 @@ func _test_save_and_load() -> void:
 	if loaded_store1 != null and loaded_store2 != null:
 		_check(loaded_store1.name == "存档首店", "首店名称应恢复")
 		_check(loaded_store2.name == "存档分店", "分店名称应恢复")
-		_check(loaded_store1.selected_region_id == "A001", "首店区域应恢复")
-		_check(loaded_store2.selected_region_id == "A002", "分店区域应恢复")
 		_check(loaded_store1.selected_storefront_id == "S004", "首店门面应恢复")
 		_check(loaded_store2.selected_storefront_id == "S001", "分店门面应恢复")
 		_check(loaded_store1.is_open and loaded_store2.is_open, "两家店营业状态应恢复")

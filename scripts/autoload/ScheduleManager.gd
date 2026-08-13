@@ -214,8 +214,10 @@ func _check_preconditions(
 
 	if action.requires_open_store and not state.is_open:
 		return {"can": false, "reason_code": "store_not_open", "reason": "尚未开业，无法安排「%s」" % action.name}
-	if action.requires_region_selected and state.selected_region_id == "":
-		return {"can": false, "reason_code": "no_region", "reason": "请先选定区域"}
+	## requires_region_selected语义已从"已选定区域"(旧RegionData体系)改为
+	## "已选定门面"（StorefrontData就是当前唯一的地理归属来源）。
+	if action.requires_region_selected and state.selected_storefront_id == "":
+		return {"can": false, "reason_code": "no_storefront", "reason": "请先选定门面"}
 	if action.requires_selected_category and state.category_slots.is_empty():
 		return {"can": false, "reason_code": "no_category", "reason": "请先选择经营品类"}
 	if action.requires_today_has_settled and not _today_has_settled(state):

@@ -8,7 +8,8 @@ extends RefCounted
 ## focused_city_region_id/owner_present(→supervising_store_id)。
 ##
 ## 清理的死字段：current_day(与TimeManager.current_day重复)、
-## inventory_units/inventory_capacity(库存实际记在StoreProductConfig)。
+## inventory_units/inventory_capacity(库存实际记在StoreProductConfig)、
+## selected_region_id(旧RegionData体系，选址现完全依赖StorefrontData.city_region_id)。
 ##
 ## 新增：id、name，用于多店场景下的身份标识。
 
@@ -25,7 +26,6 @@ var name: String = ""
 
 var pre_open_stage: PreOpenStage = PreOpenStage.CHARACTER_CREATION
 
-var selected_region_id: String = ""
 var selected_storefront_id: String = ""
 var signed_storefront_id: String = ""
 var is_open: bool = false
@@ -212,7 +212,6 @@ func to_save_dict() -> Dictionary:
 		"id": id,
 		"name": name,
 		"pre_open_stage": pre_open_stage,
-		"selected_region_id": selected_region_id,
 		"selected_storefront_id": selected_storefront_id,
 		"signed_storefront_id": signed_storefront_id,
 		"is_open": is_open,
@@ -238,7 +237,6 @@ static func from_save_dict(data: Dictionary) -> Store:
 		PreOpenStage.CHARACTER_CREATION
 	) as PreOpenStage
 
-	s.selected_region_id = data.get("selected_region_id", "")
 	s.selected_storefront_id = data.get("selected_storefront_id", "")
 	s.signed_storefront_id = data.get("signed_storefront_id", "")
 	s.is_open = data.get("is_open", false)

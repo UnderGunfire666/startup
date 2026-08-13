@@ -225,11 +225,6 @@ func _on_select_storefront_pressed(storefront: StorefrontData) -> void:
 		status_label.text = "⚠ 当前企划对应的店铺已经开业，不能更换门面"
 		return
 
-	var region_result := GameManager.select_region(storefront.region_id)
-	if not region_result.get("success", false):
-		status_label.text = "⚠ %s" % region_result.get("reason", "")
-		return
-
 	var storefront_result := GameManager.select_storefront(storefront.id)
 	status_label.text = ("✅ " if storefront_result.get("success", false) else "⚠ ") + str(storefront_result.get("reason", ""))
 

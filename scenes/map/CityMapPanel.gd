@@ -28,6 +28,7 @@ func _ready() -> void:
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
 	start_research_button.pressed.connect(_on_start_research_pressed)
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
+	GameManager.storefronts_discovered.connect(_on_storefronts_discovered)
 
 	research_mode_option.clear()
 	research_mode_option.add_item("调查所选区块", RESEARCH_MODE_SELECTED_BLOCKS)
@@ -104,6 +105,17 @@ func _on_sequence_failed(reason_code: String, reason: String) -> void:
 	status_label.text = "⚠ %s" % reason
 	_refresh_report()
 	_refresh_research_controls()
+
+
+func _on_storefronts_discovered(_storefront_ids: Array[String]) -> void:
+	refresh()
+	var names: Array[String] = []
+	for sid in _storefront_ids:
+		var sf := GameManager.get_storefront(sid)
+		if sf != null:
+			names.append(sf.name)
+	if not names.is_empty():
+		status_label.text = "🏪 新发现门面：%s" % "、".join(names)
 
 
 func _refresh_research_controls() -> void:

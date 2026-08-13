@@ -81,9 +81,9 @@ func _format_action_summary(_day: int) -> String:
 
 			var target_text := ""
 			if e.target_id != "":
-				var region := GameManager.get_region(e.target_id)
-				if region != null:
-					target_text = "（目标：%s）" % region.name
+				var storefront := GameManager.get_storefront(e.target_id)
+				if storefront != null:
+					target_text = "（目标：%s）" % storefront.name
 
 			text += "%s %s%s：实际进行 %.2f 小时（计划上限 %d 小时）" % [
 				icon, name, target_text, e.hours_completed, e.duration_hours,

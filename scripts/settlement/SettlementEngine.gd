@@ -1,10 +1,11 @@
 class_name SettlementEngine
 extends RefCounted
-## 纯计算类：根据区域/门面/品类/商品/玩家与店铺状态，计算单小时结算参数。
+## 纯计算类：根据商圈快照/门面/品类/商品/玩家与店铺状态，计算单小时结算参数。
 ##
-## 本版修正（相对上一版）：
-## - region.base_visitors不存在，改用真实字段region.hourly_foot_traffic_by_hour
-##   （24小时数组）+ 客群匹配度，替代原来编造的倍率模型。
+## 结算入口为 calculate_params_from_trade_area()，基于 TradeAreaSnapshot 计算客流。
+## 旧的基于 RegionData 的 calculate_params() 已废弃并移除。
+##
+## 字段映射说明：
 ## - product.suggested_price不存在，改用真实字段product.suggested_margin_rate
 ##   （建议毛利率）配合product.get_actual_margin_rate()计算价格偏离修正。
 ## - category.staff_cost_per_hour / visitor_multiplier / capacity_multiplier
@@ -16,64 +17,6 @@ extends RefCounted
 ## - SettlementResult.slot真实类型是String（"%02d:00"格式），不是int，
 ##   修正了int→String的赋值错误。
 
-static func calculate_params(
-		region: RegionData,
-		storefront: StorefrontData,
-		category: CategoryData,
-		product: ProductData,
-		store_state: Store,
-		player_state: PlayerState,
-		hour: int,
-		open_hour_ranges: Array[Vector2i],
-		has_key_staff: bool
-) -> Dictionary:
-	var is_open := _is_category_open(hour, open_hour_ranges)
-	var owner_supervising := player_state.supervising_store_id == store_state.id
-
-	var visitors := 0
-	var conversion_rate := 0.0
-	var slot_capacity := 0
-
-	if is_open:
-		var base_visitors := _calc_base_visitors(region, storefront, product, category, hour)
-		var price_mod := _calc_price_mod(product)
-		var reputation_mod := _calc_reputation_mod(store_state.reputation)
-		var staff_mod := _calc_staff_mod(has_key_staff)
-		var owner_mod := 0.03 if owner_supervising else 0.0
-		var trait_mods := _calc_trait_mods(player_state, category, product)
-
-		conversion_rate = clampf(
-			0.10
-			+ price_mod
-			+ reputation_mod
-			+ staff_mod
-			+ owner_mod
-			+ trait_mods,
-			0.0, 0.9
-		)
-
-		visitors = int(float(base_visitors) * (1.0 + trait_mods))
-		slot_capacity = _calc_slot_capacity(storefront, category, has_key_staff)
-
-	var rent_cost := _calc_rent_cost(storefront)
-	var utility_cost := _calc_utility_cost(product, store_state, is_open)
-	var staff_cost := _calc_staff_cost()
-
-	return {
-		"is_open": is_open,
-		"visitors": visitors,
-		"conversion_rate": conversion_rate,
-		"slot_capacity": slot_capacity,
-		"rent_cost": rent_cost,
-		"utility_cost": utility_cost,
-		"staff_cost": staff_cost,
-		"owner_supervising": owner_supervising,
-		"region": region,
-		"storefront": storefront,
-		"category": category,
-		"product": product,
-		"hour": hour,
-	}
 
 
 static func calculate_params_from_trade_area(
@@ -202,25 +145,6 @@ static func _is_category_open(hour: int, open_hour_ranges: Array[Vector2i]) -> b
 	return false
 
 
-## 用真实字段重建：小时客流基准 × 门面可达占比 × 客群匹配度 × 品类基础到店率 ×
-## 周末系数。取代原来编造的"倍率相乘"模型。
-static func _calc_base_visitors(
-		region: RegionData,
-		storefront: StorefrontData,
-		product: ProductData,
-		category: CategoryData,
-		hour: int
-) -> int:
-	var hour_traffic := 0
-	if hour >= 0 and hour < region.hourly_foot_traffic_by_hour.size():
-		hour_traffic = region.hourly_foot_traffic_by_hour[hour]
-
-	var reachable := float(hour_traffic) * storefront.flow_share
-	var group_match := _calc_group_match_ratio(product, region)
-	var weekend_mult := region.weekend_modifier if _is_weekend_day(TimeManager.current_day) else 1.0
-
-	var visitors := reachable * group_match * category.base_entry_rate * weekend_mult
-	return maxi(1, int(visitors))
 
 
 static func _calc_base_visitors_from_trade_area(
@@ -240,23 +164,6 @@ static func _calc_waste_cost(unit_ingredient_cost: float, inventory: int, sold: 
 	var excess := inventory - threshold
 	return excess * unit_ingredient_cost * SettlementConfig.WASTE_COST_RATIO_OF_INGREDIENT
 
-static func _calc_group_match_ratio(product: ProductData, region: RegionData) -> float:
-	if product.target_groups.is_empty():
-		return 1.0
-
-	var primary_hits := 0
-	var secondary_hits := 0
-	for g in product.target_groups:
-		if g in region.primary_groups:
-			primary_hits += 1
-		elif g in region.secondary_groups:
-			secondary_hits += 1
-
-	if primary_hits + secondary_hits == 0:
-		return 0.3
-
-	var total := float(product.target_groups.size())
-	return clampf((primary_hits + secondary_hits * 0.5) / total, 0.1, 1.5)
 
 
 static func _is_weekend_day(day: int) -> bool:

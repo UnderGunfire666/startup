@@ -2,6 +2,7 @@ extends Node
 
 ## GameManager.gd 顶部signal区新增
 signal active_store_changed(store_id: String)
+signal storefronts_discovered(storefront_ids: Array[String])
 
 var player_state: PlayerState = PlayerState.new()
 var last_settlement_error: String = ""
@@ -236,6 +237,7 @@ func _discover_storefronts_in_block(block_id: String) -> void:
 	if block == null:
 		return
 
+	var newly_discovered: Array[String] = []
 	for storefront in all_storefronts:
 		if storefront.city_region_id != block.city_region_id:
 			continue
@@ -243,6 +245,10 @@ func _discover_storefronts_in_block(block_id: String) -> void:
 			continue
 		if get_storefront_diligence(storefront.id) == "not_viewed":
 			player_state.storefront_diligence[storefront.id] = "initial_viewing"
+			newly_discovered.append(storefront.id)
+
+	if not newly_discovered.is_empty():
+		storefronts_discovered.emit(newly_discovered)
 
 
 # ── 门面尽调 (玩家层) ────────────────────────────────────────

@@ -23,9 +23,6 @@ func start(selected_block_ids: Array[String]) -> Dictionary:
 		return {"can": false, "reason_code": "no_blocks_selected", "reason": "请先选择至少一个区块"}
 	if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已有行动正在进行"}
-	if GameManager.player_state.current_block_id.is_empty():
-		return {"can": false, "reason_code": "player_location_unknown", "reason": "玩家当前位置尚未确定，无法开始按顺序调查"}
-
 	block_ids.clear()
 	for block_id in selected_block_ids:
 		var block := GameManager.get_block(block_id)
@@ -36,6 +33,9 @@ func start(selected_block_ids: Array[String]) -> Dictionary:
 
 	if block_ids.is_empty():
 		return {"can": false, "reason_code": "all_blocks_complete", "reason": "所选区块都已经完全了解"}
+	if GameManager.player_state.current_block_id.is_empty():
+		## 首次从地图启动路线时，首个选中的区块就是玩家明确选择的初始位置。
+		GameManager.player_state.set_current_block(block_ids[0])
 
 	current_index = 0
 	expected_action_id = ""

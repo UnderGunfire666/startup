@@ -477,6 +477,7 @@ func select_region(region_id: String) -> Dictionary:
 	store.selected_region_id = region_id
 	store.selected_storefront_id = ""
 	store.signed_storefront_id = ""
+	store.pre_open_stage = Store.PreOpenStage.STOREFRONT_SELECTION
 	current_region = region
 	current_storefront = null
 
@@ -519,6 +520,7 @@ func select_storefront(storefront_id: String) -> Dictionary:
 		return {"success": false, "reason": "该门面已被你名下其他店铺占用"}
 
 	store.selected_storefront_id = storefront_id
+	store.pre_open_stage = Store.PreOpenStage.STORE_SETUP
 	store.category_slots.clear()
 	_sync_data_objects()
 
@@ -828,10 +830,13 @@ func open_store() -> Dictionary:
 		return {"success": false, "reason": "当前没有激活的店铺"}
 	if store.is_open:
 		return {"success": false, "reason": "门店已经开业"}
+	if store.pre_open_stage != Store.PreOpenStage.STORE_SETUP:
+		return {"success": false, "reason": "当前筹备阶段不能开业"}
 	var readiness := get_open_readiness()
 	if not readiness.can_open:
 		return {"success": false, "reason": "开业条件尚未全部满足，请查看开业清单"}
 	store.is_open = true
+	store.pre_open_stage = Store.PreOpenStage.OPEN_FOR_BUSINESS
 	return {"success": true, "reason": "门店已开业！"}
 
 

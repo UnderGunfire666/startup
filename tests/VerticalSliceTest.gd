@@ -170,6 +170,15 @@ func _test_spatial_research_and_diligence() -> void:
 func _test_first_store_open_and_settlement() -> void:
 	print("\n── 3. 首店配置→备货→开业→结算 ──")
 
+	var store_before_setup: Store = GameManager.get_store(_store1_id)
+	_check(store_before_setup != null and store_before_setup.pre_open_stage == Store.PreOpenStage.STORE_SETUP,
+		"选定门面后首店应处于STORE_SETUP")
+	var premature_open_result: Dictionary = GameManager.open_store()
+	_check(not bool(premature_open_result.get("success", false)),
+		"配置和备货未完成时首店不得开业")
+	_check(store_before_setup != null and store_before_setup.pre_open_stage == Store.PreOpenStage.STORE_SETUP,
+		"开业条件未满足时pre_open_stage应保持STORE_SETUP")
+
 	var category_result: Dictionary = GameManager.add_category_to_store("breakfast", ["P001"])
 	_check(bool(category_result.get("success", false)),
 		"首店添加breakfast品类应成功：%s" % str(category_result.get("reason", "")))
@@ -192,6 +201,8 @@ func _test_first_store_open_and_settlement() -> void:
 
 	var store1: Store = GameManager.get_store(_store1_id)
 	_check(store1 != null and store1.is_open, "首店开业后is_open应为true")
+	_check(store1 != null and store1.pre_open_stage == Store.PreOpenStage.OPEN_FOR_BUSINESS,
+		"首店开业成功后pre_open_stage应进入OPEN_FOR_BUSINESS")
 	_check(GameManager.get_open_stores().size() == 1, "首店开业后应有且仅有1家营业店")
 
 	## 深度勘验把时钟推进到了15:00；重置到8:00后测试真实营业时段。

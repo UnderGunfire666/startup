@@ -34,6 +34,7 @@ func _ready() -> void:
 	stop_action_button.pressed.connect(_on_stop_pressed)
 	TimeManager.clock_updated.connect(_on_clock_updated)
 	ScheduleManager.schedule_changed.connect(_refresh_all)
+	ScheduleManager.map_block_selection_changed.connect(_refresh_all)
 	ScheduleManager.action_interrupt.connect(_on_action_interrupt)
 	ScheduleManager.day_schedule_ended.connect(_on_day_schedule_ended)
 	_refresh_all()
@@ -85,6 +86,9 @@ func _describe_target(action: ActionDefinition, target_id: String, target_ids: A
 			if block != null:
 				block_names.append(block.name)
 		return "（目标区块：%s）" % "、".join(block_names)
+	if action.action_effect_type == "move_to_block":
+		var block := GameManager.get_block(target_id)
+		return "（目标区块：%s）" % (block.name if block != null else target_id)
 	if target_id == "":
 		return ""
 	match action.action_effect_type:
@@ -108,7 +112,15 @@ func _build_action_list() -> void:
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var title := Label.new()
-		title.text = "%s（%d小时）" % [action.name, action.duration_hours]
+		var action_name := action.name
+		if action.action_effect_type == "move_to_block":
+			var selected_target_id := ScheduleManager.get_selected_move_target_id()
+			var selected_target := GameManager.get_block(selected_target_id)
+			if selected_target != null:
+				action_name += " → %s" % selected_target.name
+			else:
+				action_name += "（请先在地图选择区块）"
+		title.text = "%s（%d小时）" % [action_name, action.duration_hours]
 		title.add_theme_font_size_override("font_size", 15)
 		info.add_child(title)
 		var desc := Label.new()
@@ -121,7 +133,11 @@ func _build_action_list() -> void:
 		top_row.add_child(info)
 		var start_btn := Button.new()
 		start_btn.custom_minimum_size = Vector2(110, 0)
-		if busy:
+		if action.action_effect_type == "move_to_block" and ScheduleManager.get_selected_move_target_id().is_empty():
+			start_btn.text = "请先选区块"
+			start_btn.disabled = true
+			start_btn.tooltip_text = "请在地图面板勾选要前往的区块"
+		elif busy:
 			start_btn.text = "有行动进行中"
 			start_btn.disabled = true
 		else:
@@ -133,13 +149,13 @@ func _build_action_list() -> void:
 				start_btn.text = "不可用"
 				start_btn.disabled = true
 				start_btn.tooltip_text = check.reason
-			start_btn.pressed.connect(func():
-			var result := ScheduleManager.start_action_now(action.id, "")
-			if not result.can:
-				warning_label.visible = true
-				warning_label.text = "⚠ %s" % result.reason
-			_refresh_all()
-		)
+			start_btn.pressed.connect(func() -> void:
+				var result := ScheduleManager.start_action_now(action.id, "")
+				if not result.can:
+					warning_label.visible = true
+					warning_label.text = "⚠ %s" % result.reason
+				_refresh_all()
+			)
 		top_row.add_child(start_btn)
 		row.add_child(top_row)
 		action_list.add_child(row)

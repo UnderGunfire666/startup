@@ -119,9 +119,11 @@ func _test_region_research_uses_selected_blocks() -> void:
 		"当前调研行动应直接保存选中的Block ID列表"
 	)
 
-	ScheduleManager._finalize_current_action(1.0)
+	TimeManager.total_game_seconds += 3600.0
+	ScheduleManager._advance_continuous_region_research_to_elapsed()
 	var first_understanding := GameManager.get_block_understanding(first.id)
 	var second_understanding := GameManager.get_block_understanding(second.id)
 	_expect(first_understanding > 0.0, "第一个选中Block应获得调查进度")
 	_expect(second_understanding > 0.0, "第二个选中Block应获得调查进度")
 	_expect(GameManager.player_state.survey_areas.is_empty(), "本次Block调查不应创建SurveyArea")
+	ScheduleManager.stop_current_action()

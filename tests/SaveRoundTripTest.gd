@@ -67,6 +67,7 @@ func _test_build_state() -> void:
 		store1.selected_storefront_id = "S004"
 		store1.signed_storefront_id = "S004"
 		store1.is_open = true
+		store1.pre_open_stage = Store.PreOpenStage.OPEN_FOR_BUSINESS
 		store1.reputation = 72.5
 		store1.ingredient_stock["soybean"] = 11.0
 		store1.ingredient_avg_cost["soybean"] = 8.5
@@ -83,6 +84,7 @@ func _test_build_state() -> void:
 		store2.selected_region_id = "A002"
 		store2.selected_storefront_id = "S001"
 		store2.is_open = true
+		store2.pre_open_stage = Store.PreOpenStage.OPEN_FOR_BUSINESS
 		store2.reputation = 61.0
 		store2.ingredient_stock["soybean"] = 23.0
 		store2.ingredient_avg_cost["soybean"] = 9.25
@@ -150,6 +152,9 @@ func _test_save_and_load() -> void:
 		_check(loaded_store1.selected_storefront_id == "S004", "首店门面应恢复")
 		_check(loaded_store2.selected_storefront_id == "S001", "分店门面应恢复")
 		_check(loaded_store1.is_open and loaded_store2.is_open, "两家店营业状态应恢复")
+		_check(loaded_store1.pre_open_stage == Store.PreOpenStage.OPEN_FOR_BUSINESS
+			and loaded_store2.pre_open_stage == Store.PreOpenStage.OPEN_FOR_BUSINESS,
+			"两家店营业阶段应恢复为OPEN_FOR_BUSINESS")
 		_check(is_equal_approx(loaded_store1.reputation, 72.5), "首店口碑应恢复")
 		_check(is_equal_approx(loaded_store2.reputation, 61.0), "分店口碑应恢复")
 		_check(is_equal_approx(loaded_store1.get_ingredient_stock("soybean"), 11.0), "首店库存应恢复")

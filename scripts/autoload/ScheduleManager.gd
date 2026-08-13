@@ -5,6 +5,7 @@ signal hour_effect_applied(action_id: String, elapsed_hours: float, progress_rat
 signal action_completed(action_id: String, elapsed_hours: float, duration_hours: int)
 signal action_interrupt(reason_code: String, message: String)
 signal day_schedule_ended(day: int)
+signal map_block_selection_changed(block_ids: Array[String])
 
 var today_schedule: DaySchedule = DaySchedule.new()
 var completed_entries_today: Array[ScheduledActionEntry] = []
@@ -12,6 +13,8 @@ var current_action: CurrentActionState = null
 
 var operating_hours_today: int = 0
 var supervising_hours_today: int = 0
+## 地图面板的瞬时选择，仅作为行动目标，不属于存档或玩家知识。
+var selected_map_block_ids: Array[String] = []
 
 func _ready() -> void:
 	TimeManager.hour_advanced.connect(_on_hour_tick)
@@ -22,6 +25,23 @@ func reset_for_new_game() -> void:
 	current_action = null
 	operating_hours_today = 0
 	supervising_hours_today = 0
+	selected_map_block_ids.clear()
+	map_block_selection_changed.emit([])
+
+
+func set_selected_map_block_ids(block_ids: Array[String]) -> void:
+	var valid_ids: Array[String] = []
+	for block_id in block_ids:
+		if not valid_ids.has(block_id) and GameManager.get_block(block_id) != null:
+			valid_ids.append(block_id)
+	if selected_map_block_ids == valid_ids:
+		return
+	selected_map_block_ids = valid_ids
+	map_block_selection_changed.emit(selected_map_block_ids.duplicate())
+
+
+func get_selected_move_target_id() -> String:
+	return selected_map_block_ids[0] if not selected_map_block_ids.is_empty() else ""
 
 func _on_hour_tick(day: int, hour: int) -> void:
 	if current_action != null and current_action.is_active and current_action.continuous_mode:
@@ -57,6 +77,10 @@ func can_schedule_action(
 		return {"can": false, "reason_code": "invalid_action", "reason": "行动不存在"}
 	if action.requires_character_created and not GameManager.player_state.is_character_created:
 		return {"can": false, "reason_code": "no_character", "reason": "请先完成人物创建"}
+	if action.action_effect_type == "move_to_block" and target_id.is_empty():
+		target_id = get_selected_move_target_id()
+	if action.action_effect_type == "move_to_block" and target_id.is_empty():
+		return {"can": false, "reason_code": "no_move_target", "reason": "请先在地图上选择要前往的区块"}
 
 	var duration_hours := _get_effective_duration_hours(action, target_ids, start_hour, target_id)
 	if action.action_effect_type == "move_to_block" and target_id == GameManager.player_state.current_block_id:
@@ -117,7 +141,8 @@ func _get_move_to_block_duration_hours(target_block_id: String) -> float:
 		return -1.0
 	var current_block_id := GameManager.player_state.current_block_id
 	if current_block_id.is_empty():
-		return -1.0
+		## 首次从地图选择目的地时，该目的地就是玩家明确选择的初始位置。
+		return 0.0
 	var current_block := GameManager.get_block(current_block_id)
 	if current_block == null:
 		return -1.0
@@ -139,7 +164,7 @@ func _check_preconditions(
 		if GameManager.player_state.current_block_id == target_id:
 			return {"can": true, "reason_code": "", "reason": "已经位于目标区块"}
 		if GameManager.player_state.current_block_id.is_empty():
-			return {"can": false, "reason_code": "player_location_unknown", "reason": "玩家当前位置尚未确定，无法计算移动时间"}
+			return {"can": true, "reason_code": "", "reason": "将以目标区块作为初始位置"}
 
 	if action.action_effect_type == "region_research":
 		if target_ids.is_empty():
@@ -153,7 +178,7 @@ func _check_preconditions(
 
 		var current_block_id := GameManager.player_state.current_block_id
 		if current_block_id.is_empty():
-			return {"can": false, "reason_code": "player_location_unknown", "reason": "玩家当前位置尚未确定，请先移动到目标区块"}
+			return {"can": true, "reason_code": "", "reason": "将以首个调查区块作为初始位置"}
 		if current_block_id != target_ids[0]:
 			var current_block := GameManager.get_block(current_block_id)
 			var target_block := GameManager.get_block(target_ids[0])
@@ -237,10 +262,12 @@ func _today_has_settled(store: Store = null) -> bool:
 	return false
 
 func add_action_to_schedule(action_id: String, start_hour: int, target_id: String = "") -> Dictionary:
+	var action := ScheduleActionData.get_action(action_id)
+	if action != null and action.action_effect_type == "move_to_block" and target_id.is_empty():
+		target_id = get_selected_move_target_id()
 	var check := can_schedule_action(action_id, start_hour, target_id)
 	if not check.can:
 		return check
-	var action := ScheduleActionData.get_action(action_id)
 	var entry := today_schedule.add_entry(action_id, start_hour, int(ceil(float(check.duration_hours))))
 	entry.target_id = target_id
 	schedule_changed.emit()
@@ -253,11 +280,13 @@ func start_action_now(
 ) -> Dictionary:
 	if current_action != null and current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已经有一个行动正在进行，请先结束它"}
+	var action := ScheduleActionData.get_action(action_id)
+	if action != null and action.action_effect_type == "move_to_block" and target_id.is_empty():
+		target_id = get_selected_move_target_id()
 	var current_hour := int(TimeManager.get_hour_of_day())
 	var check := can_schedule_action(action_id, current_hour, target_id, target_ids)
 	if not check.can:
 		return check
-	var action := ScheduleActionData.get_action(action_id)
 	_begin_current_action(action_id, target_id, target_ids, null, current_hour)
 	if action.action_effect_type == "move_to_block" and float(check.duration_hours) <= 0.0:
 		_finalize_current_action(0.0)
@@ -332,6 +361,8 @@ func _begin_current_action(
 	current_action.is_active = true
 
 	var action := ScheduleActionData.get_action(action_id)
+	if action.action_effect_type == "region_research" and GameManager.player_state.current_block_id.is_empty() and not target_ids.is_empty():
+		GameManager.player_state.set_current_block(target_ids[0])
 	if action.action_effect_type == "region_research":
 		current_action.continuous_mode = true
 		var research_start := start_hour if start_hour >= 0 else TimeManager.get_current_hour_int()

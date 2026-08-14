@@ -38,21 +38,11 @@ func _new_character_and_store(store_name: String) -> Store:
 	if not bool(store_result.get("success", false)):
 		return null
 
-	var failed_region_result: Dictionary = GameManager.select_region("INVALID_REGION")
-	_assert_true(not bool(failed_region_result.get("success", false)),
-		"不存在的区域不得选定")
 	var store := GameManager.get_active_store()
 	_assert_true(store != null and store.pre_open_stage == Store.PreOpenStage.REGION_RESEARCH,
-		"区域选择失败后pre_open_stage应保持REGION_RESEARCH")
+		"新建企划后pre_open_stage应为REGION_RESEARCH")
 	if store == null:
 		return null
-
-	var region_result: Dictionary = GameManager.select_region("A001")
-	_assert_true(bool(region_result.get("success", false)), "选择A001区域应成功")
-	if not bool(region_result.get("success", false)):
-		return null
-	_assert_true(store.pre_open_stage == Store.PreOpenStage.STOREFRONT_SELECTION,
-		"选择区域成功后pre_open_stage应进入STOREFRONT_SELECTION")
 
 	return store
 
@@ -66,7 +56,7 @@ func _test_selection_requires_full_diligence() -> void:
 	var initial_result: Dictionary = GameManager.select_storefront("S004")
 	_assert_true(not bool(initial_result.get("success", false)),
 		"未发现/未尽调门面不得直接选定")
-	_assert_true(store.pre_open_stage == Store.PreOpenStage.STOREFRONT_SELECTION,
+	_assert_true(store.pre_open_stage == Store.PreOpenStage.REGION_RESEARCH,
 		"未完成full_diligence时选定门面失败不得推进pre_open_stage")
 
 	var initial_viewing_result: Dictionary = GameManager.advance_storefront_diligence(
@@ -126,9 +116,6 @@ func _test_selection_respects_storefront_occupation() -> void:
 	_assert_true(bool(second_result.get("success", false)), "创建第二个Store应成功")
 	if not bool(second_result.get("success", false)):
 		return
-
-	var second_region: Dictionary = GameManager.select_region("A001")
-	_assert_true(bool(second_region.get("success", false)), "第二店选择A001应成功")
 
 	var occupied_result: Dictionary = GameManager.select_storefront("S004")
 	_assert_true(not bool(occupied_result.get("success", false)),

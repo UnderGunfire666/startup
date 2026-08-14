@@ -3,6 +3,8 @@ extends Resource
 
 @export var id: String
 @export var category_id: String
+## 通用商品会出现在每一个子类的菜单中。
+@export var is_universal: bool = false
 @export var name: String
 @export var target_groups: Array[String] = []
 @export var preferred_hour_ranges: Array[Vector2i] = []

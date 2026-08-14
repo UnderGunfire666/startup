@@ -20,12 +20,10 @@ extends Control
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/ReportPanel
 @onready var history_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/HistoryPanel
+@onready var employee_panel: PanelContainer = \
+	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/EmployeePanel
 @onready var day_end_panel: PopupPanel = \
 	$DayEndPanel
-@onready var action_panel: PanelContainer = \
-	$MarginContainer/RootVBox/MainTabs/ActionPanel
-@onready var schedule_panel: PanelContainer = \
-	$MarginContainer/RootVBox/MainTabs/SchedulePanel
 @onready var map_panel: Control = \
 	$MarginContainer/RootVBox/MainTabs/MapPanel
 @onready var store_list_panel: PanelContainer = \
@@ -35,21 +33,25 @@ var settlement_history: Array[Dictionary] = []
 
 func _ready() -> void:
 	_setup_tab_titles()
+	store_sub_tabs.set_tab_title(6, "\u5458\u5de5\u4e0e\u6392\u73ed")
 	character_creation_panel.character_created.connect(_on_character_created)
 	category_manager_panel.category_changed.connect(_on_category_changed)
+	employee_panel.employee_changed.connect(_on_employee_changed)
 	procurement_panel.procurement_completed.connect(_on_procurement_completed)
+	store_list_panel.setup_requested.connect(_on_store_setup_requested)
+	store_list_panel.procurement_requested.connect(_on_procurement_requested)
 	operation_panel.settlement_done.connect(_on_settlement_done)
+	operation_panel.store_opened.connect(_on_store_opened)
 	operation_panel.day_ended.connect(_on_day_ended)
 	save_load_bar.data_changed.connect(_on_data_changed)
 	GameManager.active_store_changed.connect(_on_active_store_changed)
+	GameManager.store_plan_updated.connect(_on_store_plan_updated)
 	_refresh_all_panels()
 
 func _setup_tab_titles() -> void:
 	main_tabs.set_tab_title(0, "个人")
-	main_tabs.set_tab_title(1, "行动")
-	main_tabs.set_tab_title(2, "日程")
-	main_tabs.set_tab_title(3, "店铺")
-	main_tabs.set_tab_title(4, "地图")
+	main_tabs.set_tab_title(1, "店铺")
+	main_tabs.set_tab_title(2, "地图")
 	player_sub_tabs.set_tab_title(0, "创建角色")
 	store_sub_tabs.set_tab_title(0, "我的店铺")
 	store_sub_tabs.set_tab_title(1, "营业")
@@ -61,7 +63,7 @@ func _setup_tab_titles() -> void:
 func _on_character_created() -> void:
 	settlement_history.clear()
 	_refresh_all_panels()
-	main_tabs.current_tab = 4
+	main_tabs.current_tab = 2
 
 func _refresh_all_panels() -> void:
 	_refresh_character_panel()
@@ -69,13 +71,32 @@ func _refresh_all_panels() -> void:
 	_refresh_procurement_panel()
 	_refresh_operation_panel()
 	_refresh_history_panel()
-	_refresh_action_panel()
-	_refresh_schedule_panel()
+	_refresh_employee_panel()
 	_refresh_map_panel()
 	store_list_panel.refresh()
 
 func _on_active_store_changed(_store_id: String) -> void:
 	_refresh_all_panels()
+
+
+func _on_store_plan_updated(_store_id: String) -> void:
+	_refresh_all_panels()
+
+
+func _on_store_setup_requested() -> void:
+	main_tabs.current_tab = 1
+	store_sub_tabs.current_tab = 2
+	_refresh_category_panel()
+
+
+func _on_procurement_requested() -> void:
+	main_tabs.current_tab = 1
+	store_sub_tabs.current_tab = 3
+	_refresh_procurement_panel()
+
+
+func _on_store_opened() -> void:
+	_on_procurement_requested()
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()
@@ -85,6 +106,10 @@ func _on_config_applied() -> void:
 func _on_category_changed() -> void:
 	_refresh_category_panel()
 	_refresh_procurement_panel()
+	_refresh_operation_panel()
+
+func _on_employee_changed() -> void:
+	_refresh_employee_panel()
 	_refresh_operation_panel()
 
 func _on_procurement_completed() -> void:
@@ -114,10 +139,6 @@ func _on_data_changed() -> void:
 
 func _refresh_character_panel() -> void:
 	character_creation_panel.refresh()
-func _refresh_action_panel() -> void:
-	action_panel.refresh()
-func _refresh_schedule_panel() -> void:
-	schedule_panel.refresh()
 func _refresh_map_panel() -> void:
 	map_panel.refresh()
 func _refresh_category_panel() -> void:
@@ -128,3 +149,5 @@ func _refresh_operation_panel() -> void:
 	operation_panel.refresh_display()
 func _refresh_history_panel() -> void:
 	history_panel.refresh(settlement_history)
+func _refresh_employee_panel() -> void:
+	employee_panel.refresh()

@@ -1,62 +1,316 @@
 [
   {
-	"id": "breakfast", "name": "早餐类",
+	"id": "breakfast",
+	"parent_category": "\u5feb\u9910",
+	"name": "\u65e9\u70b9",
+	"required_staff": "\u65e9\u9910\u5e08",
+	"required_staff_count": 2,
+	"required_equipment": "\u84b8\u7bb1\u3001\u714e\u53f0",
+	"required_equipment_ids": ["steamer", "griddle"],
 	"base_entry_rate": 0.075,
-	"suggested_open_hours": [[5, 9]],
-	"preferred_groups": ["student", "office_worker", "worker", "commute"],
-	"preferred_spending_power": ["low", "medium"],
-	"base_service_speed": "high",
-	"key_staff_type": "none",
-	"missing_key_staff_capacity_penalty": 0.0,
-	"missing_key_staff_conversion_penalty": 0.0,
-	"missing_key_staff_reputation_penalty": 0.0,
-	"required_area": 8.0,
-	"setup_cost_wan": 0.3,
-	"extra_rent_wan": 0.15
+	"suggested_open_hours": [
+	  [
+		5,
+		10
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5b66\u751f",
+	  "\u4e0a\u73ed\u65cf",
+      "\u5de5\u4eba"
+	],
+	"base_service_speed": "medium"
   },
   {
-	"id": "snack", "name": "小吃类",
-	"base_entry_rate": 0.090,
-	"suggested_open_hours": [[12, 14], [18, 24]],
-	"preferred_groups": ["student", "worker", "night_shift_worker"],
-	"preferred_spending_power": ["low", "medium"],
-	"base_service_speed": "high",
-	"key_staff_type": "none",
-	"missing_key_staff_capacity_penalty": 0.0,
-	"missing_key_staff_conversion_penalty": 0.0,
-	"missing_key_staff_reputation_penalty": 0.0,
-	"required_area": 6.0,
-	"setup_cost_wan": 0.2,
-	"extra_rent_wan": 0.10
+	"id": "fried_skewers",
+	"parent_category": "\u5feb\u9910",
+	"name": "\u70b8\u4e32",
+	"required_staff": "\u70b8\u7089\u64cd\u4f5c\u5458",
+	"required_equipment": "\u5546\u7528\u70b8\u9505",
+	"required_equipment_ids": ["fryer"],
+	"base_entry_rate": 0.065,
+	"suggested_open_hours": [
+	  [
+		11,
+		14
+	  ],
+	  [
+		17,
+		24
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5b66\u751f",
+      "\u5de5\u4eba"
+	],
+	"base_service_speed": "medium"
   },
   {
-	"id": "fast_food", "name": "快餐类",
-	"base_entry_rate": 0.060,
-	"suggested_open_hours": [[12, 14], [18, 24]],
-	"preferred_groups": ["worker", "student", "office_worker", "family"],
-	"preferred_spending_power": ["low", "medium"],
-	"base_service_speed": "medium",
-	"key_staff_type": "chef",
-	"missing_key_staff_capacity_penalty": 0.20,
-	"missing_key_staff_conversion_penalty": 0.10,
-	"missing_key_staff_reputation_penalty": 2.0,
-	"required_area": 15.0,
-	"setup_cost_wan": 0.8,
-	"extra_rent_wan": 0.35
+	"id": "rice_bowls",
+	"parent_category": "\u5feb\u9910",
+	"name": "\u76d6\u996d",
+	"required_staff": "\u5feb\u9910\u53a8\u5e08",
+	"required_equipment": "\u7535\u996d\u7172\u3001\u4fdd\u6e29\u53f0",
+	"required_equipment_ids": ["rice_cooker", "warming_station"],
+	"base_entry_rate": 0.07,
+	"suggested_open_hours": [
+	  [
+		10,
+		21
+	  ]
+	],
+	"preferred_groups": [
+	  "\u4e0a\u73ed\u65cf",
+	  "\u5de5\u4eba",
+      "\u5b66\u751f"
+	],
+	"base_service_speed": "medium"
   },
   {
-	"id": "beverage_dessert", "name": "饮品甜点类",
+	"id": "noodles",
+	"parent_category": "\u5feb\u9910",
+	"name": "\u9762\u9986",
+	"required_staff": "\u9762\u70b9\u5e08",
+	"required_equipment": "\u716e\u9762\u7089",
+	"required_equipment_ids": ["noodle_boiler"],
+	"base_entry_rate": 0.07,
+	"suggested_open_hours": [
+	  [
+		7,
+		22
+	  ]
+	],
+	"preferred_groups": [
+	  "\u4e0a\u73ed\u65cf",
+	  "\u5de5\u4eba",
+      "\u5b66\u751f"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "burgers",
+	"parent_category": "\u5feb\u9910",
+	"name": "\u6c49\u5821",
+	"required_staff": "\u6c49\u5821\u5236\u4f5c\u5458",
+	"required_equipment": "\u714e\u7089\u3001\u4fdd\u6e29\u67dc",
+	"required_equipment_ids": ["griddle", "warming_station"],
+	"base_entry_rate": 0.06,
+	"suggested_open_hours": [
+	  [
+		8,
+		23
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5b66\u751f",
+      "\u4e0a\u73ed\u65cf"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "hotpot",
+	"parent_category": "\u6b63\u9910",
+	"name": "\u706b\u9505",
+	"required_staff": "\u706b\u9505\u53a8\u5e08",
+	"required_staff_count": 2,
+	"required_equipment": "\u706b\u9505\u684c\u3001\u51b7\u85cf\u5c55\u793a\u67dc",
+	"required_equipment_ids": ["hotpot_table", "cold_display"],
+	"base_entry_rate": 0.04,
+	"suggested_open_hours": [
+	  [
+		11,
+		23
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5bb6\u5ead",
+      "\u4e0a\u73ed\u65cf"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "home_cooking",
+	"parent_category": "\u6b63\u9910",
+	"name": "\u5bb6\u5e38\u83dc",
+	"required_staff": "\u4e2d\u9910\u5927\u53a8",
+	"required_staff_count": 2,
+	"required_equipment": "\u5546\u7528\u7076\u53f0\u3001\u7092\u9505",
+	"required_equipment_ids": ["commercial_stove", "wok"],
+	"base_entry_rate": 0.055,
+	"suggested_open_hours": [
+	  [
+		10,
+		22
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5bb6\u5ead",
+      "\u5de5\u4eba"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "barbecue",
+	"parent_category": "\u6b63\u9910",
+	"name": "\u70e7\u70e4",
+	"required_staff": "\u70e7\u70e4\u5e08",
+	"required_staff_count": 2,
+	"required_equipment": "\u70e7\u70e4\u7089\u3001\u6392\u70df\u8bbe\u5907",
+	"required_equipment_ids": ["bbq_grill", "exhaust"],
+	"base_entry_rate": 0.05,
+	"suggested_open_hours": [
+	  [
+		16,
+		24
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5b66\u751f",
+      "\u5de5\u4eba"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "sichuan",
+	"parent_category": "\u6b63\u9910",
+	"name": "\u5ddd\u83dc",
+	"required_staff": "\u5ddd\u83dc\u5927\u53a8",
+	"required_staff_count": 2,
+	"required_equipment": "\u731b\u706b\u7076\u3001\u8c03\u6599\u53f0",
+	"required_equipment_ids": ["commercial_stove", "spice_station"],
+	"base_entry_rate": 0.05,
+	"suggested_open_hours": [
+	  [
+		10,
+		22
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5bb6\u5ead",
+      "\u4e0a\u73ed\u65cf"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "western",
+	"parent_category": "\u6b63\u9910",
+	"name": "\u897f\u9910",
+	"required_staff": "\u897f\u9910\u4e3b\u53a8",
+	"required_staff_count": 2,
+	"required_equipment": "\u70e4\u7bb1\u3001\u6252\u7089",
+	"required_equipment_ids": ["oven", "grill"],
+	"base_entry_rate": 0.04,
+	"suggested_open_hours": [
+	  [
+		10,
+		22
+	  ]
+	],
+	"preferred_groups": [
+	  "\u4e0a\u73ed\u65cf",
+      "\u9ad8\u6d88\u8d39\u5bb6\u5ead"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "milk_tea",
+	"parent_category": "\u751c\u70b9\u996e\u54c1",
+	"name": "\u5976\u8336",
+	"required_staff": "\u8c03\u996e\u5e08",
+	"required_equipment": "\u5c01\u53e3\u673a\u3001\u5236\u51b0\u673a",
+	"required_equipment_ids": ["cup_sealer", "ice_maker"],
 	"base_entry_rate": 0.075,
-	"suggested_open_hours": [[5, 9], [12, 14], [18, 24]],
-	"preferred_groups": ["student", "family", "office_worker"],
-	"preferred_spending_power": ["medium", "high"],
-	"base_service_speed": "high",
-	"key_staff_type": "baker",
-	"missing_key_staff_capacity_penalty": 0.15,
-	"missing_key_staff_conversion_penalty": 0.08,
-	"missing_key_staff_reputation_penalty": 1.5,
-	"required_area": 10.0,
-	"setup_cost_wan": 0.5,
-	"extra_rent_wan": 0.25
+	"suggested_open_hours": [
+	  [
+		9,
+		23
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5b66\u751f",
+      "\u4e0a\u73ed\u65cf"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "bakery",
+	"parent_category": "\u751c\u70b9\u996e\u54c1",
+	"name": "\u70d8\u7119",
+	"required_staff": "\u70d8\u7119\u5e08",
+	"required_staff_count": 2,
+	"required_equipment": "\u70e4\u7bb1\u3001\u9192\u53d1\u7bb1",
+	"required_equipment_ids": ["oven", "proofer"],
+	"base_entry_rate": 0.055,
+	"suggested_open_hours": [
+	  [
+		7,
+		21
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5bb6\u5ead",
+      "\u4e0a\u73ed\u65cf"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "ice_cream",
+	"parent_category": "\u751c\u70b9\u996e\u54c1",
+	"name": "\u51b0\u6dc7\u6dcb",
+	"required_staff": "\u751c\u54c1\u5e08",
+	"required_equipment": "\u51b0\u6dc7\u6dcb\u673a\u3001\u51b7\u67dc",
+	"required_equipment_ids": ["ice_cream_machine", "cold_display"],
+	"base_entry_rate": 0.05,
+	"suggested_open_hours": [
+	  [
+		10,
+		22
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5b66\u751f",
+      "\u5bb6\u5ead"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "coffee",
+	"parent_category": "\u751c\u70b9\u996e\u54c1",
+	"name": "\u5496\u5561",
+	"required_staff": "\u5496\u5561\u5e08",
+	"required_equipment": "\u5496\u5561\u673a\u3001\u78e8\u8c46\u673a",
+	"required_equipment_ids": ["coffee_machine", "coffee_grinder"],
+	"base_entry_rate": 0.055,
+	"suggested_open_hours": [
+	  [
+		7,
+		21
+	  ]
+	],
+	"preferred_groups": [
+	  "\u4e0a\u73ed\u65cf",
+      "\u5b66\u751f"
+	],
+	"base_service_speed": "medium"
+  },
+  {
+	"id": "chinese_dessert",
+	"parent_category": "\u751c\u70b9\u996e\u54c1",
+	"name": "\u4e2d\u5f0f\u751c\u54c1",
+	"required_staff": "\u751c\u54c1\u5e08",
+	"required_equipment": "\u84b8\u67dc\u3001\u7cd6\u6c34\u7089",
+	"required_equipment_ids": ["dessert_steamer", "sugar_stove"],
+	"base_entry_rate": 0.05,
+	"suggested_open_hours": [
+	  [
+		10,
+		22
+	  ]
+	],
+	"preferred_groups": [
+	  "\u5bb6\u5ead",
+      "\u5b66\u751f"
+	],
+	"base_service_speed": "medium"
   }
 ]

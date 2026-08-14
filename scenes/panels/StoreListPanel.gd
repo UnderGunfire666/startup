@@ -11,10 +11,14 @@ extends PanelContainer
 @onready var new_store_name_input: LineEdit = $VBox/NewStoreRow/NewStoreNameInput
 @onready var create_button: Button = $VBox/NewStoreRow/CreateButton
 
+signal setup_requested
+signal procurement_requested
+
 
 func _ready() -> void:
 	create_button.pressed.connect(_on_create_pressed)
 	GameManager.active_store_changed.connect(func(_store_id: String): refresh())
+	GameManager.store_plan_updated.connect(func(_store_id: String): refresh())
 	refresh()
 
 
@@ -36,6 +40,8 @@ func refresh() -> void:
 	status_label.text = "共 %d 家店铺" % GameManager.stores.size()
 
 	for store in GameManager.stores:
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation", 6)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 
@@ -59,8 +65,54 @@ func refresh() -> void:
 			)
 		row.add_child(switch_btn)
 
-		store_list.add_child(row)
+		card.add_child(row)
+		var plan_label := Label.new()
+		plan_label.text = _get_plan_summary(store)
+		plan_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card.add_child(plan_label)
+
+		if store.id == GameManager.active_store_id and not store.is_open:
+			if not store.selected_storefront_id.is_empty() and store.signed_storefront_id != store.selected_storefront_id:
+				var sign_button := Button.new()
+				sign_button.text = "确认签约门面"
+				sign_button.pressed.connect(func() -> void:
+					var result := GameManager.sign_selected_storefront()
+					status_label.text = str(result.get("reason", ""))
+				)
+				card.add_child(sign_button)
+
+			var setup_button := Button.new()
+			setup_button.text = "配置品类与商品"
+			setup_button.pressed.connect(func() -> void: setup_requested.emit())
+			card.add_child(setup_button)
+
+			if store.signed_storefront_id != "" and not store.category_slots.is_empty():
+				var procurement_button := Button.new()
+				procurement_button.text = "前往采购与补货"
+				procurement_button.pressed.connect(func() -> void: procurement_requested.emit())
+				card.add_child(procurement_button)
+
+		store_list.add_child(card)
 		store_list.add_child(HSeparator.new())
+
+
+func _get_plan_summary(store: Store) -> String:
+	var category_text := "已确定%d个子类" % store.category_slots.size() if not store.category_slots.is_empty() else "尚未确定品类"
+	match store.pre_open_stage:
+		Store.PreOpenStage.REGION_RESEARCH:
+			return "开店企划：待调研并选定门面｜%s" % category_text
+		Store.PreOpenStage.STOREFRONT_SELECTION:
+			return "开店企划：待完成门面尽调并选定门面｜%s" % category_text
+		Store.PreOpenStage.STORE_SETUP:
+			var storefront := GameManager.get_storefront(store.selected_storefront_id)
+			if storefront == null:
+				return "开店企划：门面信息缺失，待重新选择"
+			var signing_text := "已签约" if store.signed_storefront_id == storefront.id else "已选定，待签约"
+			return "开店企划：门面「%s」｜%s｜%s｜员工为可选筹备项" % [storefront.name, signing_text, category_text]
+		Store.PreOpenStage.OPEN_FOR_BUSINESS:
+			return "开店企划：已开业"
+		_:
+			return "开店企划：待开始"
 
 
 func _on_create_pressed() -> void:

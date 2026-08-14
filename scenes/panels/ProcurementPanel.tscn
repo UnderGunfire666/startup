@@ -33,6 +33,10 @@ layout_mode = 2
 text = "输入本次采购数量；确认采购后立即扣款并加入门店共享原材料库存。"
 autowrap_mode = 3
 
+[node name="InventoryForecastLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
 [node name="IngredientScroll" type="ScrollContainer" parent="MarginContainer/VBox" unique_id=2146570434]
 custom_minimum_size = Vector2(0, 280)
 layout_mode = 2
@@ -53,5 +57,9 @@ layout_mode = 2
 text = "确认采购"
 
 [node name="StatusLabel" type="Label" parent="MarginContainer/VBox" unique_id=2121629864]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="PurchaseHistoryLabel" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 autowrap_mode = 3

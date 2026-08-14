@@ -18,4 +18,5 @@ var duration_hours: float = 0.0
 var continuous_mode: bool = false
 var applied_hours: float = 0.0
 var is_active: bool = false
+var stopped_by_player: bool = false
 var source_entry: ScheduledActionEntry = null   # 若是从"日程"计划队列自动接续的，记录来源；纯单步触发则为null

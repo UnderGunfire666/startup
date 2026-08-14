@@ -2,8 +2,6 @@
 
 [ext_resource type="Script" uid="uid://bhjmf0qq6lke8" path="res://scenes/panels/OperationPanel.gd" id="1"]
 
-[sub_resource type="ButtonGroup" id="ButtonGroup_speed"]
-
 [node name="OperationPanel" type="PanelContainer" unique_id=1393748888]
 script = ExtResource("1")
 
@@ -21,6 +19,23 @@ text = "开业准备"
 [node name="OpeningChecklist" type="VBoxContainer" parent="VBox/OpeningPrepBox" unique_id=2001000003]
 layout_mode = 2
 
+[node name="BusinessHoursRow" type="HBoxContainer" parent="VBox/OpeningPrepBox"]
+layout_mode = 2
+
+[node name="BusinessHoursLabel" type="Label" parent="VBox/OpeningPrepBox/BusinessHoursRow"]
+layout_mode = 2
+text = "Business Hours"
+
+[node name="BusinessStartOption" type="OptionButton" parent="VBox/OpeningPrepBox/BusinessHoursRow"]
+layout_mode = 2
+
+[node name="BusinessEndOption" type="OptionButton" parent="VBox/OpeningPrepBox/BusinessHoursRow"]
+layout_mode = 2
+
+[node name="SaveBusinessHoursButton" type="Button" parent="VBox/OpeningPrepBox/BusinessHoursRow"]
+layout_mode = 2
+text = "Save"
+
 [node name="OpenStoreButton" type="Button" parent="VBox/OpeningPrepBox" unique_id=2001000004]
 layout_mode = 2
 text = "确认开业"
@@ -32,50 +47,22 @@ autowrap_mode = 3
 [node name="OpeningSeparator" type="HSeparator" parent="VBox/OpeningPrepBox" unique_id=2001000006]
 layout_mode = 2
 
-[node name="ClockLabel" type="Label" parent="VBox" unique_id=2001000010]
+[node name="BusinessControlRow" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-horizontal_alignment = 1
-text = "00:00:00 ｜ 深夜"
 
-[node name="SpeedRow" type="HBoxContainer" parent="VBox" unique_id=2001000011]
+[node name="OpenBusinessButton" type="Button" parent="VBox/BusinessControlRow"]
 layout_mode = 2
-alignment = 1
+text = "Open"
 
-[node name="PauseButton" type="Button" parent="VBox/SpeedRow" unique_id=2001000012]
+[node name="CloseBusinessButton" type="Button" parent="VBox/BusinessControlRow"]
 layout_mode = 2
-button_group = SubResource("ButtonGroup_speed")
-toggle_mode = true
-button_pressed = true
-text = "⏸ 暂停"
-
-[node name="Speed1Button" type="Button" parent="VBox/SpeedRow" unique_id=2001000013]
-layout_mode = 2
-button_group = SubResource("ButtonGroup_speed")
-toggle_mode = true
-text = "▶ 1x"
-
-[node name="Speed2Button" type="Button" parent="VBox/SpeedRow" unique_id=2001000014]
-layout_mode = 2
-button_group = SubResource("ButtonGroup_speed")
-toggle_mode = true
-text = "▶▶ 2x"
-
-[node name="Speed5Button" type="Button" parent="VBox/SpeedRow" unique_id=2001000015]
-layout_mode = 2
-button_group = SubResource("ButtonGroup_speed")
-toggle_mode = true
-text = "▶▶▶ 5x"
-
-[node name="DayLabel" type="Label" parent="VBox" unique_id=1212767472]
-layout_mode = 2
-text = "第 1 天"
-
-[node name="SlotLabel" type="Label" parent="VBox" unique_id=430824251]
-layout_mode = 2
-text = "当前时段：清晨"
+text = "Close"
 
 [node name="OpenStatusLabel" type="Label" parent="VBox" unique_id=112195888]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LiveMetricsLabel" type="Label" parent="VBox"]
 layout_mode = 2
 autowrap_mode = 3
 
@@ -89,7 +76,7 @@ text = "现金：0 元"
 
 [node name="InventoryLabel" type="Label" parent="VBox/StatsGrid" unique_id=233992879]
 layout_mode = 2
-text = "库存：0 单位"
+text = "原材料：尚未配置配方"
 
 [node name="ReputationLabel" type="Label" parent="VBox/StatsGrid" unique_id=370684207]
 layout_mode = 2

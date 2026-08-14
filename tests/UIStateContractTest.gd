@@ -6,9 +6,9 @@ extends Node
 
 var _pass_count: int = 0
 var _fail_count: int = 0
-var _action_panel: PanelContainer
 var _operation_panel: PanelContainer
 var _procurement_panel: PanelContainer
+var _save_load_bar: HBoxContainer
 
 
 func _ready() -> void:
@@ -27,12 +27,12 @@ func _ready() -> void:
 
 
 func _mount_panels() -> void:
-	_action_panel = preload("res://scenes/panels/ActionPanel.tscn").instantiate()
 	_operation_panel = preload("res://scenes/panels/OperationPanel.tscn").instantiate()
 	_procurement_panel = preload("res://scenes/panels/ProcurementPanel.tscn").instantiate()
-	add_child(_action_panel)
+	_save_load_bar = preload("res://scenes/panels/SaveLoadBar.tscn").instantiate()
 	add_child(_operation_panel)
 	add_child(_procurement_panel)
+	add_child(_save_load_bar)
 
 
 func _check(condition: bool, label: String) -> void:
@@ -47,14 +47,13 @@ func _check(condition: bool, label: String) -> void:
 func _test_no_character() -> void:
 	print("\n── 1. 无角色 ──")
 	GameManager.start_new_game()
-	_action_panel.refresh()
 	_operation_panel.refresh_display()
 	_procurement_panel.refresh()
 
-	var action_status: Label = _action_panel.get_node("MarginContainer/RootVBox/StatusBox/StoreStatusLabel")
 	var operation_status: Label = _operation_panel.get_node("VBox/OpenStatusLabel")
 	var procurement_status: Label = _procurement_panel.get_node("MarginContainer/VBox/StatusLabel")
-	_check(action_status.text == "店铺状态：尚未创建角色", "ActionPanel应显示尚未创建角色")
+	var pause_button: Button = _save_load_bar.get_node("PauseButton")
+	_check(pause_button.disabled, "无角色时顶栏时间控制应禁用")
 	_check(operation_status.text == "⚠ 请先创建角色", "OperationPanel应提示先创建角色")
 	_check(procurement_status.text == "请先创建角色。", "ProcurementPanel应提示先创建角色")
 
@@ -70,32 +69,33 @@ func _test_character_without_store() -> void:
 		"trait_ids": [],
 	})
 	_check(bool(result.get("success", false)), "创建角色应成功")
-	_action_panel.refresh()
 	_operation_panel.refresh_display()
 	_procurement_panel.refresh()
 
-	var action_status: Label = _action_panel.get_node("MarginContainer/RootVBox/StatusBox/StoreStatusLabel")
 	var operation_status: Label = _operation_panel.get_node("VBox/OpenStatusLabel")
-	var operation_pause: Button = _operation_panel.get_node("VBox/SpeedRow/PauseButton")
+	var top_speed: Button = _save_load_bar.get_node("Speed1Button")
 	var procurement_status: Label = _procurement_panel.get_node("MarginContainer/VBox/StatusLabel")
-	_check(action_status.text == "店铺状态：尚未创建开店企划", "ActionPanel应显示尚未创建开店企划")
 	_check(operation_status.text == "尚未创建开店企划，请前往「我的店铺」创建", "OperationPanel应提示创建开店企划")
-	_check(not operation_pause.disabled, "有角色无企划时OperationPanel时间控制仍应可用")
+	_check(not top_speed.disabled, "有角色无企划时顶栏时间控制仍应可用")
 	_check(procurement_status.text == "请先在「我的店铺」创建开店企划。", "ProcurementPanel应提示创建开店企划")
+
+	var start_result := ScheduleManager.start_action_now("rest_short")
+	_check(bool(start_result.get("can", false)), "测试行动应能开始")
+	var stop_button: Button = _save_load_bar.get_node("StopActionButton")
+	_check(stop_button.visible, "任意行动进行时顶栏应显示结束行动按钮")
+	stop_button.emit_signal("pressed")
+	_check(ScheduleManager.current_action == null, "点击顶栏结束行动后当前行动应结束")
 
 
 func _test_store_created() -> void:
 	print("\n── 3. 有当前企划 ──")
 	var result: Dictionary = GameManager.create_new_store("UI状态首店")
 	_check(bool(result.get("success", false)), "创建企划应成功")
-	_action_panel.refresh()
 	_operation_panel.refresh_display()
 	_procurement_panel.refresh()
 
-	var action_status: Label = _action_panel.get_node("MarginContainer/RootVBox/StatusBox/StoreStatusLabel")
 	var operation_status: Label = _operation_panel.get_node("VBox/OpenStatusLabel")
 	var procurement_status: Label = _procurement_panel.get_node("MarginContainer/VBox/StatusLabel")
-	_check(action_status.text == "店铺状态：尚未开业", "ActionPanel应显示当前企划尚未开业")
 	_check(not operation_status.text.contains("尚未创建开店企划"), "OperationPanel不应继续显示无企划状态")
 	_check(procurement_status.text != "请先在「我的店铺」创建开店企划。", "ProcurementPanel不应继续显示无企划状态")
 
@@ -107,10 +107,7 @@ func _test_second_store_switch() -> void:
 	var second_id: String = str(result.get("store_id", ""))
 	_check(bool(result.get("success", false)), "创建第二个企划应成功")
 	_check(second_id != "" and second_id != first_id, "第二个企划应拥有不同ID")
-	_action_panel.refresh()
 	_operation_panel.refresh_display()
 	_procurement_panel.refresh()
 
-	var action_status: Label = _action_panel.get_node("MarginContainer/RootVBox/StatusBox/StoreStatusLabel")
-	_check(action_status.text == "店铺状态：尚未开业", "切到第二企划后ActionPanel应反映当前企划")
 	_check(GameManager.store_state != null and GameManager.store_state.id == second_id, "UI测试结束时store_state应指向第二企划")

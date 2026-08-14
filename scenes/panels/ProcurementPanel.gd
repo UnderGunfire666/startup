@@ -7,6 +7,8 @@ signal procurement_completed
 @onready var total_label: Label = $MarginContainer/VBox/TotalLabel
 @onready var purchase_button: Button = $MarginContainer/VBox/PurchaseButton
 @onready var status_label: Label = $MarginContainer/VBox/StatusLabel
+@onready var inventory_forecast_label: Label = $MarginContainer/VBox/InventoryForecastLabel
+@onready var purchase_history_label: Label = $MarginContainer/VBox/PurchaseHistoryLabel
 
 var _quantity_inputs: Dictionary = {}
 var _line_totals: Dictionary = {}
@@ -23,6 +25,8 @@ func refresh() -> void:
 	var player := GameManager.player_state
 	cash_label.text = "当前现金：¥%.0f" % player.cash
 	status_label.text = ""
+	inventory_forecast_label.text = ""
+	purchase_history_label.text = ""
 
 	if not player.is_character_created:
 		status_label.text = "请先创建角色。"
@@ -31,7 +35,14 @@ func refresh() -> void:
 		return
 
 	if GameManager.store_state == null:
+		purchase_history_label.text = ""
 		status_label.text = "请先在「我的店铺」创建开店企划。"
+		purchase_button.disabled = true
+		_update_total_label()
+		return
+	if GameManager.store_state.signed_storefront_id.is_empty() or GameManager.store_state.category_slots.is_empty():
+		_refresh_purchase_history(GameManager.store_state)
+		status_label.text = "请先签约门面并确定至少一个品类后再采购。"
 		purchase_button.disabled = true
 		_update_total_label()
 		return
@@ -47,6 +58,9 @@ func refresh() -> void:
 		return
 
 	purchase_button.disabled = false
+	_refresh_purchase_history(GameManager.store_state)
+	var estimated_orders := GameManager.get_estimated_orders_supported(GameManager.store_state)
+	inventory_forecast_label.text = "\u5e93\u5b58\u9884\u4f30\uff1a\u6309\u5f53\u524d\u5546\u54c1\u5747\u8861\u9500\u552e\u53ef\u652f\u6491\u7ea6 %d \u5355\uff08\u5df2\u8ba1\u5165\u9ed8\u8ba4\u5236\u4f5c\u635f\u8017\uff09" % estimated_orders
 	for ingredient in ingredients:
 		ingredient_list.add_child(_build_ingredient_row(ingredient))
 	_update_total_label()
@@ -72,6 +86,12 @@ func _build_ingredient_row(ingredient: IngredientData) -> Control:
 	stock_label.text = "库存 %.2f" % stock
 	stock_label.custom_minimum_size = Vector2(95, 0)
 	top_row.add_child(stock_label)
+
+	var spoilage_ratio := float(GameManager.get_ingredient_spoilage_ratios(store).get(ingredient.id, 0.0))
+	var storage_label := Label.new()
+	storage_label.text = "\u4fdd\u5b58\uff1a%s | \u6bcf\u65f6\u6bb5\u8fc7\u671f %.2f%%" % [_storage_condition_name(ingredient.storage_condition), spoilage_ratio * 100.0]
+	storage_label.custom_minimum_size = Vector2(180, 0)
+	top_row.add_child(storage_label)
 
 	var avg_cost := store.get_ingredient_avg_cost(ingredient.id)
 	var avg_cost_text := "暂无均价"
@@ -120,6 +140,31 @@ func _get_purchase_step(unit: String) -> float:
 	if unit == "个" or unit == "份":
 		return 1.0
 	return 0.5
+
+
+func _storage_condition_name(condition: String) -> String:
+	match condition:
+		"refrigerated": return "\u51b7\u85cf"
+		"frozen": return "\u51b7\u51bb"
+		_: return "\u5e38\u6e29"
+
+
+func _refresh_purchase_history(store: Store) -> void:
+	if store == null or store.purchase_history.is_empty():
+		purchase_history_label.text = "\u8fd1\u671f\u91c7\u8d2d\u8bb0\u5f55\uff1a\u6682\u65e0"
+		return
+	var lines: Array[String] = ["\u8fd1\u671f\u91c7\u8d2d\u8bb0\u5f55\uff1a"]
+	var start := maxi(0, store.purchase_history.size() - 5)
+	for index in range(store.purchase_history.size() - 1, start - 1, -1):
+		var record: Dictionary = store.purchase_history[index]
+		var item_parts: Array[String] = []
+		var items: Dictionary = record.get("items", {})
+		for ingredient_id in items.keys():
+			var ingredient := GameManager.get_ingredient(str(ingredient_id))
+			var name := ingredient.name if ingredient != null else str(ingredient_id)
+			item_parts.append("%s %.2f" % [name, float(items[ingredient_id])])
+		lines.append("\u7b2c%d\u5929 %02d:%02d  |  %s  |  %.2f\u5143" % [int(record.get("day", 1)), int(record.get("hour", 0)), int(record.get("minute", 0)), "\u3001".join(item_parts), float(record.get("total_cost", 0.0))])
+	purchase_history_label.text = "\n".join(lines)
 
 func _update_line_total(ingredient_id: String) -> void:
 	if not _quantity_inputs.has(ingredient_id):

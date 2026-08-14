@@ -33,7 +33,7 @@ func _format_summary(day: int, s: Dictionary) -> String:
 	text += "员工成本：-%.0f 元\n" % s.staff_cost
 	text += "租金成本：-%.0f 元\n" % s.rent_cost
 	text += "水电成本：-%.0f 元\n" % s.utility_cost
-	text += "库存损耗：-%.0f 元\n" % s.waste_cost
+	text += "\u539f\u6599\u635f\u8017\uff1a\u5236\u4f5c\u4e0e\u8fc7\u671f\u635f\u8017\u5df2\u4ece\u5e93\u5b58\u4e2d\u6263\u9664\uff08\u8be6\u60c5\u89c1\u5386\u53f2\u8bb0\u5f55\uff09\n"
 
 	var profit_color := "green" if s.profit >= 0.0 else "red"
 	text += "[color=%s][b]当日利润：%+.0f 元[/b][/color]\n\n" % [profit_color, s.profit]

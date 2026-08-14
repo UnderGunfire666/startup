@@ -89,12 +89,20 @@ const SERVICE_SPEED_MOD: Dictionary = {
 	"slow":   0.50
 }
 
+const CUSTOMER_MAX_QUEUE_WAIT_SECONDS: float = 300.0
+const TRAFFIC_SCALE_MULTIPLIER: float = 10.0
+
 # ── 营业策略修正 ──────────────────────────────────────────
 const OFF_SUGGESTED_HOUR_ENTRY_PENALTY: float = -0.005
 
-# ── 损耗配置 ─────────────────────────────────────────────
-const WASTE_THRESHOLD_RATIO: float  = 1.20   # 库存 > 销量×1.20 才计损耗
-const WASTE_COST_RATIO_OF_INGREDIENT: float = 0.10  # 超量部分×食材成本×10%
+# ── 原料损耗配置 ─────────────────────────────────────────
+## 每份商品默认会额外消耗 20% 原料；当班的对应技能员工会降低该比例。
+const PREPARATION_WASTE_RATIO: float = 0.20
+const SKILLED_PREPARATION_WASTE_REDUCTION_PER_LEVEL: float = 0.08
+const MIN_PREPARATION_WASTE_RATIO: float = 0.05
+## 暂未引入冷藏设备时，每个结算时段会自然过期当前库存的 0.2%，关门时同样生效。
+## 后续冰箱/冰柜将通过降低这个比例接入，不需要改变库存或结算结构。
+const INGREDIENT_SPOILAGE_RATIO_PER_OPEN_SLOT: float = 0.002
 
 # ── 压力阈值与成交率惩罚 ──────────────────────────────────
 const STRESS_HIGH_THRESHOLD: float    = 70.0
@@ -121,7 +129,6 @@ const ENFORCE_CATEGORY_RESTRICTION: bool = true  # 调试模式可覆盖
 const INITIAL_CASH: float      = 100000.0
 const INITIAL_REPUTATION: float = 50.0
 const INITIAL_STRESS: float     = 20.0
-const INITIAL_INVENTORY: int    = 100
 
 # ── 门面基础水电（与面积相关，每时段仅结算一次） ─────────────
 const BASE_UTILITY_COST_PER_AREA_PER_SLOT: float = 0.8  # 元/㎡/时段

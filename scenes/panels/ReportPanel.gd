@@ -2,40 +2,31 @@ extends PanelContainer
 
 @onready var label: RichTextLabel = $MarginContainer/RichTextLabel
 
+
 func _ready() -> void:
-	_show_empty_message(
-		"尚无结算记录。请在经营控制面板点击「推进到下一时段并结算」。"
-	)
+	_show_empty_message("\u6682\u65e0\u7ed3\u7b97\u8bb0\u5f55\u3002\u8425\u4e1a\u4e00\u4e2a\u65f6\u6bb5\u540e\uff0c\u6b64\u5904\u4f1a\u663e\u793a\u5ba2\u6d41\u3001\u6392\u961f\u3001\u5e93\u5b58\u4e0e\u635f\u76ca\u7684\u5177\u4f53\u539f\u56e0\u3002")
+
 
 func display(results: Array) -> void:
-	if results.is_empty():
-		_show_empty_message("本时段没有可展示的结算记录。")
-		return
-
 	var product_results: Array[SettlementResult] = []
 	var overhead_results: Array[SettlementResult] = []
-
-	for r in results:
-		if not (r is SettlementResult):
+	for item in results:
+		if not (item is SettlementResult):
 			continue
-		if r.is_store_overhead:
-			overhead_results.append(r)
+		if item.is_store_overhead:
+			overhead_results.append(item)
 		else:
-			product_results.append(r)
+			product_results.append(item)
+	if product_results.is_empty() and overhead_results.is_empty():
+		_show_empty_message("\u672c\u65f6\u6bb5\u6ca1\u6709\u53ef\u5c55\u793a\u7684\u7ed3\u7b97\u8bb0\u5f55\u3002")
+		return
 
 	var blocks: Array[String] = []
-
-	var grouped := _group_by_category(product_results)
-	for category_id in grouped.order:
-		blocks.append(_format_category_block(grouped.map[category_id]))
-
-	for r in overhead_results:
-		blocks.append(_format_overhead_block(r))
-
-	if blocks.is_empty():
-		label.text = "[color=gray]本时段没有有效的结算记录。[/color]"
-	else:
-		label.text = "\n[color=gray]────────────────────[/color]\n\n".join(blocks)
+	for result in product_results:
+		blocks.append(_format_product(result))
+	for result in overhead_results:
+		blocks.append(_format_overhead(result))
+	label.text = "\n[color=gray]------------------------------------------------[/color]\n\n".join(blocks)
 	label.scroll_to_line(0)
 
 
@@ -44,126 +35,45 @@ func _show_empty_message(message: String) -> void:
 	label.scroll_to_line(0)
 
 
-## 按品类分组，保留首次出现的顺序
-func _group_by_category(list: Array[SettlementResult]) -> Dictionary:
-	var order: Array[String] = []
-	var map: Dictionary = {}
-	for r in list:
-		if not map.has(r.category_id):
-			map[r.category_id] = []
-			order.append(r.category_id)
-		map[r.category_id].append(r)
-	return {"order": order, "map": map}
+func _format_product(r: SettlementResult) -> String:
+	var title := "[b]\u7b2c %d \u65e5 %s | %s - %s[/b]" % [r.day, r.slot, r.category_name, r.product_name]
+	var lines: Array[String] = [title]
+	if not r.is_open:
+		lines.append("[color=orange]\u672a\u53c2\u4e0e\u8425\u4e1a[/color]  \u539f\u56e0\uff1a%s" % r.not_open_reason)
+		lines.append("\u6f5c\u5728\u8fdb\u5e97\u5ba2\u6d41\uff1a%d  |  \u5f53\u524d\u4eba\u624b\u6548\u80fd\uff1a%.2f" % [r.base_visitors, r.staffing_power])
+		return "\n".join(lines)
+
+	lines.append("[b]\u5ba2\u6d41\u6f0f\u6597[/b]  \u5546\u5708\u6709\u6548\u5ba2\u6d41 %.0f -> \u53ef\u89e6\u8fbe %.0f -> \u5b9e\u9645\u8fdb\u5e97 %d -> \u60f3\u4e0b\u5355 %d -> \u6210\u4ea4 %d" % [r.slot_foot_traffic, r.reachable_traffic, r.visitors, r.theoretical_orders, r.actual_orders])
+	lines.append("\u8f6c\u5316\u7387\uff1a%.1f%%  |  \u672a\u8fdb\u5e97\uff1a%d  |  \u8fdb\u5e97\u540e\u672a\u4e0b\u5355\uff1a%d" % [r.conversion_rate * 100.0, r.lost_no_entry, r.lost_no_conversion])
+	lines.append("[b]\u51fa\u9910\u4e0e\u6392\u961f[/b]  \u5355\u4efd\u9884\u8ba1\u51fa\u9910\uff1a%s  |  \u5f53\u524d\u4eba\u624b\u6548\u80fd\uff1a%.2f" % [_format_seconds(r.service_time_seconds), r.staffing_power])
+	lines.append("\u6210\u4ea4\u5ba2\u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s  |  \u5ba2\u6237\u5fcd\u8010\u4e0a\u9650\uff1a%s  |  \u56e0\u6392\u961f\u653e\u5f03\uff1a%d" % [_format_seconds(r.average_queue_wait_seconds), _format_seconds(r.max_queue_wait_seconds), _format_seconds(r.queue_patience_seconds), r.lost_capacity])
+	lines.append("[b]\u5e93\u5b58\u4e0e\u5546\u54c1[/b]  \u552e\u4ef7\uff1a%.2f\u5143  |  \u672c\u65f6\u6bb5\u539f\u6599\u53ef\u505a\uff1a%d \u5355  |  \u539f\u6599\u4e0d\u8db3\u672a\u6210\u4ea4\uff1a%d \u5355" % [r.unit_price, r.inventory_limit, r.lost_inventory])
+	lines.append("\u5236\u4f5c\u539f\u6599\u635f\u8017\uff1a%s\uff08\u5f53\u524d\u603b\u6d88\u8017\u4e3a\u914d\u65b9\u7684 %.0f%%\uff09" % [_format_ingredients(r.preparation_waste_ingredients), r.ingredient_consumption_multiplier * 100.0])
+	lines.append("[b]\u635f\u76ca[/b]  \u8425\u6536\uff1a%.2f  |  \u539f\u6599\u6210\u672c\uff08\u542b\u5236\u4f5c\u635f\u8017\uff09\uff1a%.2f  |  \u79df\u91d1\uff1a%.2f  |  \u6c34\u7535\uff1a%.2f  |  \u4eba\u5de5\uff1a%.2f  |  [b]\u5229\u6da6\uff1a%.2f[/b]" % [r.revenue, r.ingredient_cost, r.rent_cost, r.utility_cost, r.staff_cost, r.profit])
+	lines.append("\u8f6c\u5316\u4fee\u6b63\uff1a\u5b9a\u4ef7 %+.1f%%\uff0c\u53e3\u7891 %+.1f%%\uff0c\u5e97\u4e3b\u7763\u5bfc %+.1f%%\uff0c\u7279\u8d28 %+.1f%%" % [r.price_modifier * 100.0, r.reputation_modifier * 100.0, r.owner_modifier * 100.0, r.trait_modifier * 100.0])
+	if not r.top_positive.is_empty():
+		lines.append("[color=green]\u6709\u5229\u56e0\u7d20\uff1a%s[/color]" % "\u3001".join(r.top_positive))
+	if not r.top_negative.is_empty():
+		lines.append("[color=tomato]\u9700\u5173\u6ce8\uff1a%s[/color]" % "\u3001".join(r.top_negative))
+	return "\n".join(lines)
 
 
-## 生成单个品类的聚合报告（品类汇总 + 各商品明细）
-func _format_category_block(items: Array) -> String:
-	var first: SettlementResult = items[0]
-	var slot_name: String = first.slot
-
-	if not first.is_open:
-		var text := "[color=orange]⛔ 第%d天 · 「%s」 %s — 本时段不营业[/color]\n" % [
-			first.day, first.category_name, slot_name
-		]
-		text += first.not_open_reason + "\n"
-		return text
-
-	var text := "[b]═══ 第%d天 · 「%s」 %s 结算报告 ═══[/b]\n\n" % [
-		first.day, first.category_name, slot_name
-	]
-
-	var sum_reachable := 0.0
-	var sum_visitors := 0
-	var sum_theoretical := 0
-	var sum_capacity := 0
-	var sum_inventory_limit := 0
-	var sum_actual := 0
-	var sum_lost_no_entry := 0
-	var sum_lost_no_conv := 0
-	var sum_lost_capacity := 0
-	var sum_lost_inventory := 0
-	var sum_revenue := 0.0
-	var sum_ingredient := 0.0
-	var sum_staff := 0.0
-	var sum_utility := 0.0
-	var sum_waste := 0.0
-	var sum_profit := 0.0
-	var sum_rep_delta := 0.0
-	var sum_stress_delta := 0.0
-
-	for r in items:
-		sum_reachable += r.reachable_traffic
-		sum_visitors += r.visitors
-		sum_theoretical += r.theoretical_orders
-		sum_capacity += r.slot_capacity
-		sum_inventory_limit += r.inventory_limit
-		sum_actual += r.actual_orders
-		sum_lost_no_entry += r.lost_no_entry
-		sum_lost_no_conv += r.lost_no_conversion
-		sum_lost_capacity += r.lost_capacity
-		sum_lost_inventory += r.lost_inventory
-		sum_revenue += r.revenue
-		sum_ingredient += r.ingredient_cost
-		sum_staff += r.staff_cost
-		sum_utility += r.utility_cost
-		sum_waste += r.waste_cost
-		sum_profit += r.profit
-		sum_rep_delta += r.reputation_delta
-		sum_stress_delta += r.stress_delta
-
-	text += "[b]【品类客流汇总】[/b]\n"
-	text += "可触达人流：%.0f 人 → 进店 %d 人\n" % [sum_reachable, sum_visitors]
-	text += "理论订单：%d 单 | 接待上限：%d 单 | 原材料上限：%d 单\n" % [
-		sum_theoretical, sum_capacity, sum_inventory_limit
-	]
-	text += "[b]实际订单合计：%d 单[/b]\n\n" % sum_actual
-
-	if sum_lost_no_entry + sum_lost_no_conv + sum_lost_capacity + sum_lost_inventory > 0:
-		text += "[b]【未成交原因】[/b]\n"
-		text += "未进店：%d 人 | 进店未下单：%d 人\n" % [sum_lost_no_entry, sum_lost_no_conv]
-		if sum_lost_capacity > 0:
-			text += "[color=orange]容量不足损失：%d 单[/color]\n" % sum_lost_capacity
-		if sum_lost_inventory > 0:
-			text += "[color=red]原材料不足损失：%d 单[/color]\n" % sum_lost_inventory
-		text += "\n"
-
-	text += "[b]【品类财务汇总】[/b]\n"
-	text += "营业收入：+%.0f 元\n" % sum_revenue
-	text += "食材成本：-%.0f 元\n" % sum_ingredient
-	text += "员工成本：-%.0f 元\n" % sum_staff
-	text += "水电成本：-%.0f 元\n" % sum_utility
-	text += "库存损耗：-%.0f 元\n" % sum_waste
-
-	var profit_color := "green" if sum_profit >= 0.0 else "red"
-	text += "[color=%s][b]品类利润合计：%+.0f 元[/b][/color]\n\n" % [profit_color, sum_profit]
-
-	text += "[b]【状态变化】[/b]\n"
-	var rep_color := "green" if sum_rep_delta >= 0.0 else "red"
-	text += "口碑：[color=%s]%+.1f[/color]  压力：%+.1f\n\n" % [
-		rep_color, sum_rep_delta, sum_stress_delta
-	]
-
-	text += "[b]【商品明细】[/b]\n"
-	for r in items:
-		var p_color := "green" if r.profit >= 0.0 else "red"
-		text += "- %s：订单%d单 | 收入%.0f元 | [color=%s]利润%+.0f元[/color]\n" % [
-			r.product_name, r.actual_orders, r.revenue, p_color, r.profit
-		]
-		if not r.top_negative.is_empty():
-			text += "  ⚠ %s\n" % "；".join(r.top_negative.slice(0, 2))
-
-	return text
+func _format_overhead(r: SettlementResult) -> String:
+	return "[b]\u7b2c %d \u65e5 %s | \u95e8\u5e97\u56fa\u5b9a\u5f00\u652f\u4e0e\u539f\u6599\u8fc7\u671f[/b]\n\u623f\u79df\uff1a%.2f  |  \u57fa\u7840\u6c34\u7535\uff1a%.2f  |  \u5458\u5de5\u5de5\u8d44\uff1a%.2f  |  [b]\u5408\u8ba1\uff1a%.2f[/b]\n\u672c\u65f6\u6bb5\u81ea\u7136\u8fc7\u671f\u539f\u6599\uff1a%s" % [r.day, r.slot, r.rent_cost, r.utility_cost, r.staff_cost, -r.profit, _format_ingredients(r.spoilage_ingredients)]
 
 
-## 生成门店整体固定成本的精简报告（跳过与商品经营无关的字段）
-func _format_overhead_block(r: SettlementResult) -> String:
-	var slot_name: String = r.slot
-	var text := "[b]═══ 第%d天 · %s · %s ═══[/b]\n\n" % [r.day, r.category_name, slot_name]
+func _format_ingredients(items: Dictionary) -> String:
+	if items.is_empty():
+		return "\u65e0"
+	var parts: Array[String] = []
+	for ingredient_id in items:
+		var ingredient := GameManager.get_ingredient(str(ingredient_id))
+		var name := ingredient.name if ingredient != null else str(ingredient_id)
+		parts.append("%s %.2f" % [name, float(items[ingredient_id])])
+	return "\u3001".join(parts)
 
-	text += "租金：-%.0f 元\n" % r.rent_cost
-	text += "水电：-%.0f 元\n" % r.utility_cost
 
-	var total := r.rent_cost + r.utility_cost
-	text += "[color=red][b]固定成本合计：-%.0f 元[/b][/color]\n" % total
-
-	return text
+func _format_seconds(value: float) -> String:
+	if value < 60.0:
+		return "%.0f\u79d2" % value
+	return "%.1f\u5206\u949f" % (value / 60.0)

@@ -32,6 +32,8 @@ var region_intel_levels: Dictionary = {}
 var region_intel_progress: Dictionary = {}
 var block_understanding: Dictionary = {}
 var storefront_diligence: Dictionary = {}
+## 完整尽调是可中断的连续行动；这里保存门面的累计勘验进度（0-100）。
+var storefront_diligence_progress: Dictionary = {}
 var survey_areas: Array[SurveyAreaState] = []
 var focused_city_region_id: String = ""
 
@@ -41,6 +43,11 @@ var current_block_id: String = ""
 
 ## 玩家当前亲自坐镇在哪家店，同一时刻只能坐镇一家；空字符串=不在任何店坐镇。
 var supervising_store_id: String = ""
+
+## The owner can also work a station.  These are intentionally separate from
+## character-creation traits so future training and events can grant skills.
+var work_skills: Array[String] = []
+var work_skill_level: float = 1.0
 
 func reset_to_defaults() -> void:
 	is_character_created = false
@@ -61,6 +68,8 @@ func reset_to_defaults() -> void:
 	selected_trait_ids.clear()
 	current_block_id = ""
 	supervising_store_id = ""
+	work_skills.clear()
+	work_skill_level = 1.0
 
 
 func get_used_trait_points() -> int:
@@ -78,6 +87,17 @@ func get_remaining_trait_points() -> int:
 
 func has_trait(trait_id: String) -> bool:
 	return trait_id in selected_trait_ids
+
+
+func has_work_skill(skill_id: String) -> bool:
+	return not skill_id.is_empty() and skill_id in work_skills
+
+
+func add_work_skill(skill_id: String) -> bool:
+	if skill_id.is_empty() or has_work_skill(skill_id):
+		return false
+	work_skills.append(skill_id)
+	return true
 
 
 func get_selected_trait_for_type(trait_type: String) -> String:
@@ -101,6 +121,19 @@ func get_block_understanding(block_id: String) -> float:
 
 func get_storefront_diligence(storefront_id: String) -> String:
 	return str(storefront_diligence.get(storefront_id, "not_viewed"))
+
+
+func get_storefront_diligence_progress(storefront_id: String) -> float:
+	if get_storefront_diligence(storefront_id) == "full_diligence":
+		return 100.0
+	return clampf(float(storefront_diligence_progress.get(storefront_id, 0.0)), 0.0, 100.0)
+
+
+func advance_storefront_diligence_progress(storefront_id: String, amount: float) -> float:
+	var progress := get_storefront_diligence_progress(storefront_id)
+	progress = clampf(progress + amount, 0.0, 100.0)
+	storefront_diligence_progress[storefront_id] = progress
+	return progress
 
 
 func get_survey_area(id: String) -> SurveyAreaState:
@@ -260,10 +293,13 @@ func to_save_dict() -> Dictionary:
 		"region_intel_progress": region_intel_progress,
 		"block_understanding": block_understanding,
 		"storefront_diligence": storefront_diligence,
+		"storefront_diligence_progress": storefront_diligence_progress,
 		"survey_areas": _survey_areas_to_save_data(),
 		"focused_city_region_id": focused_city_region_id,
 		"current_block_id": current_block_id,
 		"supervising_store_id": supervising_store_id,
+		"work_skills": work_skills,
+		"work_skill_level": work_skill_level,
 	}
 
 
@@ -299,9 +335,14 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p.region_intel_progress = data.get("region_intel_progress", {})
 	p.block_understanding = data.get("block_understanding", {})
 	p.storefront_diligence = data.get("storefront_diligence", {})
+	p.storefront_diligence_progress = data.get("storefront_diligence_progress", {})
 	p.focused_city_region_id = data.get("focused_city_region_id", "")
 	p.current_block_id = str(data.get("current_block_id", ""))
 	p.supervising_store_id = data.get("supervising_store_id", "")
+	p.work_skill_level = float(data.get("work_skill_level", 1.0))
+	var raw_work_skills: Array = data.get("work_skills", [])
+	for skill_id in raw_work_skills:
+		p.work_skills.append(str(skill_id))
 
 	var survey_area_raw: Array = data.get("survey_areas", [])
 	var survey_area_typed: Array[SurveyAreaState] = []

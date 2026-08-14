@@ -1,6 +1,8 @@
-[gd_scene format=3 uid="uid://dmvtdi23pfj6m"]
+[gd_scene load_steps=2 format=3 uid="uid://dmvtdi23pfj6m"]
 
 [ext_resource type="Script" uid="uid://cjf7fiauc17mn" path="res://scenes/panels/SaveLoadBar.gd" id="1"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_time_speed"]
 
 [node name="SaveLoadBar" type="HBoxContainer" unique_id=799528406]
 script = ExtResource("1")
@@ -16,6 +18,43 @@ text = "读取存档"
 [node name="NewGameButton" type="Button" parent="." unique_id=1455957774]
 layout_mode = 2
 text = "新开局"
+
+[node name="TimeLabel" type="Label" parent="."]
+layout_mode = 2
+text = "第 1 天｜08:00:00"
+
+[node name="PauseButton" type="Button" parent="."]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_time_speed")
+text = "⏸ 暂停"
+
+[node name="Speed1Button" type="Button" parent="."]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_time_speed")
+text = "▶ 1x"
+
+[node name="Speed2Button" type="Button" parent="."]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_time_speed")
+text = "▶▶ 2x"
+
+[node name="Speed5Button" type="Button" parent="."]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_time_speed")
+text = "▶▶▶ 5x"
+
+[node name="CurrentActionLabel" type="Label" parent="."]
+visible = false
+layout_mode = 2
+
+[node name="StopActionButton" type="Button" parent="."]
+visible = false
+layout_mode = 2
+text = "结束行动"
 
 [node name="StatusLabel" type="Label" parent="." unique_id=400413622]
 layout_mode = 2

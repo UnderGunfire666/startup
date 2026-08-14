@@ -28,6 +28,7 @@ func _ready() -> void:
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
 	start_research_button.pressed.connect(_on_start_research_pressed)
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
+	ScheduleManager.hour_effect_applied.connect(_on_action_progress_applied)
 	GameManager.storefronts_discovered.connect(_on_storefronts_discovered)
 
 	research_mode_option.clear()
@@ -87,7 +88,27 @@ func _on_research_mode_selected(_mode_id: int) -> void:
 
 func _on_schedule_changed() -> void:
 	_refresh_report()
+	_refresh_storefront_list()
 	_refresh_research_controls()
+	if ScheduleManager.current_action == null and not ScheduleManager.completed_entries_today.is_empty():
+		var last_entry: ScheduledActionEntry = ScheduleManager.completed_entries_today.back()
+		if last_entry.action_id == "deep_inspection":
+			var storefront := GameManager.get_storefront(last_entry.target_id)
+			var storefront_name := storefront.name if storefront != null else last_entry.target_id
+			status_label.text = "✅ 深度勘验完成：%s" % storefront_name if last_entry.status == "completed" else "⚠ 深度勘验已停止：%s" % last_entry.failure_reason
+
+
+func _on_action_progress_applied(action_id: String, _elapsed_hours: float, _progress_ratio: float, _effect_mult: float) -> void:
+	if action_id == "region_research":
+		_refresh_report()
+		_refresh_research_controls()
+	elif action_id == "deep_inspection":
+		_refresh_storefront_list()
+		var active := ScheduleManager.current_action
+		if active != null:
+			var storefront := GameManager.get_storefront(active.target_id)
+			if storefront != null:
+				status_label.text = "🔎 正在深度勘验「%s」：%.0f%%" % [storefront.name, GameManager.get_storefront_diligence_progress(storefront.id)]
 
 
 func _on_sequence_changed() -> void:
@@ -195,13 +216,15 @@ func _build_storefront_row(storefront: StorefrontData) -> Control:
 	var box := VBoxContainer.new()
 
 	var diligence := GameManager.get_storefront_diligence(storefront.id)
+	var diligence_progress := GameManager.get_storefront_diligence_progress(storefront.id)
 	var diligence_text: String = {
 		"initial_viewing": "初步看铺",
 		"full_diligence": "完整尽调",
 	}.get(diligence, diligence)
 
 	var name_label := Label.new()
-	name_label.text = "%s（%s ｜ 状态：%s）" % [storefront.name, storefront.notes, diligence_text]
+	var progress_text := "（%.0f%%）" % diligence_progress if diligence == "initial_viewing" else ""
+	name_label.text = "%s（%s ｜ 状态：%s%s）" % [storefront.name, storefront.notes, diligence_text, progress_text]
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(name_label)
 
@@ -210,10 +233,13 @@ func _build_storefront_row(storefront: StorefrontData) -> Control:
 
 	if diligence == "initial_viewing":
 		var deep_btn := Button.new()
-		deep_btn.text = "深度勘验"
+		var is_inspecting := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active and ScheduleManager.current_action.action_id == "deep_inspection" and ScheduleManager.current_action.target_id == storefront.id
+		deep_btn.text = "深度勘验中（%.0f%%）" % diligence_progress if is_inspecting else "深度勘验（%.0f%%）" % diligence_progress
+		deep_btn.disabled = ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
 		deep_btn.pressed.connect(func():
 			var result := ScheduleManager.start_action_now("deep_inspection", storefront.id)
 			status_label.text = ("✅ " if result.get("can", false) else "⚠ ") + str(result.get("reason", ""))
+			_refresh_storefront_list()
 		)
 		row.add_child(deep_btn)
 

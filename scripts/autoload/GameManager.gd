@@ -2,6 +2,7 @@ extends Node
 
 ## GameManager.gd 顶部signal区新增
 signal active_store_changed(store_id: String)
+signal store_plan_updated(store_id: String)
 signal storefronts_discovered(storefront_ids: Array[String])
 
 var player_state: PlayerState = PlayerState.new()
@@ -13,6 +14,8 @@ var all_storefronts: Array[StorefrontData] = []
 var all_categories: Array[CategoryData] = []
 var all_products: Array[ProductData] = []
 var all_ingredients: Array[IngredientData] = []
+var all_equipment: Array[EquipmentData] = []
+var all_employee_candidates: Array[EmployeeCandidateData] = []
 
 var all_city_regions: Array[CityRegionData] = []
 var all_blocks: Array[BlockData] = []
@@ -39,6 +42,8 @@ func _ready() -> void:
 	all_categories  = GameData.get_categories()
 	all_products    = GameData.get_products()
 	all_ingredients = GameData.get_ingredients()
+	all_equipment = GameData.get_equipment()
+	all_employee_candidates = GameData.get_employee_candidates()
 
 	all_city_regions = GameData.get_city_regions()
 	all_blocks = GameData.get_blocks()
@@ -257,6 +262,21 @@ func get_storefront_diligence(storefront_id: String) -> String:
 	return player_state.get_storefront_diligence(storefront_id)
 
 
+func get_storefront_diligence_progress(storefront_id: String) -> float:
+	return player_state.get_storefront_diligence_progress(storefront_id)
+
+
+func advance_storefront_diligence_progress(storefront_id: String, amount: float) -> Dictionary:
+	if get_storefront(storefront_id) == null:
+		return {"success": false, "reason": "门面不存在"}
+	if get_storefront_diligence(storefront_id) == "not_viewed":
+		return {"success": false, "reason": "请先完成初步看铺，再进行完整尽调"}
+	return {
+		"success": true,
+		"progress": player_state.advance_storefront_diligence_progress(storefront_id, amount),
+	}
+
+
 func advance_storefront_diligence(storefront_id: String, target_state: String) -> Dictionary:
 	if not SpatialConfig.is_valid_storefront_diligence_state(target_state):
 		return {"success": false, "reason": "未知的尽调目标状态：%s" % target_state}
@@ -276,6 +296,7 @@ func advance_storefront_diligence(storefront_id: String, target_state: String) -
 		if current_state == "not_viewed":
 			return {"success": false, "reason": "请先完成初步看铺，再进行完整尽调"}
 		player_state.storefront_diligence[storefront_id] = "full_diligence"
+		player_state.storefront_diligence_progress[storefront_id] = 100.0
 		return {"success": true, "reason": "已完成完整尽调"}
 
 	return {"success": false, "reason": "不支持回退尽调状态"}
@@ -392,11 +413,23 @@ func get_product(id: String) -> ProductData:
 		if p.id == id: return p
 	return null
 
+func get_equipment(id: String) -> EquipmentData:
+	for item in all_equipment:
+		if item.id == id:
+			return item
+	return null
+
+func get_employee_candidate(id: String) -> EmployeeCandidateData:
+	for candidate in all_employee_candidates:
+		if candidate.id == id:
+			return candidate
+	return null
+
 
 func get_products_for_category(category_id: String) -> Array[ProductData]:
 	var result: Array[ProductData] = []
 	for p in all_products:
-		if p.category_id == category_id:
+		if p.category_id == category_id or p.is_universal:
 			result.append(p)
 	return result
 
@@ -440,14 +473,18 @@ func get_product_unit_utility_cost(product: ProductData) -> float:
 	return product.utility_cost_per_unit
 
 
-func get_product_unit_ingredient_cost_for_store(store: Store, product: ProductData) -> float:
+func get_product_unit_ingredient_cost_for_store(
+		store: Store,
+		product: ProductData,
+		consumption_multiplier: float = 1.0
+) -> float:
 	if store == null:
 		return 0.0
 	var total_cost := 0.0
 	for recipe_item in product.recipe:
 		var ingredient_id: String = recipe_item.get("ingredient_id", "")
 		var quantity: float = float(recipe_item.get("quantity", 0.0))
-		total_cost += quantity * store.get_ingredient_avg_cost(ingredient_id)
+		total_cost += quantity * maxf(1.0, consumption_multiplier) * store.get_ingredient_avg_cost(ingredient_id)
 	return total_cost
 
 
@@ -470,11 +507,6 @@ func select_storefront(storefront_id: String) -> Dictionary:
 	if sf == null:
 		return {"success": false, "reason": "门面不存在"}
 
-	## 选址必须建立在玩家完成完整尽调的知识基础上。
-	## initial_viewing 只代表门面已被发现/初步看铺，不足以落实到企划。
-	if get_storefront_diligence(storefront_id) != "full_diligence":
-		return {"success": false, "reason": "请先完成该门面的完整尽调后再选定"}
-
 	## 决定②：门面占用校验。
 	if is_storefront_occupied(storefront_id, store.id):
 		return {"success": false, "reason": "该门面已被你名下其他店铺占用"}
@@ -482,10 +514,27 @@ func select_storefront(storefront_id: String) -> Dictionary:
 	store.selected_storefront_id = storefront_id
 	store.signed_storefront_id = ""
 	store.pre_open_stage = Store.PreOpenStage.STORE_SETUP
-	store.category_slots.clear()
 	_sync_data_objects()
+	store_plan_updated.emit(store.id)
 
 	return {"success": true, "reason": "已选定门面：「%s」" % sf.name}
+
+
+func sign_selected_storefront() -> Dictionary:
+	var store := store_state
+	if store == null:
+		return {"success": false, "reason": "当前没有激活的开店企划"}
+	if store.is_open:
+		return {"success": false, "reason": "门店已开业，不能修改签约门面"}
+	if store.selected_storefront_id.is_empty():
+		return {"success": false, "reason": "请先选定门面"}
+	var storefront := get_storefront(store.selected_storefront_id)
+	if storefront == null:
+		return {"success": false, "reason": "选定门面不存在"}
+	store.signed_storefront_id = storefront.id
+	_sync_data_objects()
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "已签约门面：「%s」" % storefront.name}
 
 
 func calculate_purchase_total(cart: Dictionary) -> float:
@@ -503,6 +552,8 @@ func purchase_ingredients(cart: Dictionary) -> Dictionary:
 	var store := store_state
 	if store == null:
 		return {"success": false, "reason": "当前没有激活的店铺"}
+	if store.signed_storefront_id.is_empty() or store.category_slots.is_empty():
+		return {"success": false, "reason": "请先签约门面并确定至少一个品类后再采购"}
 
 	var total_cost := calculate_purchase_total(cart)
 
@@ -536,6 +587,13 @@ func purchase_ingredients(cart: Dictionary) -> Dictionary:
 		)
 
 	player_state.cash -= total_cost
+	store.purchase_history.append({
+		"day": TimeManager.current_day,
+		"hour": TimeManager.get_current_hour_int(),
+		"minute": int((TimeManager.get_hour_of_day() - TimeManager.get_current_hour_int()) * 60.0),
+		"items": cart.duplicate(),
+		"total_cost": total_cost,
+	})
 
 	return {
 		"success": true,
@@ -580,35 +638,355 @@ func _sync_data_objects() -> void:
 func get_category_options_for_current_store() -> Array[Dictionary]:
 	var options: Array[Dictionary] = []
 	var store := store_state
-	if store == null or current_storefront == null:
+	if store == null:
 		return options
-	var available_area := store.get_available_area(current_storefront)
 	for cat in all_categories:
-		var supported: bool = cat.id in current_storefront.supported_categories
-		if not supported:
-			continue
 		var already_added := store.has_category(cat.id)
-		var fits := cat.required_area <= available_area
-		var can_add := supported and not already_added and fits
-		var reason := ""
-		if already_added:
-			reason = "已添加"
-		elif not fits:
-			reason = "面积不足（需%.0f㎡，剩余%.0f㎡）" % [cat.required_area, available_area]
 		options.append({
 			"category": cat,
 			"already_added": already_added,
-			"can_add": can_add,
-			"reason": reason,
+			"can_add": not already_added,
+			"reason": "已添加" if already_added else "",
 		})
 	return options
 
 
-func add_category_to_store(category_id: String, product_ids: Array[String],
-		has_key_staff: bool = false, open_hour_ranges: Array[Vector2i] = []) -> Dictionary:
+func get_required_equipment_for_current_store() -> Array[EquipmentData]:
+	var result: Array[EquipmentData] = []
+	var seen: Dictionary = {}
 	var store := store_state
-	if store == null or current_storefront == null:
-		return {"success": false, "reason": "尚未选择门面"}
+	if store == null:
+		return result
+	for slot in store.category_slots:
+		var category := get_category(slot.category_id)
+		if category == null:
+			continue
+		var has_category_product := false
+		for config in slot.product_configs:
+			var product := get_product(config.product_id)
+			if product != null and not product.is_universal:
+				has_category_product = true
+				break
+		if not has_category_product:
+			continue
+		for equipment_id in category.required_equipment_ids:
+			if seen.has(equipment_id):
+				continue
+			var item := get_equipment(equipment_id)
+			if item != null:
+				seen[equipment_id] = true
+				result.append(item)
+	return result
+
+
+func get_missing_equipment_for_store(store: Store) -> Array[EquipmentData]:
+	var result: Array[EquipmentData] = []
+	if store == null:
+		return result
+	var seen: Dictionary = {}
+	for slot in store.category_slots:
+		var category := get_category(slot.category_id)
+		if category == null:
+			continue
+		var has_category_product := false
+		for config in slot.product_configs:
+			var product := get_product(config.product_id)
+			if product != null and not product.is_universal:
+				has_category_product = true
+				break
+		if not has_category_product:
+			continue
+		for equipment_id in category.required_equipment_ids:
+			if store.has_equipment(equipment_id) or seen.has(equipment_id):
+				continue
+			var item := get_equipment(equipment_id)
+			if item != null:
+				seen[equipment_id] = true
+				result.append(item)
+	return result
+
+
+func store_has_category_equipment(store: Store, category: CategoryData) -> bool:
+	if store == null or category == null:
+		return false
+	var slot := store.get_slot_by_category(category.id)
+	if slot == null:
+		return false
+	var has_category_product := false
+	for config in slot.product_configs:
+		var product := get_product(config.product_id)
+		if product != null and not product.is_universal:
+			has_category_product = true
+			break
+	if not has_category_product:
+		return true
+	for equipment_id in category.required_equipment_ids:
+		if not store.has_equipment(equipment_id):
+			return false
+	return true
+
+
+func get_equipment_used_area(store: Store) -> float:
+	return store.get_equipment_used_area(all_equipment) if store != null else 0.0
+
+
+func get_equipment_hourly_utility_cost(store: Store) -> float:
+	if store == null:
+		return 0.0
+	var total := 0.0
+	for owned in store.equipment:
+		var item := get_equipment(owned.equipment_id)
+		if item != null:
+			total += item.hourly_utility_cost
+	return total
+
+
+func get_storage_equipment_hourly_utility_cost(store: Store) -> float:
+	var total := 0.0
+	if store == null:
+		return total
+	for owned in store.equipment:
+		var item := get_equipment(owned.equipment_id)
+		if item != null and not item.storage_conditions.is_empty():
+			total += item.hourly_utility_cost
+	return total
+
+
+func get_ingredient_spoilage_ratios(store: Store) -> Dictionary:
+	var ratios: Dictionary = {}
+	if store == null:
+		return ratios
+	var stock_by_condition: Dictionary = {}
+	var capacity_by_condition: Dictionary = {}
+	var best_multiplier_by_condition: Dictionary = {}
+	for ingredient in all_ingredients:
+		var condition := ingredient.storage_condition
+		stock_by_condition[condition] = float(stock_by_condition.get(condition, 0.0)) + store.get_ingredient_stock(ingredient.id)
+	for owned in store.equipment:
+		var equipment := get_equipment(owned.equipment_id)
+		if equipment == null:
+			continue
+		for condition in equipment.storage_conditions:
+			capacity_by_condition[condition] = float(capacity_by_condition.get(condition, 0.0)) + equipment.storage_capacity
+			var current_best := float(best_multiplier_by_condition.get(condition, 1.0))
+			best_multiplier_by_condition[condition] = minf(current_best, equipment.spoilage_multiplier)
+	for ingredient in all_ingredients:
+		var condition := ingredient.storage_condition
+		var total_stock := float(stock_by_condition.get(condition, 0.0))
+		var protected_share := minf(1.0, float(capacity_by_condition.get(condition, 0.0)) / total_stock) if total_stock > 0.0 else 0.0
+		var protected_multiplier := float(best_multiplier_by_condition.get(condition, 1.0))
+		var effective_multiplier := 1.0 - protected_share * (1.0 - protected_multiplier)
+		ratios[ingredient.id] = SettlementConfig.INGREDIENT_SPOILAGE_RATIO_PER_OPEN_SLOT * effective_multiplier
+	return ratios
+
+
+func get_estimated_orders_supported(store: Store) -> int:
+	if store == null:
+		return 0
+	var average_demand: Dictionary = {}
+	var product_count := 0
+	for category_slot in store.category_slots:
+		for config in category_slot.product_configs:
+			var product := get_product(config.product_id)
+			if product == null or product.recipe.is_empty():
+				continue
+			product_count += 1
+			for recipe_item in product.recipe:
+				var ingredient_id := str(recipe_item.ingredient_id)
+				average_demand[ingredient_id] = float(average_demand.get(ingredient_id, 0.0)) + float(recipe_item.quantity)
+	if product_count <= 0 or average_demand.is_empty():
+		return 0
+	var supported := INF
+	for ingredient_id in average_demand:
+		var per_order := float(average_demand[ingredient_id]) / float(product_count) * (1.0 + SettlementConfig.PREPARATION_WASTE_RATIO)
+		if per_order > 0.0:
+			supported = minf(supported, floorf(store.get_ingredient_stock(ingredient_id) / per_order))
+	return int(supported) if supported != INF else 0
+
+
+func get_scheduled_staff_hourly_cost(store: Store, hour: int) -> float:
+	if store == null:
+		return 0.0
+	var total := 0.0
+	for employee in store.employees:
+		if employee.is_scheduled_at_hour(hour):
+			total += employee.hourly_wage
+	return total
+
+
+func get_staff_skill_coverage(store: Store, hour: int = -1) -> Dictionary:
+	var coverage: Dictionary = {}
+	if store == null:
+		return coverage
+	for slot in store.category_slots:
+		var category := get_category(slot.category_id)
+		if category == null or category.required_staff.is_empty():
+			continue
+		coverage[category.required_staff] = store.has_employee_with_skill(category.required_staff, hour)
+	return coverage
+
+
+func get_category_staffing_status(store: Store, category: CategoryData, hour: int) -> Dictionary:
+	var required := maxi(1, category.required_staff_count) if category != null else 1
+	var scheduled := 0
+	if store == null or category == null:
+		return {"required": required, "scheduled": scheduled, "ratio": 0.0}
+	for employee in store.employees:
+		if employee.is_scheduled_at_hour(hour) and employee.has_skill(category.required_staff):
+			scheduled += 1
+	if player_state.supervising_store_id == store.id:
+		scheduled += 1
+	return {
+		"required": required,
+		"scheduled": scheduled,
+		"ratio": minf(1.0, float(scheduled) / float(required)),
+	}
+
+
+func get_category_staffing_power(store: Store, category: CategoryData, hour: int) -> float:
+	if store == null or category == null:
+		return 0.0
+	var power := 0.0
+	for employee in store.employees:
+		if employee.is_scheduled_at_hour(hour) and employee.has_skill(category.required_staff):
+			power += employee.skill_level
+	if player_state.supervising_store_id == store.id:
+		## The owner is a real worker. A matching professional skill improves
+		## their contribution, while an untrained owner can still handle basic work.
+		power += maxf(0.85, player_state.work_skill_level if player_state.has_work_skill(category.required_staff) else 0.0)
+	return power
+
+
+func get_category_ingredient_consumption_multiplier(store: Store, category: CategoryData, hour: int) -> float:
+	var waste_ratio := SettlementConfig.PREPARATION_WASTE_RATIO
+	if store == null or category == null:
+		return 1.0 + waste_ratio
+	for employee in store.employees:
+		if not employee.is_scheduled_at_hour(hour) or not employee.has_skill(category.required_staff):
+			continue
+		var level := clampf(employee.skill_level, 0.5, 2.0)
+		waste_ratio -= SettlementConfig.SKILLED_PREPARATION_WASTE_REDUCTION_PER_LEVEL * level
+	if player_state.supervising_store_id == store.id and player_state.has_work_skill(category.required_staff):
+		var player_level := clampf(player_state.work_skill_level, 0.5, 2.0)
+		waste_ratio -= SettlementConfig.SKILLED_PREPARATION_WASTE_REDUCTION_PER_LEVEL * player_level
+	waste_ratio = maxf(SettlementConfig.MIN_PREPARATION_WASTE_RATIO, waste_ratio)
+	return 1.0 + waste_ratio
+
+
+func get_product_service_seconds(category: CategoryData, product: ProductData, staffing_power: float) -> float:
+	var base_seconds := 75.0
+	match category.base_service_speed:
+		"high":
+			base_seconds = 45.0
+		"slow":
+			base_seconds = 120.0
+	var complexity_multiplier := 1.0
+	match product.complexity:
+		"simple":
+			complexity_multiplier = 0.8
+		"complex":
+			complexity_multiplier = 1.35
+		"very_complex":
+			complexity_multiplier = 1.7
+	var speed_bonus := maxf(0.5, product.extra_service_speed_modifier)
+	return maxf(10.0, base_seconds * complexity_multiplier / (maxf(0.1, staffing_power) * speed_bonus))
+
+
+func hire_employee(candidate_id: String) -> Dictionary:
+	var store := store_state
+	if store == null:
+		return {"success": false, "reason": "\u5f53\u524d\u6ca1\u6709\u6d3b\u8dc3\u7684\u5f00\u5e97\u4f01\u5212\u3002"}
+	var candidate := get_employee_candidate(candidate_id)
+	if candidate == null:
+		return {"success": false, "reason": "\u62db\u8058\u5019\u9009\u4eba\u4e0d\u5b58\u5728\u3002"}
+	if store.get_employee(candidate_id) != null:
+		return {"success": false, "reason": "\u8be5\u5458\u5de5\u5df2\u5728\u672c\u5e97\u4efb\u804c\u3002"}
+	if player_state.cash < candidate.recruitment_fee:
+		return {"success": false, "reason": "\u73b0\u91d1\u4e0d\u8db3\uff0c\u8fd8\u9700 %.0f \u5143\u62db\u8058\u8d39\u3002" % (candidate.recruitment_fee - player_state.cash)}
+	var employee := StoreEmployee.new()
+	employee.candidate_id = candidate.id
+	employee.name = candidate.name
+	for skill in candidate.skills:
+		employee.skills.append(skill)
+	employee.hourly_wage = candidate.hourly_wage
+	employee.skill_level = candidate.skill_level
+	store.employees.append(employee)
+	player_state.cash -= candidate.recruitment_fee
+	TimeManager.refresh_current_store_staffing(store)
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "\u5df2\u62db\u8058%s\u3002" % employee.name}
+
+
+func set_employee_work_hours(candidate_id: String, work_hour_ranges: Array[Vector2i]) -> Dictionary:
+	var store := store_state
+	if store == null:
+		return {"success": false, "reason": "\u5f53\u524d\u6ca1\u6709\u6d3b\u8dc3\u7684\u5f00\u5e97\u4f01\u5212\u3002"}
+	var employee := store.get_employee(candidate_id)
+	if employee == null:
+		return {"success": false, "reason": "\u5458\u5de5\u4e0d\u5728\u672c\u5e97\u4efb\u804c\u3002"}
+	for hour_range in work_hour_ranges:
+		if hour_range.x < 0 or hour_range.y > 24 or hour_range.y <= hour_range.x:
+			return {"success": false, "reason": "\u6392\u73ed\u65f6\u95f4\u65e0\u6548\u3002"}
+	var copied_ranges: Array[Vector2i] = []
+	for hour_range in work_hour_ranges:
+		copied_ranges.append(hour_range)
+	employee.work_hour_ranges = copied_ranges
+	TimeManager.refresh_current_store_staffing(store)
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "\u6392\u73ed\u5df2\u66f4\u65b0\u3002"}
+
+
+func purchase_equipment(equipment_id: String) -> Dictionary:
+	var store := store_state
+	if store == null:
+		return {"success": false, "reason": "\u5f53\u524d\u6ca1\u6709\u6d3b\u8dc3\u7684\u5f00\u5e97\u4f01\u5212\u3002"}
+	var storefront := get_storefront(store.signed_storefront_id)
+	if storefront == null:
+		return {"success": false, "reason": "\u8bf7\u5148\u7b7e\u7ea6\u95e8\u9762\u540e\u518d\u8d2d\u7f6e\u8bbe\u5907\u3002"}
+	var item := get_equipment(equipment_id)
+	if item == null:
+		return {"success": false, "reason": "\u8bbe\u5907\u4e0d\u5b58\u5728\u3002"}
+	if player_state.cash < item.price:
+		return {"success": false, "reason": "\u73b0\u91d1\u4e0d\u8db3\uff0c\u8fd8\u9700 %.0f \u5143\u3002" % (item.price - player_state.cash)}
+	var remaining_area := storefront.area - get_equipment_used_area(store)
+	if remaining_area + 0.001 < item.area:
+		return {"success": false, "reason": "\u95e8\u9762\u5269\u4f59\u9762\u79ef\u4e0d\u8db3\uff08\u8fd8\u5269 %.1f \u33a1\uff09" % maxf(0.0, remaining_area)}
+	var owned := StoreEquipment.new()
+	owned.equipment_id = item.id
+	owned.durability = item.max_durability
+	store.equipment.append(owned)
+	player_state.cash -= item.price
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "\u5df2\u8d2d\u7f6e%s\u3002" % item.name}
+	var ignored_legacy_body := """
+	var store := store_state
+	if store == null:
+		return {"success": false, "reason": "当前没有激活的开店企划"}
+	var storefront := get_storefront(store.signed_storefront_id)
+	if storefront == null:
+		return {"success": false, "reason": "请先签约门面后再购置设备"}
+	var item := get_equipment(equipment_id)
+	if item == null:
+		return {"success": false, "reason": "设备不存在"}
+	if player_state.cash < item.price:
+		return {"success": false, "reason": "现金不足，还需要 %.0f 元" % (item.price - player_state.cash)}
+	var remaining_area := storefront.area - get_equipment_used_area(store)
+	if remaining_area + 0.001 < item.area:
+		return {"success": false, "reason": "门面剩余面积不足（还剩 %.1f㎡）" % maxf(0.0, remaining_area)}
+	var owned := StoreEquipment.new()
+	owned.equipment_id = item.id
+	owned.durability = item.max_durability
+	store.equipment.append(owned)
+	player_state.cash -= item.price
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "已购置%s" % item.name}
+
+
+	"""
+func add_category_to_store(category_id: String, product_ids: Array[String]) -> Dictionary:
+	var store := store_state
+	if store == null:
+		return {"success": false, "reason": "当前没有激活的开店企划"}
 	var cat := get_category(category_id)
 	if cat == null:
 		return {"success": false, "reason": "品类不存在"}
@@ -616,24 +994,20 @@ func add_category_to_store(category_id: String, product_ids: Array[String],
 		return {"success": false, "reason": "该品类已添加"}
 	if product_ids.is_empty():
 		return {"success": false, "reason": "请至少选择一个商品"}
-	if category_id not in current_storefront.supported_categories:
-		return {"success": false, "reason": "门面不支持该品类"}
-	var available := store.get_available_area(current_storefront)
-	if cat.required_area > available:
-		return {"success": false, "reason": "面积不足（需%.0f㎡，剩余%.0f㎡）" % [cat.required_area, available]}
 	var setup_cost := cat.setup_cost_wan * 10000.0
 	if player_state.cash < setup_cost:
 		return {"success": false, "reason": "现金不足，开设需要%.0f 元装修/设备投入" % setup_cost}
 
 	var slot := StoreCategorySlot.new()
 	slot.category_id = category_id
-	slot.has_key_staff = has_key_staff
-	slot.open_hour_ranges = open_hour_ranges if not open_hour_ranges.is_empty() else cat.suggested_open_hour_ranges.duplicate()
-	slot.allocated_area = cat.required_area
 	for pid in product_ids:
+		var product := get_product(pid)
+		if product == null or (product.category_id != category_id and not product.is_universal):
+			return {"success": false, "reason": "商品不属于该子类"}
 		var pc := StoreProductConfig.new()
 		pc.product_id = pid
-		pc.inventory_units = SettlementConfig.INITIAL_INVENTORY
+		## 库存只由原材料决定；不再为商品创建虚假的成品库存。
+		pc.inventory_units = 0
 		slot.product_configs.append(pc)
 	store.category_slots.append(slot)
 	player_state.cash -= setup_cost
@@ -649,7 +1023,8 @@ func add_product_to_slot(category_id: String, product_id: String) -> bool:
 		return false
 	var pc := StoreProductConfig.new()
 	pc.product_id = product_id
-	pc.inventory_units = SettlementConfig.INITIAL_INVENTORY
+	## 库存只由原材料决定；不再为商品创建虚假的成品库存。
+	pc.inventory_units = 0
 	slot.product_configs.append(pc)
 	return true
 
@@ -707,48 +1082,62 @@ func set_product_inventory(category_id: String, product_id: String, new_units: i
 	return true
 
 
-func set_category_open_hours(category_id: String, open_hour_ranges: Array[Vector2i]) -> bool:
+func set_store_business_hours(business_hour_ranges: Array[Vector2i]) -> Dictionary:
 	var store := store_state
 	if store == null:
-		return false
-	var slot := store.get_slot_by_category(category_id)
-	if slot == null:
-		return false
-	slot.open_hour_ranges = open_hour_ranges
-	return true
+		return {"success": false, "reason": "\u5f53\u524d\u6ca1\u6709\u6d3b\u8dc3\u7684\u5f00\u5e97\u4f01\u5212\u3002"}
+	if store.is_open:
+		return {"success": false, "reason": "\u95e8\u5e97\u5df2\u5f00\u4e1a\uff0c\u8bf7\u4f7f\u7528\u5f00\u95e8\u6216\u5173\u95e8\u63a7\u5236\u5f53\u524d\u8425\u4e1a\u3002"}
+	if business_hour_ranges.is_empty():
+		return {"success": false, "reason": "\u8bf7\u81f3\u5c11\u8bbe\u7f6e\u4e00\u6bb5\u8425\u4e1a\u65f6\u95f4\u3002"}
+	for hour_range in business_hour_ranges:
+		if hour_range.x < 0 or hour_range.y > 24 or hour_range.y <= hour_range.x:
+			return {"success": false, "reason": "\u8425\u4e1a\u65f6\u95f4\u65e0\u6548\u3002"}
+	var copied_ranges: Array[Vector2i] = []
+	for hour_range in business_hour_ranges:
+		copied_ranges.append(hour_range)
+	store.business_hour_ranges = copied_ranges
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "\u8425\u4e1a\u65f6\u95f4\u5df2\u8bbe\u7f6e\u3002"}
 
 
-func set_category_key_staff(category_id: String, has_staff: bool) -> bool:
+func open_business() -> Dictionary:
 	var store := store_state
-	if store == null:
-		return false
-	var slot := store.get_slot_by_category(category_id)
-	if slot == null:
-		return false
-	slot.has_key_staff = has_staff
-	return true
+	if store == null or not store.is_open:
+		return {"success": false, "reason": "\u95e8\u5e97\u5c1a\u672a\u5f00\u4e1a\u3002"}
+	if store.is_business_open:
+		return {"success": false, "reason": "\u95e8\u5e97\u5df2\u5904\u4e8e\u8425\u4e1a\u72b6\u6001\u3002"}
+	store.is_business_open = true
+	TimeManager.refresh_current_store_staffing(store)
+	## 开门是明确的经营开始指令。读档后时间默认暂停，此处恢复一倍速，
+	## 让门店立刻进入当前时段的模拟而非只改变界面文字。
+	if TimeManager.speed == TimeManager.Speed.PAUSED:
+		TimeManager.set_speed(TimeManager.Speed.X1)
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "\u5df2\u5f00\u95e8\u8425\u4e1a\uff0c\u65f6\u95f4\u5df2\u6062\u590d 1 \u500d\u901f\u3002"}
+
+
+func close_business() -> Dictionary:
+	var store := store_state
+	if store == null or not store.is_open:
+		return {"success": false, "reason": "\u95e8\u5e97\u5c1a\u672a\u5f00\u4e1a\u3002"}
+	if not store.is_business_open:
+		return {"success": false, "reason": "\u95e8\u5e97\u5df2\u5904\u4e8e\u5173\u95e8\u72b6\u6001\u3002"}
+	store.is_business_open = false
+	TimeManager.refresh_current_store_staffing(store)
+	store_plan_updated.emit(store.id)
+	return {"success": true, "reason": "\u5df2\u5173\u95e8\u6b47\u4e1a\u3002"}
 
 
 func set_category_area(category_id: String, new_area: float) -> Dictionary:
 	var store := store_state
-	if store == null or current_storefront == null:
+	if store == null:
 		return {"success": false, "reason": "当前没有激活的店铺", "clamped_area": 0.0}
-
-	var cat := get_category(category_id)
 	var slot := store.get_slot_by_category(category_id)
-	if cat == null or slot == null:
+	if slot == null:
 		return {"success": false, "reason": "品类不存在", "clamped_area": 0.0}
-
-	var other_area: float = store.get_used_area() - slot.allocated_area
-	var max_area: float = current_storefront.area - other_area
-	var min_area: float = cat.required_area
-
-	if max_area < min_area:
-		return {"success": false, "reason": "门店总面积不足以维持最低需求", "clamped_area": slot.allocated_area}
-
-	var clamped: float = clampf(new_area, min_area, max_area)
-	slot.allocated_area = clamped
-	return {"success": true, "reason": "", "clamped_area": clamped}
+	## 品类不再占用或限制门面面积，保留接口仅兼容旧调用。
+	return {"success": true, "reason": "", "clamped_area": 0.0}
 
 
 # ── 开业 ────────────────────────────────────────────────
@@ -757,7 +1146,7 @@ func get_open_readiness() -> Dictionary:
 	var checks: Array[Dictionary] = []
 	var store := store_state
 
-	var has_storefront := current_storefront != null
+	var has_storefront := store != null and not store.signed_storefront_id.is_empty()
 	checks.append({
 		"label": "已签约门面",
 		"passed": has_storefront,
@@ -769,13 +1158,17 @@ func get_open_readiness() -> Dictionary:
 		"passed": has_category,
 	})
 
-	var has_inventory := store != null and store.get_total_inventory_across_slots() > 0
+	var missing_equipment := get_missing_equipment_for_store(store)
+	var has_required_equipment := missing_equipment.is_empty()
+	var missing_names: Array[String] = []
+	for item in missing_equipment:
+		missing_names.append(item.name)
 	checks.append({
-		"label": "已备货（至少一个商品有库存）",
-		"passed": has_inventory,
+		"label": "已配齐经营商品所需设备" + ("" if has_required_equipment else "（缺少：" + "、".join(missing_names) + "）"),
+		"passed": has_required_equipment,
 	})
 
-	var can_open: bool = has_storefront and has_category and has_inventory
+	var can_open: bool = has_storefront and has_category and has_required_equipment
 
 	return {
 		"can_open": can_open,
@@ -796,6 +1189,7 @@ func open_store() -> Dictionary:
 		return {"success": false, "reason": "开业条件尚未全部满足，请查看开业清单"}
 	store.is_open = true
 	store.pre_open_stage = Store.PreOpenStage.OPEN_FOR_BUSINESS
+	store_plan_updated.emit(store.id)
 	return {"success": true, "reason": "门店已开业！"}
 
 
@@ -805,6 +1199,10 @@ func start_new_game() -> void:
 	active_store_id = ""
 	player_state = PlayerState.new()
 	current_storefront = null
+	last_settlement_error = ""
+	active_simulations.clear()
+	TimeManager.reset()
+	ScheduleManager.reset_for_new_game()
 
 
 func begin_slot_simulation() -> void:
@@ -823,15 +1221,30 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 
 	var hour := TimeManager.get_current_hour_int()
 	var is_weekend := (TimeManager.current_day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
-	var total_area: float = storefront.area
+	var active_product_count := 0
+	for category_slot in store.category_slots:
+		var slot_category := get_category(category_slot.category_id)
+		if slot_category == null or category_slot.product_configs.is_empty():
+			continue
+		if not store_has_category_equipment(store, slot_category):
+			continue
+		if get_category_staffing_power(store, slot_category, hour) <= 0.0:
+			continue
+		active_product_count += category_slot.product_configs.size()
+	if active_product_count <= 0:
+		return
 
 	for cat_slot in store.category_slots:
 		var category := get_category(cat_slot.category_id)
 		if category == null or cat_slot.product_configs.is_empty():
 			continue
+		if not store_has_category_equipment(store, category):
+			continue
 
-		var area_share: float = cat_slot.allocated_area / total_area
 		var product_count: int = cat_slot.product_configs.size()
+		var product_share := 1.0 / float(active_product_count)
+		var staffing_power := get_category_staffing_power(store, category, hour)
+		var ingredient_consumption_multiplier := get_category_ingredient_consumption_multiplier(store, category, hour)
 
 		for pc in cat_slot.product_configs:
 			var product_template := get_product(pc.product_id)
@@ -839,9 +1252,9 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 				continue
 
 			var scaled_storefront: StorefrontData = storefront.duplicate()
-			scaled_storefront.hourly_capacity_base = int(round(
-				storefront.hourly_capacity_base * area_share / product_count))
-			scaled_storefront.flow_share = storefront.flow_share / product_count
+			scaled_storefront.hourly_capacity_base = maxi(1, int(round(
+				storefront.hourly_capacity_base * product_share)))
+			scaled_storefront.flow_share = storefront.flow_share * product_share
 
 			var product_instance: ProductData = product_template.duplicate()
 			product_instance.average_price = pc.get_effective_price(product_template)
@@ -853,40 +1266,184 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 
 			var params: Dictionary = SettlementEngine.calculate_params_from_trade_area(
 				trade_area, scaled_storefront, category, product_instance,
-				store, player_state, hour, cat_slot.open_hour_ranges, cat_slot.has_key_staff)
+				store, player_state, hour, store.is_business_open, staffing_power)
 
 			var entry := {
 				"store_id": store.id, "sim": null, "params": params, "category": category,
 				"product": product_instance, "product_template": product_template,
 				"inventory_limit": 0, "product_count": product_count,
+				"ingredient_consumption_multiplier": ingredient_consumption_multiplier,
 			}
 
+			var available_units := 0
+			var unit_ingredient_cost := 0.0
+			var unit_utility_cost := 0.0
 			if params.is_open:
-				var available_units := store.get_max_produceable_by_ingredients(product_template)
-				var unit_ingredient_cost := get_product_unit_ingredient_cost_for_store(store, product_template)
-				var unit_utility_cost := get_product_unit_utility_cost(product_template)
-				entry.inventory_limit = mini(available_units, pc.inventory_units)
+				available_units = store.get_max_produceable_by_ingredients(product_template, ingredient_consumption_multiplier)
+				unit_ingredient_cost = get_product_unit_ingredient_cost_for_store(store, product_template, ingredient_consumption_multiplier)
+				unit_utility_cost = get_product_unit_utility_cost(product_template)
+				entry.inventory_limit = available_units
+			## 当前可制作份数完全由原材料库存决定，不再受旧成品库存限制。
+			entry.inventory_limit = available_units
 
+			if params.is_open:
 				var sim := CustomerSimulator.new()
+				var service_seconds := get_product_service_seconds(category, product_instance, staffing_power) * product_count
+				var reserve_ingredients := _reserve_product_ingredients.bind(
+					store, product_template, ingredient_consumption_multiplier)
 				sim.setup(params.visitors, 3600.0, params.conversion_rate,
-					params.slot_capacity, entry.inventory_limit,
-					product_instance.average_price, unit_ingredient_cost, unit_utility_cost)
+					service_seconds, SettlementConfig.CUSTOMER_MAX_QUEUE_WAIT_SECONDS, entry.inventory_limit,
+					product_instance.average_price, unit_ingredient_cost, unit_utility_cost,
+					reserve_ingredients)
 				entry.sim = sim
 
 			active_simulations.append(entry)
 
 
 func advance_slot_simulation(elapsed_seconds: float) -> void:
+	## 所有商品共用一个按到达时间排序的订单流；这样共享原料由真实先后顺序竞争。
+	while true:
+		var next_entry: Dictionary = {}
+		var earliest_arrival := INF
+		for entry in active_simulations:
+			var sim: CustomerSimulator = entry.get("sim", null)
+			if sim == null or sim.next_arrival_at > elapsed_seconds or sim.next_arrival_at > sim.slot_duration_seconds:
+				continue
+			if sim.next_arrival_at < earliest_arrival:
+				earliest_arrival = sim.next_arrival_at
+				next_entry = entry
+		if next_entry.is_empty():
+			break
+		var next_sim: CustomerSimulator = next_entry.get("sim", null)
+		if next_sim == null or not next_sim.process_next_arrival_if_due(elapsed_seconds):
+			break
+
+
+func _reserve_product_ingredients(
+		store: Store,
+		product: ProductData,
+		consumption_multiplier: float
+) -> bool:
+	return store != null and store.try_reserve_product_ingredients(
+		product, 1, consumption_multiplier)
+
+
+func set_player_store_presence(store: Store, present: bool) -> void:
+	if store == null:
+		return
+	player_state.supervising_store_id = store.id if present else ""
+	TimeManager.refresh_current_store_staffing(store)
+	store_plan_updated.emit(store.id)
+
+
+func add_player_work_skill(skill_id: String) -> bool:
+	var added := player_state.add_work_skill(skill_id)
+	if added and store_state != null:
+		TimeManager.refresh_current_store_staffing(store_state)
+		store_plan_updated.emit(store_state.id)
+	return added
+
+
+func refresh_active_store_staffing(store: Store) -> void:
+	var has_live_entry := false
+	var hour := TimeManager.get_current_hour_int()
 	for entry in active_simulations:
-		if entry.sim != null:
-			entry.sim.advance(elapsed_seconds)
+		if str(entry.get("store_id", "")) != store.id:
+			continue
+		var sim: CustomerSimulator = entry.get("sim", null)
+		if sim == null:
+			continue
+		has_live_entry = true
+		if not store.is_business_open:
+			sim.arrival_rate_per_second = 0.0
+			sim.next_arrival_at = INF
+			continue
+		var category: CategoryData = entry.get("category", null)
+		var product: ProductData = entry.get("product", null)
+		if category == null or product == null:
+			continue
+		var power := get_category_staffing_power(store, category, hour)
+		var product_count := maxi(1, int(entry.get("product_count", 1)))
+		if power <= 0.0:
+			sim.arrival_rate_per_second = 0.0
+			sim.next_arrival_at = INF
+			continue
+		if sim.arrival_rate_per_second <= 0.0:
+			var params: Dictionary = entry.get("params", {})
+			sim.arrival_rate_per_second = float(params.get("visitors", 0)) / 3600.0
+			sim._schedule_next_arrival(TimeManager.total_game_seconds - floor(TimeManager.total_game_seconds / 3600.0) * 3600.0)
+		sim.service_time_seconds = get_product_service_seconds(category, product, power) * product_count
+	if not has_live_entry and store.is_business_open:
+		_begin_slot_simulation_for_store(store)
 
 
-func finalize_slot_simulation() -> Array[SettlementResult]:
+func get_store_operating_metrics(store: Store) -> Dictionary:
+	var metrics := _new_operating_metrics()
+	if store == null:
+		return metrics
+	var has_live_simulation := false
+	for entry in active_simulations:
+		if entry.get("store_id", "") != store.id:
+			continue
+		var sim: CustomerSimulator = entry.get("sim", null)
+		if sim == null:
+			continue
+		has_live_simulation = true
+		metrics.visitors += sim.visitors_so_far
+		metrics.intended_orders += sim.converted_count
+		metrics.orders += sim.actual_orders
+		metrics.queue_left += sim.rejected_capacity_count
+		metrics.inventory_left += sim.rejected_inventory_count
+		metrics.service_total += sim.service_time_seconds
+		metrics.service_count += 1
+		metrics.wait_total += sim.total_wait_seconds
+		metrics.max_wait = maxf(float(metrics.max_wait), sim.max_wait_seconds)
+	if has_live_simulation:
+		metrics.source = "live"
+		return metrics
+
+	var latest_day := -1
+	var latest_slot := ""
+	for entry in store.daily_history:
+		if bool(entry.get("is_store_overhead", false)) or not bool(entry.get("is_open", false)):
+			continue
+		var day := int(entry.get("day", -1))
+		var slot := str(entry.get("slot", ""))
+		if day > latest_day or (day == latest_day and slot > latest_slot):
+			latest_day = day
+			latest_slot = slot
+	if latest_day < 0:
+		return metrics
+	for entry in store.daily_history:
+		if bool(entry.get("is_store_overhead", false)) or int(entry.get("day", -1)) != latest_day or str(entry.get("slot", "")) != latest_slot:
+			continue
+		metrics.visitors += int(entry.get("visitors", 0))
+		metrics.intended_orders += int(entry.get("theoretical_orders", 0))
+		metrics.orders += int(entry.get("actual_orders", 0))
+		metrics.queue_left += int(entry.get("lost_capacity", 0))
+		metrics.inventory_left += int(entry.get("lost_inventory", 0))
+		metrics.service_total += float(entry.get("service_time_seconds", 0.0))
+		metrics.service_count += 1 if float(entry.get("service_time_seconds", 0.0)) > 0.0 else 0
+		metrics.wait_total += float(entry.get("average_queue_wait_seconds", 0.0)) * int(entry.get("actual_orders", 0))
+		metrics.max_wait = maxf(float(metrics.max_wait), float(entry.get("max_queue_wait_seconds", 0.0)))
+	metrics.source = "last"
+	return metrics
+
+
+func _new_operating_metrics() -> Dictionary:
+	return {
+		"source": "none", "visitors": 0, "intended_orders": 0, "orders": 0,
+		"queue_left": 0, "inventory_left": 0, "service_total": 0.0,
+		"service_count": 0, "wait_total": 0.0, "max_wait": 0.0,
+	}
+
+
+func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -> Array[SettlementResult]:
 	var results: Array[SettlementResult] = []
 	var results_by_store: Dictionary = {}  # store_id -> Array[SettlementResult]，供了解度反哺用
-	var hour := TimeManager.get_current_hour_int()
-	var day := TimeManager.current_day
+	var operating_store_ids: Dictionary = {}
+	var hour := finished_hour if finished_hour >= 0 else TimeManager.get_current_hour_int()
+	var day := finished_day if finished_day >= 1 else TimeManager.current_day
 
 	for entry in active_simulations:
 		var store := get_store(entry.store_id)
@@ -903,7 +1460,9 @@ func finalize_slot_simulation() -> Array[SettlementResult]:
 			result.rent_cost += extra_upkeep
 			result.profit -= extra_upkeep
 
-			store.consume_ingredients(entry.product_template, result.actual_orders)
+			result.ingredient_consumption_multiplier = float(entry.get("ingredient_consumption_multiplier", 1.0))
+			result.preparation_waste_ingredients = store.get_preparation_waste_for_orders(
+				entry.product_template, result.actual_orders, result.ingredient_consumption_multiplier)
 		else:
 			result = SettlementEngine.finalize_from_simulation(
 				entry.params, hour, day, entry.category, entry.product, 0, null)
@@ -915,6 +1474,57 @@ func finalize_slot_simulation() -> Array[SettlementResult]:
 		if not results_by_store.has(store.id):
 			results_by_store[store.id] = []
 		results_by_store[store.id].append(result)
+		if bool(entry.params.get("is_open", false)):
+			operating_store_ids[store.id] = true
+
+	var spoilage_by_store: Dictionary = {}
+	for open_store in get_open_stores():
+		spoilage_by_store[open_store.id] = open_store.apply_ingredient_spoilage(
+			get_ingredient_spoilage_ratios(open_store))
+
+	for store_id in operating_store_ids.keys():
+		var operating_store := get_store(store_id)
+		if operating_store == null:
+			continue
+		var equipment_utility := get_equipment_hourly_utility_cost(operating_store)
+		var staff_wages := get_scheduled_staff_hourly_cost(operating_store, hour)
+		var spoiled_ingredients: Dictionary = spoilage_by_store.get(store_id, {})
+		if equipment_utility <= 0.0 and staff_wages <= 0.0 and spoiled_ingredients.is_empty():
+			continue
+		var overhead := SettlementResult.new()
+		overhead.day = day
+		overhead.slot = "%02d:00" % hour
+		overhead.is_open = true
+		overhead.is_store_overhead = true
+		overhead.product_name = "\u95e8\u5e97\u56fa\u5b9a\u6210\u672c"
+		overhead.utility_cost = equipment_utility
+		overhead.staff_cost = staff_wages
+		overhead.spoilage_ingredients = spoiled_ingredients
+		overhead.profit = -(equipment_utility + staff_wages)
+		operating_store.apply_settlement(overhead)
+		player_state.apply_settlement(overhead)
+		results.append(overhead)
+		results_by_store[store_id].append(overhead)
+
+	for open_store in get_open_stores():
+		if operating_store_ids.has(open_store.id):
+			continue
+		var spoiled_ingredients: Dictionary = spoilage_by_store.get(open_store.id, {})
+		if spoiled_ingredients.is_empty():
+			continue
+		var spoilage_result := SettlementResult.new()
+		spoilage_result.day = day
+		spoilage_result.slot = "%02d:00" % hour
+		spoilage_result.is_store_overhead = true
+		spoilage_result.product_name = "\u539f\u6599\u8fc7\u671f"
+		spoilage_result.spoilage_ingredients = spoiled_ingredients
+		spoilage_result.utility_cost = get_storage_equipment_hourly_utility_cost(open_store)
+		spoilage_result.profit = -spoilage_result.utility_cost
+		open_store.apply_settlement(spoilage_result)
+		results.append(spoilage_result)
+		if not results_by_store.has(open_store.id):
+			results_by_store[open_store.id] = []
+		results_by_store[open_store.id].append(spoilage_result)
 
 	for store_id in results_by_store.keys():
 		_apply_operating_understanding_gain(get_store(store_id), results_by_store[store_id])

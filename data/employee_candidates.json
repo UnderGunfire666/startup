@@ -1,0 +1,8 @@
+[
+  {"id":"emp_001","name":"\u738b\u5e08\u5085","skills":["\u5927\u53a8","\u5bb6\u5e38\u83dc\u53a8\u5e08","\u5ddd\u83dc\u53a8\u5e08"],"hourly_wage":32,"recruitment_fee":600,"skill_level":1.25,"notes":"\u64c5\u957f\u7089\u7076\u70f9\u996a"},
+  {"id":"emp_002","name":"\u5c0f\u6797","skills":["\u70e7\u70e4\u5e08","\u70b8\u7089\u64cd\u4f5c\u5458"],"hourly_wage":25,"recruitment_fee":400,"skill_level":1.0,"notes":"\u80fd\u517c\u987e\u70e7\u70e4\u4e0e\u6cb9\u70b8"},
+  {"id":"emp_003","name":"\u9648\u59d0","skills":["\u8c03\u996e\u5e08","\u5496\u5561\u5e08"],"hourly_wage":28,"recruitment_fee":500,"skill_level":1.15,"notes":"\u9970\u54c1\u548c\u5496\u5561\u90fd\u80fd\u5236\u4f5c"},
+  {"id":"emp_004","name":"\u963f\u5b81","skills":["\u65e9\u9910\u5e08","\u9762\u70b9\u5e08","\u751c\u54c1\u5e08"],"hourly_wage":24,"recruitment_fee":350,"skill_level":0.95,"notes":"\u9002\u5408\u65e9\u5e02\u548c\u751c\u54c1"},
+  {"id":"emp_005","name":"\u5218\u6d0b","skills":["\u5feb\u9910\u53a8\u5e08","\u6c49\u5821\u5236\u4f5c\u5458","\u897f\u9910\u53a8\u5e08"],"hourly_wage":30,"recruitment_fee":550,"skill_level":1.1,"notes":"\u517c\u5177\u5feb\u9910\u548c\u897f\u5f0f\u7b80\u9910\u6280\u80fd"},
+  {"id":"emp_006","name":"\u8d75\u9633","skills":["\u6536\u94f6\u5458","\u670d\u52a1\u5458"],"hourly_wage":20,"recruitment_fee":200,"skill_level":1.0,"notes":"\u524d\u5385\u57fa\u7840\u5c97\u4f4d"}
+]

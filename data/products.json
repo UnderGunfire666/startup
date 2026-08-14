@@ -1,111 +1,1182 @@
 [
   {
-	"id": "P001", "category_id": "breakfast", "name": "豆浆油条",
-	"target_groups": ["worker", "student", "commute"],
-	"preferred_hours": [[5, 9]], "price_tier": "low", "average_price": 8.0,
-	"ingredient_cost_per_unit": 2.8, "utility_cost_per_unit": 0.15,
-	"suggested_margin_rate": 0.65,
-	"complexity": "simple", "differentiation": "normal",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P001",
+	"category_id": "breakfast",
+	"name": "\u8c46\u6d46",
+	"average_price": 3,
+	"ingredient_cost_per_unit": 1,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "soybean", "quantity": 0.08},
-	  {"ingredient_id": "flour", "quantity": 0.05},
-	  {"ingredient_id": "oil", "quantity": 0.02}
+	  {
+		"ingredient_id": "soybean",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P002", "category_id": "breakfast", "name": "煎饼卷饼",
-	"target_groups": ["worker", "student", "office_worker"],
-	"preferred_hours": [[5, 9]], "price_tier": "low", "average_price": 11.0,
-	"ingredient_cost_per_unit": 4.2, "utility_cost_per_unit": 0.25,
-	"suggested_margin_rate": 0.62,
-	"complexity": "normal", "differentiation": "special",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P002",
+	"category_id": "breakfast",
+	"name": "\u6cb9\u6761",
+	"average_price": 3,
+	"ingredient_cost_per_unit": 1,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "flour", "quantity": 0.12},
-	  {"ingredient_id": "egg", "quantity": 1.0},
-	  {"ingredient_id": "sauce", "quantity": 0.5}
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P003", "category_id": "snack", "name": "炸串",
-	"target_groups": ["student", "worker", "night_shift_worker"],
-	"preferred_hours": [[18, 24]], "price_tier": "low", "average_price": 16.0,
-	"ingredient_cost_per_unit": 6.4, "utility_cost_per_unit": 0.40,
-	"suggested_margin_rate": 0.60,
-	"complexity": "normal", "differentiation": "normal",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P003",
+	"category_id": "breakfast",
+	"name": "\u9c9c\u8089\u5305",
+	"average_price": 3,
+	"ingredient_cost_per_unit": 1,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "meat", "quantity": 0.15},
-	  {"ingredient_id": "oil", "quantity": 0.03}
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P004", "category_id": "snack", "name": "麻辣拌",
-	"target_groups": ["student", "worker"],
-	"preferred_hours": [[12, 14], [18, 24]], "price_tier": "medium", "average_price": 24.0,
-	"ingredient_cost_per_unit": 10.1, "utility_cost_per_unit": 0.20,
-	"suggested_margin_rate": 0.58,
-	"complexity": "normal", "differentiation": "special",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P004",
+	"category_id": "breakfast",
+	"name": "\u714e\u997c\u679c\u5b50",
+	"average_price": 9,
+	"ingredient_cost_per_unit": 2.88,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "veggie", "quantity": 0.2},
-	  {"ingredient_id": "sauce", "quantity": 1.0}
+	  {
+		"ingredient_id": "egg",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P005", "category_id": "fast_food", "name": "盖浇饭",
-	"target_groups": ["worker", "student", "office_worker"],
-	"preferred_hours": [[12, 14], [18, 24]], "price_tier": "medium", "average_price": 22.0,
-	"ingredient_cost_per_unit": 8.8, "utility_cost_per_unit": 0.35,
-	"suggested_margin_rate": 0.60,
-	"complexity": "normal", "differentiation": "normal",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P005",
+	"category_id": "breakfast",
+	"name": "\u8336\u53f6\u86cb",
+	"average_price": 2,
+	"ingredient_cost_per_unit": 1,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "rice", "quantity": 0.2},
-	  {"ingredient_id": "meat", "quantity": 0.12}
+	  {
+		"ingredient_id": "egg",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P006", "category_id": "fast_food", "name": "卤味饭",
-	"target_groups": ["worker", "student", "family"],
-	"preferred_hours": [[12, 14], [18, 24]], "price_tier": "medium", "average_price": 26.0,
-	"ingredient_cost_per_unit": 10.9, "utility_cost_per_unit": 0.35,
-	"suggested_margin_rate": 0.58,
-	"complexity": "normal", "differentiation": "special",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P006",
+	"category_id": "fried_skewers",
+	"name": "\u9e21\u8089\u70b8\u4e32",
+	"average_price": 5,
+	"ingredient_cost_per_unit": 1.6,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "rice", "quantity": 0.2},
-	  {"ingredient_id": "meat", "quantity": 0.15},
-	  {"ingredient_id": "sauce", "quantity": 0.5}
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P007", "category_id": "beverage_dessert", "name": "奶茶",
-	"target_groups": ["student", "family"],
-	"preferred_hours": [[12, 14], [18, 24]], "price_tier": "medium", "average_price": 18.0,
-	"ingredient_cost_per_unit": 5.4, "utility_cost_per_unit": 0.10,
-	"suggested_margin_rate": 0.70,
-	"complexity": "simple", "differentiation": "normal",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P007",
+	"category_id": "fried_skewers",
+	"name": "\u725b\u8089\u70b8\u4e32",
+	"average_price": 7,
+	"ingredient_cost_per_unit": 2.24,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "tea_base", "quantity": 0.1},
-	  {"ingredient_id": "milk", "quantity": 0.1},
-	  {"ingredient_id": "sugar", "quantity": 0.03}
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
 	]
   },
   {
-	"id": "P008", "category_id": "beverage_dessert", "name": "现烤面包",
-	"target_groups": ["student", "family", "office_worker"],
-	"preferred_hours": [[5, 9], [12, 14]], "price_tier": "medium", "average_price": 15.0,
-	"ingredient_cost_per_unit": 5.25, "utility_cost_per_unit": 0.45,
-	"suggested_margin_rate": 0.65,
-	"complexity": "normal", "differentiation": "special",
-	"extra_service_speed_modifier": 1.0, "notes": "",
+	"id": "P008",
+	"category_id": "fried_skewers",
+	"name": "\u852c\u83dc\u62fc\u4e32",
+	"average_price": 4,
+	"ingredient_cost_per_unit": 1.28,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
 	"recipe": [
-	  {"ingredient_id": "flour", "quantity": 0.15},
-	  {"ingredient_id": "milk", "quantity": 0.05},
-	  {"ingredient_id": "sugar", "quantity": 0.02}
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
 	]
+  },
+  {
+	"id": "P009",
+	"category_id": "fried_skewers",
+	"name": "\u70b8\u5e74\u7cd5",
+	"average_price": 5,
+	"ingredient_cost_per_unit": 1.6,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "rice",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P010",
+	"category_id": "fried_skewers",
+	"name": "\u70b8\u8611\u83c7",
+	"average_price": 6,
+	"ingredient_cost_per_unit": 1.92,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P011",
+	"category_id": "rice_bowls",
+	"name": "\u7ea2\u70e7\u8089\u76d6\u996d",
+	"average_price": 25,
+	"ingredient_cost_per_unit": 8,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P012",
+	"category_id": "rice_bowls",
+	"name": "\u5496\u55b1\u9e21\u996d",
+	"average_price": 22,
+	"ingredient_cost_per_unit": 7.04,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P013",
+	"category_id": "rice_bowls",
+	"name": "\u9c7c\u9999\u8089\u4e1d\u996d",
+	"average_price": 20,
+	"ingredient_cost_per_unit": 6.4,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P014",
+	"category_id": "rice_bowls",
+	"name": "\u756a\u8304\u725b\u8169\u996d",
+	"average_price": 28,
+	"ingredient_cost_per_unit": 8.96,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P015",
+	"category_id": "rice_bowls",
+	"name": "\u7d20\u83dc\u76d6\u996d",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P016",
+	"category_id": "noodles",
+	"name": "\u725b\u8089\u9762",
+	"average_price": 22,
+	"ingredient_cost_per_unit": 7.04,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P017",
+	"category_id": "noodles",
+	"name": "\u70b8\u9171\u9762",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P018",
+	"category_id": "noodles",
+	"name": "\u9178\u8fa3\u7c89",
+	"average_price": 14,
+	"ingredient_cost_per_unit": 4.48,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P019",
+	"category_id": "noodles",
+	"name": "\u8471\u6cb9\u62cc\u9762",
+	"average_price": 13,
+	"ingredient_cost_per_unit": 4.16,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P020",
+	"category_id": "noodles",
+	"name": "\u9984\u9968\u9762",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P021",
+	"category_id": "burgers",
+	"name": "\u725b\u8089\u6c49\u5821",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P022",
+	"category_id": "burgers",
+	"name": "\u9e21\u817f\u5821",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P023",
+	"category_id": "burgers",
+	"name": "\u53cc\u5c42\u829d\u58eb\u5821",
+	"average_price": 23,
+	"ingredient_cost_per_unit": 7.36,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P024",
+	"category_id": "burgers",
+	"name": "\u7d20\u98df\u6c49\u5821",
+	"average_price": 15,
+	"ingredient_cost_per_unit": 4.8,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P025",
+	"category_id": "burgers",
+	"name": "\u65e9\u9910\u6c49\u5821",
+	"average_price": 13,
+	"ingredient_cost_per_unit": 4.16,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "egg",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P026",
+	"category_id": "hotpot",
+	"name": "\u9ebb\u8fa3\u9505\u5e95",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "sauce",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P027",
+	"category_id": "hotpot",
+	"name": "\u756a\u8304\u9505\u5e95",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P028",
+	"category_id": "hotpot",
+	"name": "\u83cc\u6c64\u9505\u5e95",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P029",
+	"category_id": "hotpot",
+	"name": "\u80a5\u725b\u62fc\u76d8",
+	"average_price": 38,
+	"ingredient_cost_per_unit": 12.16,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P030",
+	"category_id": "hotpot",
+	"name": "\u9c9c\u852c\u62fc\u76d8",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P031",
+	"category_id": "home_cooking",
+	"name": "\u5bab\u4fdd\u9e21\u4e01",
+	"average_price": 28,
+	"ingredient_cost_per_unit": 8.96,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P032",
+	"category_id": "home_cooking",
+	"name": "\u9ebb\u5a46\u8c46\u8150",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "soybean",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P033",
+	"category_id": "home_cooking",
+	"name": "\u56de\u9505\u8089",
+	"average_price": 32,
+	"ingredient_cost_per_unit": 10.24,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P034",
+	"category_id": "home_cooking",
+	"name": "\u6e05\u7092\u65f6\u852c",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P035",
+	"category_id": "home_cooking",
+	"name": "\u756a\u8304\u7092\u86cb",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "egg",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P036",
+	"category_id": "barbecue",
+	"name": "\u70e4\u4e94\u82b1\u8089",
+	"average_price": 28,
+	"ingredient_cost_per_unit": 8.96,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P037",
+	"category_id": "barbecue",
+	"name": "\u70e4\u9e21\u7fc5",
+	"average_price": 12,
+	"ingredient_cost_per_unit": 3.84,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P038",
+	"category_id": "barbecue",
+	"name": "\u70e4\u8304\u5b50",
+	"average_price": 10,
+	"ingredient_cost_per_unit": 3.2,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P039",
+	"category_id": "barbecue",
+	"name": "\u70e4\u7389\u7c73",
+	"average_price": 8,
+	"ingredient_cost_per_unit": 2.56,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P040",
+	"category_id": "barbecue",
+	"name": "\u70e4\u751f\u869d",
+	"average_price": 15,
+	"ingredient_cost_per_unit": 4.8,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P041",
+	"category_id": "sichuan",
+	"name": "\u6c34\u716e\u725b\u8089",
+	"average_price": 48,
+	"ingredient_cost_per_unit": 15.36,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P042",
+	"category_id": "sichuan",
+	"name": "\u8fa3\u5b50\u9e21",
+	"average_price": 38,
+	"ingredient_cost_per_unit": 12.16,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P043",
+	"category_id": "sichuan",
+	"name": "\u9178\u83dc\u9c7c",
+	"average_price": 42,
+	"ingredient_cost_per_unit": 13.44,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P044",
+	"category_id": "sichuan",
+	"name": "\u5e72\u9505\u82b1\u83dc",
+	"average_price": 24,
+	"ingredient_cost_per_unit": 7.68,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P045",
+	"category_id": "sichuan",
+	"name": "\u592b\u59bb\u80ba\u7247",
+	"average_price": 32,
+	"ingredient_cost_per_unit": 10.24,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P046",
+	"category_id": "western",
+	"name": "\u5976\u6cb9\u610f\u9762",
+	"average_price": 26,
+	"ingredient_cost_per_unit": 8.32,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P047",
+	"category_id": "western",
+	"name": "\u9ed1\u6912\u725b\u6392",
+	"average_price": 45,
+	"ingredient_cost_per_unit": 14.4,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P048",
+	"category_id": "western",
+	"name": "\u51ef\u6492\u6c99\u62c9",
+	"average_price": 24,
+	"ingredient_cost_per_unit": 7.68,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P049",
+	"category_id": "western",
+	"name": "\u7117\u996d",
+	"average_price": 28,
+	"ingredient_cost_per_unit": 8.96,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "rice",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P050",
+	"category_id": "western",
+	"name": "\u8611\u83c7\u6c64",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P051",
+	"category_id": "milk_tea",
+	"name": "\u73cd\u73e0\u5976\u8336",
+	"average_price": 12,
+	"ingredient_cost_per_unit": 3.84,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "tea_base",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P052",
+	"category_id": "milk_tea",
+	"name": "\u8309\u8389\u5976\u7eff",
+	"average_price": 11,
+	"ingredient_cost_per_unit": 3.52,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "tea_base",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P053",
+	"category_id": "milk_tea",
+	"name": "\u6c34\u679c\u8336",
+	"average_price": 14,
+	"ingredient_cost_per_unit": 4.48,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "tea_base",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P054",
+	"category_id": "milk_tea",
+	"name": "\u62b9\u8336\u62ff\u94c1",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P055",
+	"category_id": "milk_tea",
+	"name": "\u5976\u76d6\u7ea2\u8336",
+	"average_price": 13,
+	"ingredient_cost_per_unit": 4.16,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "tea_base",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P056",
+	"category_id": "bakery",
+	"name": "\u725b\u89d2\u5305",
+	"average_price": 8,
+	"ingredient_cost_per_unit": 2.56,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P057",
+	"category_id": "bakery",
+	"name": "\u829d\u58eb\u86cb\u7cd5",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P058",
+	"category_id": "bakery",
+	"name": "\u66f2\u5947",
+	"average_price": 10,
+	"ingredient_cost_per_unit": 3.2,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P059",
+	"category_id": "bakery",
+	"name": "\u5410\u53f8",
+	"average_price": 12,
+	"ingredient_cost_per_unit": 3.84,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P060",
+	"category_id": "bakery",
+	"name": "\u53ef\u9882\u4e09\u660e\u6cbb",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "meat",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P061",
+	"category_id": "ice_cream",
+	"name": "\u9999\u8349\u51b0\u6dc7\u6dcb",
+	"average_price": 6,
+	"ingredient_cost_per_unit": 1.92,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P062",
+	"category_id": "ice_cream",
+	"name": "\u5de7\u514b\u529b\u5723\u4ee3",
+	"average_price": 10,
+	"ingredient_cost_per_unit": 3.2,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P063",
+	"category_id": "ice_cream",
+	"name": "\u8349\u8393\u51b0\u6c99",
+	"average_price": 12,
+	"ingredient_cost_per_unit": 3.84,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P064",
+	"category_id": "ice_cream",
+	"name": "\u62b9\u8336\u51b0\u6dc7\u6dcb",
+	"average_price": 12,
+	"ingredient_cost_per_unit": 3.84,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P065",
+	"category_id": "ice_cream",
+	"name": "\u6c34\u679c\u635e",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "veggie",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P066",
+	"category_id": "coffee",
+	"name": "\u7f8e\u5f0f\u5496\u5561",
+	"average_price": 15,
+	"ingredient_cost_per_unit": 4.8,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "tea_base",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P067",
+	"category_id": "coffee",
+	"name": "\u62ff\u94c1",
+	"average_price": 20,
+	"ingredient_cost_per_unit": 6.4,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P068",
+	"category_id": "coffee",
+	"name": "\u5361\u5e03\u5947\u8bfa",
+	"average_price": 22,
+	"ingredient_cost_per_unit": 7.04,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P069",
+	"category_id": "coffee",
+	"name": "\u51b7\u8403\u5496\u5561",
+	"average_price": 18,
+	"ingredient_cost_per_unit": 5.76,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "tea_base",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P070",
+	"category_id": "coffee",
+	"name": "\u6469\u5361",
+	"average_price": 26,
+	"ingredient_cost_per_unit": 8.32,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P071",
+	"category_id": "chinese_dessert",
+	"name": "\u6768\u679d\u7518\u9732",
+	"average_price": 16,
+	"ingredient_cost_per_unit": 5.12,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P072",
+	"category_id": "chinese_dessert",
+	"name": "\u53cc\u76ae\u5976",
+	"average_price": 12,
+	"ingredient_cost_per_unit": 3.84,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "milk",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P073",
+	"category_id": "chinese_dessert",
+	"name": "\u7ea2\u8c46\u6c64",
+	"average_price": 8,
+	"ingredient_cost_per_unit": 2.56,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "soybean",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P074",
+	"category_id": "chinese_dessert",
+	"name": "\u829d\u9ebb\u7cca",
+	"average_price": 9,
+	"ingredient_cost_per_unit": 2.88,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "soybean",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "P075",
+	"category_id": "chinese_dessert",
+	"name": "\u6842\u82b1\u7cd5",
+	"average_price": 10,
+	"ingredient_cost_per_unit": 3.2,
+	"utility_cost_per_unit": 0.5,
+	"suggested_margin_rate": 0.6,
+	"recipe": [
+	  {
+		"ingredient_id": "flour",
+		"quantity": 0.15
+	  }
+	]
+  },
+  {
+	"id": "U076",
+	"category_id": "",
+	"is_universal": true,
+	"name": "\u78b3\u9178\u996e\u6599",
+	"average_price": 4,
+	"ingredient_cost_per_unit": 0,
+	"utility_cost_per_unit": 0.1,
+	"suggested_margin_rate": 0.6,
+	"recipe": []
+  },
+  {
+	"id": "U077",
+	"category_id": "",
+	"is_universal": true,
+	"name": "\u77ff\u6cc9\u6c34",
+	"average_price": 3,
+	"ingredient_cost_per_unit": 0,
+	"utility_cost_per_unit": 0.1,
+	"suggested_margin_rate": 0.6,
+	"recipe": []
+  },
+  {
+	"id": "U078",
+	"category_id": "",
+	"is_universal": true,
+	"name": "\u67e0\u6aac\u8336",
+	"average_price": 6,
+	"ingredient_cost_per_unit": 0,
+	"utility_cost_per_unit": 0.1,
+	"suggested_margin_rate": 0.6,
+	"recipe": []
+  },
+  {
+	"id": "U079",
+	"category_id": "",
+	"is_universal": true,
+	"name": "\u74f6\u88c5\u679c\u6c41",
+	"average_price": 6,
+	"ingredient_cost_per_unit": 0,
+	"utility_cost_per_unit": 0.1,
+	"suggested_margin_rate": 0.6,
+	"recipe": []
+  },
+  {
+	"id": "U080",
+	"category_id": "",
+	"is_universal": true,
+	"name": "\u7f50\u88c5\u5496\u5561",
+	"average_price": 7,
+	"ingredient_cost_per_unit": 0,
+	"utility_cost_per_unit": 0.1,
+	"suggested_margin_rate": 0.6,
+	"recipe": []
   }
 ]

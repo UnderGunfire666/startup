@@ -116,9 +116,6 @@ func _build_storefront_card(sf: StorefrontData) -> Control:
 	elif state != null and state.is_open:
 		select_button.text = \"门店已开业，无法更换\"
 		select_button.disabled = true
-	elif diligence != \"full_diligence\":
-		select_button.text = \"完成完整尽调后可选定\"
-		select_button.disabled = true
 	else:
 		select_button.text = \"选定此门面\"
 		select_button.pressed.connect(func() -> void:

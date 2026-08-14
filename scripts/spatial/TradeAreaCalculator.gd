@@ -112,7 +112,7 @@ static func calculate_snapshot(
 	var total := external_total
 	for group_id in SpatialConfig.POPULATION_GROUPS:
 		total += float(reachable_totals.get(group_id, 0.0))
-	snapshot.total_effective_audience = total
+	snapshot.total_effective_audience = total * SettlementConfig.TRAFFIC_SCALE_MULTIPLIER
 
 	if weighted_competition_denominator > 0.0001:
 		snapshot.average_competition_modifier = weighted_competition_sum / weighted_competition_denominator

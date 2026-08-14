@@ -140,19 +140,52 @@ static func get_categories() -> Array[CategoryData]:
 		var c: CategoryData = CategoryData.new()
 		c.id = entry.get("id", "")
 		c.name = entry.get("name", "")
+		c.parent_category = entry.get("parent_category", "")
 		c.base_entry_rate = entry.get("base_entry_rate", 0.02)
-		c.suggested_open_hour_ranges = _to_vector2i_array(entry.get("suggested_open_hours", []))
 		c.preferred_groups = _to_string_array(entry.get("preferred_groups", []))
 		c.preferred_spending_power = _to_string_array(entry.get("preferred_spending_power", []))
 		c.base_service_speed = entry.get("base_service_speed", "medium")
-		c.key_staff_type = entry.get("key_staff_type", "none")
-		c.missing_key_staff_capacity_penalty = entry.get("missing_key_staff_capacity_penalty", 0.0)
-		c.missing_key_staff_conversion_penalty = entry.get("missing_key_staff_conversion_penalty", 0.0)
-		c.missing_key_staff_reputation_penalty = entry.get("missing_key_staff_reputation_penalty", 0.0)
-		c.required_area = entry.get("required_area", 10.0)
+		c.required_staff = entry.get("required_staff", "")
+		c.required_staff_count = maxi(1, int(entry.get("required_staff_count", 1)))
+		c.required_equipment = entry.get("required_equipment", "")
+		c.required_equipment_ids = _to_string_array(entry.get("required_equipment_ids", []))
 		c.setup_cost_wan = entry.get("setup_cost_wan", 0.3)
 		c.extra_rent_wan = entry.get("extra_rent_wan", 0.15)
 		list.append(c)
+	return list
+
+static func get_equipment() -> Array[EquipmentData]:
+	var raw: Array = _load_json_array(DATA_DIR + "equipment.json")
+	var list: Array[EquipmentData] = []
+	for entry in raw:
+		var equipment := EquipmentData.new()
+		equipment.id = str(entry.get("id", ""))
+		equipment.name = str(entry.get("name", ""))
+		equipment.price = float(entry.get("price", 0.0))
+		equipment.area = float(entry.get("area", 0.0))
+		equipment.hourly_utility_cost = float(entry.get("hourly_utility_cost", 0.0))
+		equipment.operator_roles = _to_string_array(entry.get("operator_roles", []))
+		equipment.max_durability = float(entry.get("max_durability", 100.0))
+		equipment.storage_conditions = _to_string_array(entry.get("storage_conditions", []))
+		equipment.storage_capacity = float(entry.get("storage_capacity", 0.0))
+		equipment.spoilage_multiplier = float(entry.get("spoilage_multiplier", 1.0))
+		equipment.notes = str(entry.get("notes", ""))
+		list.append(equipment)
+	return list
+
+static func get_employee_candidates() -> Array[EmployeeCandidateData]:
+	var raw: Array = _load_json_array(DATA_DIR + "employee_candidates.json")
+	var list: Array[EmployeeCandidateData] = []
+	for entry in raw:
+		var candidate := EmployeeCandidateData.new()
+		candidate.id = str(entry.get("id", ""))
+		candidate.name = str(entry.get("name", ""))
+		candidate.skills = _to_string_array(entry.get("skills", []))
+		candidate.hourly_wage = float(entry.get("hourly_wage", 0.0))
+		candidate.recruitment_fee = float(entry.get("recruitment_fee", 0.0))
+		candidate.skill_level = float(entry.get("skill_level", 1.0))
+		candidate.notes = str(entry.get("notes", ""))
+		list.append(candidate)
 	return list
 
 static func get_products() -> Array[ProductData]:
@@ -162,6 +195,7 @@ static func get_products() -> Array[ProductData]:
 		var p: ProductData = ProductData.new()
 		p.id = entry.get("id", "")
 		p.category_id = entry.get("category_id", "")
+		p.is_universal = entry.get("is_universal", false)
 		p.name = entry.get("name", "")
 		p.target_groups = _to_string_array(entry.get("target_groups", []))
 		p.preferred_hour_ranges = _to_vector2i_array(entry.get("preferred_hours", []))
@@ -194,6 +228,7 @@ static func get_ingredients() -> Array[IngredientData]:
 		i.name = entry.get("name", "")
 		i.unit = entry.get("unit", "")
 		i.base_purchase_price = entry.get("base_purchase_price", 0.0)
+		i.storage_condition = str(entry.get("storage_condition", "ambient"))
 		i.notes = entry.get("notes", "")
 		list.append(i)
 	return list

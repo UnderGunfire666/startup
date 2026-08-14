@@ -8,7 +8,7 @@ const DAY_START_SECONDS: float = 8.0 * 3600.0
 
 
 signal clock_updated(hour: int, minute: int, second: int, period_label: String)
-signal customer_event(product_name: String, purchased: bool, reason: String)
+signal customer_event(product_name: String, purchased: bool, reason: String, event_game_seconds: float)
 signal slot_completed(day: int, slot: String, results: Array)
 signal day_completed(day: int, summary: Dictionary)
 signal hour_advanced(day: int, hour: int)
@@ -20,6 +20,7 @@ var total_game_seconds: float = 0.0
 var _simulation_active: bool = false
 var _last_emitted_hour: int = -1
 var _last_emitted_day: int = -1
+var _connected_simulation_ids: Dictionary = {}
 
 
 func _process(delta: float) -> void:
@@ -40,6 +41,7 @@ func reset() -> void:
 	current_day = 1
 	total_game_seconds = DAY_START_SECONDS
 	_simulation_active = false
+	_connected_simulation_ids.clear()
 	_last_emitted_hour = get_current_hour_int()
 	_last_emitted_day = current_day
 	_emit_clock()
@@ -55,13 +57,9 @@ func get_current_hour_int() -> int:
 
 func is_store_actually_operating() -> bool:
 	var store: Store = GameManager.store_state
-	if store == null or not store.is_open:
+	if store == null or not store.is_open or not store.is_business_open:
 		return false
-	var hour := get_current_hour_int()
-	for cat_slot in store.category_slots:
-		if cat_slot.is_open_at_hour(hour):
-			return true
-	return false
+	return true
 
 
 func _advance(game_delta: float) -> void:
@@ -77,10 +75,7 @@ func _advance(game_delta: float) -> void:
 
 		if not _simulation_active:
 			GameManager.begin_slot_simulation()
-			for entry in GameManager.active_simulations:
-				if entry.sim != null:
-					entry.sim.customer_event.connect(
-						func(purchased, reason): customer_event.emit(entry.product.name, purchased, reason))
+			_attach_customer_event_forwarding()
 			_simulation_active = true
 
 		var seconds_into_hour: float = total_game_seconds - (day_start + floor(hour_now) * 3600.0) + step
@@ -90,6 +85,10 @@ func _advance(game_delta: float) -> void:
 		game_delta -= step
 
 		ScheduleManager.tick()
+		## 行动完成或被手动停止会暂停时间；本帧剩余的模拟步进也必须随之停止，
+		## 否则可能在同一帧内误启动下一项行动。
+		if speed == Speed.PAUSED:
+			break
 
 		_after_time_advance()
 
@@ -106,8 +105,9 @@ func _after_time_advance() -> void:
 		var finished_hour := _last_emitted_hour
 		var finished_day := _last_emitted_day if _last_emitted_day > 0 else target_day
 
-		var results := GameManager.finalize_slot_simulation()
+		var results := GameManager.finalize_slot_simulation(finished_hour, finished_day)
 		_simulation_active = false
+		_connected_simulation_ids.clear()
 		slot_completed.emit(finished_day, "%02d:00" % maxi(finished_hour, 0), results)
 
 		if target_day != current_day:
@@ -121,6 +121,29 @@ func _after_time_advance() -> void:
 		hour_advanced.emit(current_day, hour_int)
 
 	_emit_clock()
+
+
+func refresh_current_store_staffing(store: Store) -> void:
+	if not _simulation_active or store == null:
+		return
+	GameManager.refresh_active_store_staffing(store)
+	_attach_customer_event_forwarding()
+
+
+func _attach_customer_event_forwarding() -> void:
+	var hour_start_seconds: float = floor(total_game_seconds / 3600.0) * 3600.0
+	for entry in GameManager.active_simulations:
+		var sim: CustomerSimulator = entry.get("sim", null)
+		if sim == null:
+			continue
+		var sim_id := sim.get_instance_id()
+		if _connected_simulation_ids.has(sim_id):
+			continue
+		_connected_simulation_ids[sim_id] = true
+		var product: ProductData = entry.get("product", null)
+		var product_name := product.name if product != null else "\u5546\u54c1"
+		sim.customer_event.connect(func(purchased: bool, reason: String, event_time_seconds: float) -> void:
+			customer_event.emit(product_name, purchased, reason, hour_start_seconds + event_time_seconds))
 
 
 func _emit_clock() -> void:

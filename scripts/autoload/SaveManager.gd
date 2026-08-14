@@ -47,6 +47,12 @@ func load_game() -> bool:
 			loaded_stores.append(Store.from_save_dict(raw_store))
 	GameManager.stores = loaded_stores
 	GameManager.active_store_id = str(parsed.get("active_store_id", ""))
+	## 容错旧存档或异常存档：激活店铺ID无效时，自动选择第一家已载入店铺。
+	if GameManager.get_active_store() == null and not GameManager.stores.is_empty():
+		GameManager.active_store_id = GameManager.stores[0].id
+	GameManager.active_simulations.clear()
+	## 日程系统当前不写入存档；读档后清除运行时行动，避免旧会话的行动继续影响时间推进。
+	ScheduleManager.reset_for_new_game()
 
 	TimeManager.apply_save_dict(time_data)
 	GameManager._sync_data_objects()

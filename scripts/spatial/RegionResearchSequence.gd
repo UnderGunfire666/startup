@@ -101,6 +101,12 @@ func _on_schedule_changed() -> void:
 	var last_entry: ScheduledActionEntry = ScheduleManager.completed_entries_today.back()
 	if last_entry.action_id != expected_action_id:
 		return
+	if last_entry.status != "completed":
+		active = false
+		expected_action_id = ""
+		failed.emit("sequence_stopped", "按顺序调查已停止")
+		changed.emit()
+		return
 
 	if expected_action_id == "region_research":
 		var target_id := block_ids[current_index] if current_index < block_ids.size() else ""

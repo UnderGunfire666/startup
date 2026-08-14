@@ -35,8 +35,6 @@ func _test_opening_stage_transition() -> void:
 		_assert_true(false, "active store exists")
 		return
 
-	var region_result: Dictionary = GameManager.select_region("A001")
-	_assert_true(bool(region_result.get("success", false)), "region selection succeeds")
 	GameManager.advance_storefront_diligence("S004", "initial_viewing")
 	GameManager.advance_storefront_diligence("S004", "full_diligence")
 	var storefront_result: Dictionary = GameManager.select_storefront("S004")

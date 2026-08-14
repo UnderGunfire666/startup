@@ -1,13 +1,13 @@
 [
-  {"id": "flour", "name": "面粉", "unit": "kg", "base_purchase_price": 4.0, "notes": ""},
-  {"id": "oil", "name": "食用油", "unit": "kg", "base_purchase_price": 12.0, "notes": ""},
-  {"id": "soybean", "name": "黄豆", "unit": "kg", "base_purchase_price": 6.0, "notes": ""},
-  {"id": "egg", "name": "鸡蛋", "unit": "个", "base_purchase_price": 1.0, "notes": ""},
-  {"id": "meat", "name": "肉类", "unit": "kg", "base_purchase_price": 28.0, "notes": ""},
-  {"id": "veggie", "name": "蔬菜", "unit": "kg", "base_purchase_price": 5.0, "notes": ""},
-  {"id": "rice", "name": "大米", "unit": "kg", "base_purchase_price": 5.5, "notes": ""},
-  {"id": "sauce", "name": "调味料", "unit": "份", "base_purchase_price": 1.5, "notes": ""},
-  {"id": "tea_base", "name": "茶底", "unit": "L", "base_purchase_price": 15.0, "notes": ""},
-  {"id": "milk", "name": "牛奶", "unit": "L", "base_purchase_price": 8.0, "notes": ""},
-  {"id": "sugar", "name": "糖", "unit": "kg", "base_purchase_price": 4.5, "notes": ""}
+  {"id":"flour","name":"\u9762\u7c89","unit":"kg","base_purchase_price":4.0,"storage_condition":"ambient","notes":"\u5e72\u8d27"},
+  {"id":"oil","name":"\u98df\u7528\u6cb9","unit":"kg","base_purchase_price":12.0,"storage_condition":"ambient","notes":"\u5e72\u8d27"},
+  {"id":"soybean","name":"\u9ec4\u8c46","unit":"kg","base_purchase_price":6.0,"storage_condition":"ambient","notes":"\u5e72\u8d27"},
+  {"id":"egg","name":"\u9e21\u86cb","unit":"\u4e2a","base_purchase_price":1.0,"storage_condition":"refrigerated","notes":"\u9700\u51b7\u85cf"},
+  {"id":"meat","name":"\u8089\u7c7b","unit":"kg","base_purchase_price":28.0,"storage_condition":"frozen","notes":"\u5efa\u8bae\u51b7\u51bb\u4fdd\u5b58"},
+  {"id":"veggie","name":"\u852c\u83dc","unit":"kg","base_purchase_price":5.0,"storage_condition":"refrigerated","notes":"\u9700\u51b7\u85cf"},
+  {"id":"rice","name":"\u5927\u7c73","unit":"kg","base_purchase_price":5.5,"storage_condition":"ambient","notes":"\u5e72\u8d27"},
+  {"id":"sauce","name":"\u8c03\u5473\u6599","unit":"\u4efd","base_purchase_price":1.5,"storage_condition":"ambient","notes":"\u5e72\u8d27"},
+  {"id":"tea_base","name":"\u8336\u5e95","unit":"L","base_purchase_price":15.0,"storage_condition":"refrigerated","notes":"\u5f00\u5c01\u540e\u9700\u51b7\u85cf"},
+  {"id":"milk","name":"\u725b\u5976","unit":"L","base_purchase_price":8.0,"storage_condition":"refrigerated","notes":"\u9700\u51b7\u85cf"},
+  {"id":"sugar","name":"\u7cd6","unit":"kg","base_purchase_price":4.5,"storage_condition":"ambient","notes":"\u5e72\u8d27"}
 ]

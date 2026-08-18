@@ -146,7 +146,7 @@ func _find_block_at_screen(screen_pos: Vector2) -> BlockData:
 	## 从后往前检查，若未来存在边界重叠时优先使用最后配置的区块。
 	for index in range(blocks.size() - 1, -1, -1):
 		var block := blocks[index]
-		if block.map_bounds.has_point(map_pos):
+		if block.has_map_point(map_pos):
 			return block
 	return null
 

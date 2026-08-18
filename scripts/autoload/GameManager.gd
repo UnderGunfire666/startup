@@ -283,7 +283,7 @@ func _discover_storefronts_in_block(block_id: String) -> void:
 	for storefront in all_storefronts:
 		if storefront.city_region_id != block.city_region_id:
 			continue
-		if not block.map_bounds.has_point(storefront.map_position):
+		if not block.has_map_point(storefront.map_position):
 			continue
 		if get_storefront_diligence(storefront.id) == "not_viewed":
 			player_state.storefront_diligence[storefront.id] = "initial_viewing"
@@ -1746,6 +1746,6 @@ func _get_block_for_storefront(storefront: StorefrontData) -> BlockData:
 	for b in all_blocks:
 		if b.city_region_id != storefront.city_region_id:
 			continue
-		if b.map_bounds.has_point(storefront.map_position):
+		if b.has_map_point(storefront.map_position):
 			return b
 	return null

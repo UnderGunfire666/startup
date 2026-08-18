@@ -22,6 +22,13 @@ static func validate(graph: RoadGraph, blocks: Array[BlockData], storefronts: Ar
 		storefront_ids[storefront.id] = true
 		if storefront.road_segment_id.is_empty() or not segment_ids.has(storefront.road_segment_id):
 			errors.append("storefront %s has no valid road segment" % storefront.id)
+		var inside_block := false
+		for block in blocks:
+			if block.city_region_id == storefront.city_region_id and block.has_map_point(storefront.map_position):
+				inside_block = true
+				break
+		if not inside_block:
+			errors.append("storefront %s is not inside a block" % storefront.id)
 	return errors
 
 

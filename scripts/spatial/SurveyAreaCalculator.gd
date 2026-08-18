@@ -36,9 +36,7 @@ static func build_coverage(
 	if survey_area == null or block == null or survey_area.radius <= 0.0:
 		return null
 
-	var coverage_ratio := calculate_coverage_ratio(
-		survey_area.center_position, survey_area.radius, block.map_bounds
-	)
+	var coverage_ratio := calculate_grid_coverage_ratio(survey_area.center_position, survey_area.radius, block) if not block.grid_cells.is_empty() else calculate_coverage_ratio(survey_area.center_position, survey_area.radius, block.map_bounds)
 	if coverage_ratio <= 0.0:
 		return null
 
@@ -86,6 +84,17 @@ static func calculate_coverage_ratio(
 				inside_count += 1
 
 	return float(inside_count) / float(total_count)
+
+
+static func calculate_grid_coverage_ratio(center: Vector2, radius: float, block: BlockData) -> float:
+	if block == null or block.grid_cells.is_empty() or radius <= 0.0:
+		return 0.0
+	var inside_count := 0
+	for cell in block.grid_cells:
+		var sample_point := (Vector2(cell) + Vector2(0.5, 0.5)) * block.grid_cell_size
+		if center.distance_squared_to(sample_point) <= radius * radius:
+			inside_count += 1
+	return float(inside_count) / float(block.grid_cells.size())
 
 
 static func calculate_distance_weight(

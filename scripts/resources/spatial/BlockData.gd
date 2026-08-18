@@ -11,6 +11,8 @@ extends Resource
 
 ## 地图边界：调查区相交判定用。
 @export var map_bounds: Rect2 = Rect2()
+@export var grid_cells: Array[Vector2i] = []
+@export var grid_cell_size: float = 3.5
 ## 区块中心点：门店距离计算、调查区距离权重计算的锚点。
 @export var center_position: Vector2 = Vector2.ZERO
 ## Road Graph entry used by future path-distance movement.
@@ -84,6 +86,27 @@ func is_valid() -> bool:
 
 func get_group_weight(group_id: String) -> float:
 	return float(group_supply_weights.get(group_id, 0.0))
+
+
+func has_map_point(point: Vector2) -> bool:
+	if grid_cells.is_empty() or grid_cell_size <= 0.0:
+		return map_bounds.has_point(point)
+	var cell := Vector2i(floori(point.x / grid_cell_size), floori(point.y / grid_cell_size))
+	return grid_cells.has(cell)
+
+
+func rebuild_bounds_from_grid_cells() -> void:
+	if grid_cells.is_empty() or grid_cell_size <= 0.0:
+		return
+	var min_cell := grid_cells[0]
+	var max_cell := grid_cells[0]
+	for cell in grid_cells:
+		min_cell.x = mini(min_cell.x, cell.x)
+		min_cell.y = mini(min_cell.y, cell.y)
+		max_cell.x = maxi(max_cell.x, cell.x)
+		max_cell.y = maxi(max_cell.y, cell.y)
+	map_bounds = Rect2(Vector2(min_cell) * grid_cell_size, Vector2(max_cell - min_cell + Vector2i.ONE) * grid_cell_size)
+	center_position = map_bounds.get_center()
 
 
 func get_time_activity(period: String) -> float:

@@ -72,6 +72,12 @@ static func get_blocks() -> Array[BlockData]:
 		block.city_region_id = str(item.get("city_region_id", ""))
 		block.map_bounds = _dict_to_rect2(item.get("map_bounds", {}))
 		block.center_position = _dict_to_vector2(item.get("center_position", {}))
+		block.grid_cell_size = float(item.get("grid_cell_size", 3.5))
+		for raw_cell in item.get("grid_cells", []):
+			if raw_cell is Dictionary:
+				block.grid_cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
+		if not block.grid_cells.is_empty():
+			block.rebuild_bounds_from_grid_cells()
 		block.road_entry_node_id = str(item.get("road_entry_node_id", ""))
 		block.block_type = str(item.get("block_type", "residential"))
 		block.tier = int(item.get("tier", 1))
@@ -150,6 +156,15 @@ static func get_storefronts() -> Array[StorefrontData]:
 			raw_position.get("x", 0.0),
 			raw_position.get("y", 0.0)
 		)
+		s.block_id = str(entry.get("block_id", ""))
+		var raw_local_position: Dictionary = entry.get("block_local_position", {})
+		s.block_local_position = Vector2(
+			raw_local_position.get("x", 0.0),
+			raw_local_position.get("y", 0.0)
+		)
+		for raw_cell in entry.get("grid_cells", []):
+			if raw_cell is Dictionary:
+				s.grid_cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
 		s.capture_modifier = entry.get("capture_modifier", 1.0)
 		s.accessibility_modifier = entry.get("accessibility_modifier", 1.0)
 		s.road_segment_id = str(entry.get("road_segment_id", ""))

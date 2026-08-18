@@ -19,6 +19,14 @@ var export_text: TextEdit
 var map_canvas: MapAuthoringCanvas
 var save_dialog: FileDialog
 var pending_export_files: Dictionary = {}
+var road_class_option: OptionButton
+var block_id_input: LineEdit
+var block_name_input: LineEdit
+var block_region_input: LineEdit
+var block_type_option: OptionButton
+var block_tier_option: OptionButton
+var selected_grid_cells: Array[Vector2i] = []
+var selected_block_id := ""
 
 
 func _ready() -> void:
@@ -29,10 +37,19 @@ func _ready() -> void:
 
 
 func _build_interface() -> void:
+	var workspace := HBoxContainer.new()
+	workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	workspace.add_theme_constant_override("separation", 12)
+	add_child(workspace)
+	var controls_scroll := ScrollContainer.new()
+	controls_scroll.custom_minimum_size = Vector2(390, 0)
+	controls_scroll.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	controls_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	workspace.add_child(controls_scroll)
 	var root := VBoxContainer.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.custom_minimum_size = Vector2(370, 0)
 	root.add_theme_constant_override("separation", 8)
-	add_child(root)
+	controls_scroll.add_child(root)
 
 	var title := Label.new()
 	title.text = "\u5730\u56fe\u5236\u4f5c\u5de5\u5177\uff08\u5f00\u53d1\u7528\uff09"
@@ -44,19 +61,75 @@ func _build_interface() -> void:
 	root.add_child(status_label)
 
 	var map_scroll := ScrollContainer.new()
-	map_scroll.custom_minimum_size = Vector2(0, 240)
+	map_scroll.custom_minimum_size = Vector2(820, 0)
 	map_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_canvas = MapAuthoringCanvas.new()
 	map_canvas.setup(document)
 	map_canvas.node_moved.connect(_on_canvas_node_moved)
 	map_canvas.storefront_moved.connect(_on_canvas_storefront_moved)
 	map_canvas.block_moved.connect(_on_canvas_block_moved)
+	map_canvas.grid_road_requested.connect(_on_grid_road_requested)
+	map_canvas.grid_cells_selected.connect(_on_grid_cells_selected)
+	map_canvas.grid_block_selected.connect(_on_grid_block_selected)
+	map_canvas.road_node_selected.connect(_on_road_node_selected)
+	map_canvas.road_segment_selected.connect(_on_road_segment_selected)
+	map_canvas.selection_cleared.connect(_on_selection_cleared)
+	map_canvas.edit_rejected.connect(_set_status)
 	map_scroll.add_child(map_canvas)
-	root.add_child(map_scroll)
+	workspace.add_child(map_scroll)
+	var mode_row := HFlowContainer.new()
+	for item in [["选择", MapAuthoringCanvas.EditMode.SELECT], ["绘制道路", MapAuthoringCanvas.EditMode.ROAD], ["框选区块", MapAuthoringCanvas.EditMode.BLOCK]]:
+		var button := Button.new()
+		button.text = item[0]
+		button.pressed.connect(map_canvas.set_edit_mode.bind(item[1]))
+		mode_row.add_child(button)
+	road_class_option = OptionButton.new()
+	for road_class in MapAuthoringDocument.ROAD_CLASS_DATA.keys():
+		road_class_option.add_item(str(MapAuthoringDocument.ROAD_CLASS_LABELS.get(road_class, road_class)))
+		road_class_option.set_item_metadata(road_class_option.item_count - 1, road_class)
+	mode_row.add_child(road_class_option)
+	var zoom_label := Label.new()
+	zoom_label.text = "缩放"
+	mode_row.add_child(zoom_label)
+	var zoom_slider := HSlider.new()
+	zoom_slider.min_value = 0.5
+	zoom_slider.max_value = 3.0
+	zoom_slider.step = 0.1
+	zoom_slider.value = 1.0
+	zoom_slider.custom_minimum_size = Vector2(160, 0)
+	zoom_slider.value_changed.connect(map_canvas.set_zoom)
+	mode_row.add_child(zoom_slider)
+	root.add_child(mode_row)
+	var block_create_row := HFlowContainer.new()
+	block_id_input = _make_input("block_id")
+	block_name_input = _make_input("名称")
+	block_region_input = _make_input("city_region_id")
+	block_type_option = OptionButton.new()
+	for block_type in ["residential", "school", "office", "commercial", "industrial"]:
+		block_type_option.add_item(block_type)
+	block_tier_option = OptionButton.new()
+	for tier in range(1, 4):
+		block_tier_option.add_item(str(tier))
+	var create_block_button := Button.new()
+	create_block_button.text = "用已框选网格创建区块"
+	create_block_button.pressed.connect(_on_create_grid_block_pressed)
+	var update_block_button := Button.new()
+	update_block_button.text = "更新选中区块属性"
+	update_block_button.pressed.connect(_on_update_grid_block_pressed)
+	var append_cells_button := Button.new()
+	append_cells_button.text = "加入选中区块"
+	append_cells_button.pressed.connect(_on_append_cells_to_block_pressed)
+	var delete_block_button := Button.new()
+	delete_block_button.text = "删除选中区块"
+	delete_block_button.pressed.connect(_on_delete_selected_block_pressed)
+	for control in [block_id_input, block_name_input, block_region_input, block_type_option, block_tier_option, create_block_button, update_block_button, append_cells_button, delete_block_button]:
+		block_create_row.add_child(control)
+	root.add_child(block_create_row)
 
 	root.add_child(_make_separator())
 	root.add_child(_make_section_label("\u9053\u8def\u8282\u70b9"))
-	var node_row := HBoxContainer.new()
+	var node_row := HFlowContainer.new()
 	node_id_input = _make_input("node_id")
 	node_x_input = _make_input("x")
 	node_y_input = _make_input("y")
@@ -67,10 +140,14 @@ func _build_interface() -> void:
 	add_node_button.text = "\u6dfb\u52a0\u8282\u70b9"
 	add_node_button.pressed.connect(_on_add_node_pressed)
 	node_row.add_child(add_node_button)
+	var delete_node_button := Button.new()
+	delete_node_button.text = "删除节点"
+	delete_node_button.pressed.connect(_on_delete_node_pressed)
+	node_row.add_child(delete_node_button)
 	root.add_child(node_row)
 
 	root.add_child(_make_section_label("\u9053\u8def\u8def\u6bb5"))
-	var segment_row := HBoxContainer.new()
+	var segment_row := HFlowContainer.new()
 	segment_id_input = _make_input("segment_id")
 	segment_from_option = OptionButton.new()
 	segment_to_option = OptionButton.new()
@@ -87,10 +164,18 @@ func _build_interface() -> void:
 	add_segment_button.text = "\u6dfb\u52a0\u8def\u6bb5"
 	add_segment_button.pressed.connect(_on_add_segment_pressed)
 	segment_row.add_child(add_segment_button)
+	var delete_segment_button := Button.new()
+	delete_segment_button.text = "删除路段"
+	delete_segment_button.pressed.connect(_on_delete_segment_pressed)
+	segment_row.add_child(delete_segment_button)
+	var update_segment_button := Button.new()
+	update_segment_button.text = "更新道路等级"
+	update_segment_button.pressed.connect(_on_update_segment_class_pressed)
+	segment_row.add_child(update_segment_button)
 	root.add_child(segment_row)
 
 	root.add_child(_make_section_label("\u533a\u5757\u4e0e\u95e8\u9762\u5173\u8054"))
-	var link_row := HBoxContainer.new()
+	var link_row := HFlowContainer.new()
 	block_option = OptionButton.new()
 	block_entry_option = OptionButton.new()
 	link_row.add_child(block_option)
@@ -105,10 +190,14 @@ func _build_interface() -> void:
 	assign_storefront_button.text = "\u5173\u8054\u6700\u8fd1\u9053\u8def"
 	assign_storefront_button.pressed.connect(_on_assign_storefront_pressed)
 	link_row.add_child(assign_storefront_button)
+	var append_storefront_cells_button := Button.new()
+	append_storefront_cells_button.text = "\u5c06\u6846\u9009\u7f51\u683c\u52a0\u5165\u9009\u4e2d\u95e8\u9762"
+	append_storefront_cells_button.pressed.connect(_on_append_cells_to_storefront_pressed)
+	link_row.add_child(append_storefront_cells_button)
 	root.add_child(link_row)
 
 	root.add_child(_make_separator())
-	var action_row := HBoxContainer.new()
+	var action_row := HFlowContainer.new()
 	var validate_button := Button.new()
 	validate_button.text = "\u6821\u9a8c\u5730\u56fe"
 	validate_button.pressed.connect(_on_validate_pressed)
@@ -271,3 +360,142 @@ func _on_canvas_block_moved(block_id: String) -> void:
 
 func _set_status(message: String) -> void:
 	status_label.text = message
+
+
+func _on_grid_road_requested(from_cell: Vector2i, to_cell: Vector2i) -> void:
+	var segment_id := segment_id_input.text.strip_edges()
+	if segment_id.is_empty():
+		segment_id = "road_grid_%d" % document.road_graph.segments.size()
+	var road_class := str(road_class_option.get_item_metadata(road_class_option.selected))
+	if document.add_grid_road(segment_id, from_cell, to_cell, road_class):
+		segment_id_input.clear()
+		_refresh_options()
+		map_canvas.refresh_canvas()
+		_set_status("道路已创建：" + segment_id)
+	else:
+		_set_status("无法创建道路：ID 已存在或道路等级无效。")
+
+
+func _on_grid_cells_selected(cells: Array[Vector2i]) -> void:
+	if cells.is_empty():
+		selected_grid_cells.clear()
+		map_canvas.set_selected_grid_cells(selected_grid_cells)
+		_set_status("已取消网格选择。")
+		return
+	for cell in cells:
+		if not document.road_cells.has(cell) and not selected_grid_cells.has(cell):
+			selected_grid_cells.append(cell)
+	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	_set_status("已选择 %d 个非道路网格。" % selected_grid_cells.size())
+
+
+func _on_selection_cleared() -> void:
+	selected_grid_cells.clear()
+	selected_block_id = ""
+	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	_set_status("已取消当前选择。")
+
+
+func _on_create_grid_block_pressed() -> void:
+	var block := document.create_block_from_cells(
+		block_id_input.text.strip_edges(), block_name_input.text.strip_edges(), block_region_input.text.strip_edges(),
+		selected_grid_cells, block_type_option.get_item_text(block_type_option.selected), block_tier_option.selected + 1)
+	if block == null:
+		_set_status("无法创建区块：请填写唯一 ID、城市区域，并选择不与道路重叠的网格。")
+		return
+	selected_grid_cells.clear()
+	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	_refresh_options()
+	map_canvas.refresh_canvas()
+	_set_status("多边形区块已创建：" + block.id)
+
+
+func _on_grid_block_selected(block_id: String) -> void:
+	for block in document.blocks:
+		if block.id != block_id:
+			continue
+		selected_block_id = block.id
+		block_id_input.text = block.id
+		block_name_input.text = block.name
+		block_region_input.text = block.city_region_id
+		for index in range(block_type_option.item_count):
+			if block_type_option.get_item_text(index) == block.block_type:
+				block_type_option.select(index)
+				break
+		block_tier_option.select(clampi(block.tier - 1, 0, 2))
+		_set_status("已选中区块：" + block.id)
+		return
+
+
+func _on_update_grid_block_pressed() -> void:
+	if selected_block_id.is_empty():
+		_set_status("请先在选择模式点击一个区块。")
+		return
+	if document.update_block_properties(selected_block_id, block_name_input.text.strip_edges(), block_region_input.text.strip_edges(), block_type_option.get_item_text(block_type_option.selected), block_tier_option.selected + 1):
+		map_canvas.refresh_canvas()
+		_set_status("区块属性已更新：" + selected_block_id)
+
+
+func _on_append_cells_to_block_pressed() -> void:
+	if selected_block_id.is_empty() or not document.add_cells_to_block(selected_block_id, selected_grid_cells):
+		_set_status("无法加入网格：请先选中区块，且网格不得包含道路并需与道路相邻。")
+		return
+	selected_grid_cells.clear()
+	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	map_canvas.refresh_canvas()
+	_set_status("已将网格加入选中区块。")
+
+
+func _on_append_cells_to_storefront_pressed() -> void:
+	var storefront_id := _selected_id(storefront_option)
+	if storefront_id.is_empty() or not document.add_cells_to_storefront(storefront_id, selected_grid_cells):
+		_set_status("\u65e0\u6cd5\u52a0\u5165\u7f51\u683c\uff1a\u8bf7\u9009\u62e9\u95e8\u9762\uff0c\u5e76\u786e\u4fdd\u7f51\u683c\u5728\u540c\u4e00\u533a\u5757\u5185\u4e14\u4e0e\u73b0\u6709\u95e8\u9762\u8fde\u901a\u3002")
+		return
+	selected_grid_cells.clear()
+	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	map_canvas.refresh_canvas()
+	_set_status("\u5df2\u5c06\u7f51\u683c\u52a0\u5165\u9009\u4e2d\u95e8\u9762\u3002")
+
+
+func _on_delete_selected_block_pressed() -> void:
+	if document.remove_block(selected_block_id):
+		selected_block_id = ""
+		_refresh_options()
+		map_canvas.refresh_canvas()
+		_set_status("区块已删除。")
+
+
+func _on_delete_node_pressed() -> void:
+	if document.remove_road_node(node_id_input.text.strip_edges()):
+		_refresh_options()
+		map_canvas.refresh_canvas()
+		_set_status("节点及关联路段已删除。")
+
+
+func _on_delete_segment_pressed() -> void:
+	if document.remove_road_segment(segment_id_input.text.strip_edges()):
+		_refresh_options()
+		map_canvas.refresh_canvas()
+		_set_status("路段已删除。")
+
+
+func _on_road_node_selected(node_id: String) -> void:
+	node_id_input.text = node_id
+	_set_status("已选中道路节点：" + node_id)
+
+
+func _on_road_segment_selected(segment_id: String) -> void:
+	segment_id_input.text = segment_id
+	var current_class := document.get_road_class(segment_id)
+	for index in range(road_class_option.item_count):
+		if str(road_class_option.get_item_metadata(index)) == current_class:
+			road_class_option.select(index)
+			break
+	_set_status("已选中道路路段：" + segment_id)
+
+
+func _on_update_segment_class_pressed() -> void:
+	var road_class := str(road_class_option.get_item_metadata(road_class_option.selected))
+	if document.set_road_class(segment_id_input.text.strip_edges(), road_class):
+		map_canvas.refresh_canvas()
+		_set_status("道路等级已更新。")

@@ -273,7 +273,7 @@ func _refresh_live_metrics(store: Store) -> void:
 	var storefront := GameManager.get_storefront(store.selected_storefront_id)
 	if storefront != null:
 		for block in GameManager.all_blocks:
-			if block.map_bounds.has_point(storefront.map_position):
+			if block.has_map_point(storefront.map_position):
 				awareness = float(store.awareness_by_block.get(block.id, 0.0))
 				break
 	live_metrics_label.text = "%s\n\u5230\u5e97\uff1a%d -> \u60f3\u4e0b\u5355\uff1a%d -> \u6210\u4ea4\uff1a%d  |  \u6392\u961f\u79bb\u5f00\uff1a%d  |  \u7f3a\u8d27\u6d41\u5931\uff1a%d\n\u6240\u5728\u533a\u5757\u77e5\u540d\u5ea6\uff1a%.1f / 100  |  \u5e97\u94fa\u53e3\u7891\uff1a%.1f / 100\n\u5e73\u5747\u51fa\u9910\uff1a%s  |  \u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s" % [title, metrics.visitors, metrics.intended_orders, metrics.orders, metrics.queue_left, metrics.inventory_left, awareness, store.reputation, _format_live_seconds(avg_service), _format_live_seconds(avg_wait), _format_live_seconds(float(metrics.max_wait))]

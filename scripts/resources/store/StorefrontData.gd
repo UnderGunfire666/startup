@@ -23,6 +23,12 @@ extends Resource
 @export var city_region_id: String = ""
 ## 门面地图坐标，用于计算到各区块的距离
 @export var map_position: Vector2 = Vector2.ZERO
+## Owning map block. This is the authoritative relationship used by the map editor.
+@export var block_id: String = ""
+## Position relative to the centre of block_id, so a storefront follows its block exactly.
+@export var block_local_position: Vector2 = Vector2.ZERO
+## Grid cells occupied by this storefront. A storefront always occupies at least one connected cell.
+@export var grid_cells: Array[Vector2i] = []
 ## Nearest RoadSegment id; kept separate from visual storefront flow data.
 @export var road_segment_id: String = ""
 ## 门面截流/可见度修正，迁移自旧 flow_share 的语义（不再是"整区客流分成比例"）

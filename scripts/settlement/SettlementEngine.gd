@@ -104,7 +104,8 @@ static func finalize_from_simulation(
 	var storefront: StorefrontData = params.get("storefront", null)
 	var slot_foot_traffic := trade_area.total_effective_audience if trade_area != null else 0.0
 	r.slot_foot_traffic = slot_foot_traffic
-	r.reachable_traffic = slot_foot_traffic * storefront.flow_share if storefront != null else 0.0
+	var capture_multiplier := maxf(0.0, storefront.capture_modifier) if storefront != null else 0.0
+	r.reachable_traffic = slot_foot_traffic * storefront.flow_share * capture_multiplier if storefront != null else 0.0
 	r.entry_rate = category.base_entry_rate
 	r.conversion_rate = float(params.get("conversion_rate", 0.0))
 	r.slot_capacity = int(params.get("slot_capacity", 0))
@@ -187,7 +188,7 @@ static func _calc_base_visitors_from_trade_area(
 		category: CategoryData
 ) -> int:
 	var base := trade_area.total_effective_audience if trade_area != null else 100.0
-	var reachable := base * storefront.flow_share
+	var reachable := base * storefront.flow_share * maxf(0.0, storefront.capture_modifier)
 	var visitors := reachable * category.base_entry_rate
 	return maxi(1, int(visitors))
 

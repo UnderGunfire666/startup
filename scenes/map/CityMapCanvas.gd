@@ -24,17 +24,21 @@ const STOREFRONT_STATE_COLORS: Dictionary = {
 }
 
 const BLOCK_SELECTED_COLOR := Color(1.0, 0.9, 0.2, 0.95)
+const ROAD_COLOR := Color(0.86, 0.86, 0.9, 0.75)
+const ROAD_NODE_COLOR := Color(0.98, 0.8, 0.3, 0.9)
 
 var city_regions: Array[CityRegionData] = []
 var blocks: Array[BlockData] = []
+var road_graph: RoadGraph = null
 var survey_areas: Array[SurveyAreaState] = []
 var storefronts: Array[StorefrontData] = []
 var selected_block_ids: Array[String] = []
 
 
-func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData]) -> void:
+func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData], new_road_graph: RoadGraph = null) -> void:
 	city_regions = new_city_regions
 	blocks = new_blocks
+	road_graph = new_road_graph
 	_update_canvas_size()
 	queue_redraw()
 
@@ -157,6 +161,7 @@ func _map_to_screen(map_pos: Vector2) -> Vector2:
 
 func _draw() -> void:
 	_draw_city_regions()
+	_draw_roads()
 	_draw_blocks()
 	_draw_survey_areas()
 	_draw_storefronts()
@@ -170,11 +175,24 @@ func _draw_city_regions() -> void:
 		)
 		draw_rect(rect, Color(1, 1, 1, 0.05), true)
 		draw_rect(rect, Color(1, 1, 1, 0.6), false, 2.0)
-		draw_string(
-			ThemeDB.fallback_font, rect.position + Vector2(6, 16),
-			"%s（%s）" % [region.name, region.region_type],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 13
-		)
+		draw_string(ThemeDB.fallback_font, rect.position + Vector2(6, 16), region.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13)
+
+
+func _draw_roads() -> void:
+	if road_graph == null:
+		return
+	for segment in road_graph.segments:
+		var from_node: RoadNode = road_graph.nodes.get(segment.from_node_id, null)
+		var to_node: RoadNode = road_graph.nodes.get(segment.to_node_id, null)
+		if from_node == null or to_node == null:
+			continue
+		var exposure_alpha := lerpf(0.35, 0.9, clampf(segment.exposure / 1.2, 0.0, 1.0))
+		var road_color := Color(ROAD_COLOR.r, ROAD_COLOR.g, ROAD_COLOR.b, exposure_alpha)
+		var width := 1.5 + clampf(segment.accessibility, 0.0, 1.0) * 2.0
+		draw_line(_map_to_screen(from_node.position), _map_to_screen(to_node.position), road_color, width, true)
+	for node in road_graph.nodes.values():
+		if node is RoadNode:
+			draw_circle(_map_to_screen((node as RoadNode).position), 2.5, ROAD_NODE_COLOR)
 
 
 func _draw_blocks() -> void:

@@ -30,7 +30,9 @@ static func calculate_snapshot(
 	city_region: CityRegionData,
 	all_blocks: Array[BlockData],
 	is_weekend: bool = false,
-	max_radius: float = DEFAULT_MAX_RADIUS
+	max_radius: float = DEFAULT_MAX_RADIUS,
+	block_visitor_multipliers: Dictionary = {},
+	city_region_visitor_multiplier: float = 1.0
 ) -> TradeAreaSnapshot:
 	var snapshot := TradeAreaSnapshot.new()
 	snapshot.storefront_id = storefront.id if storefront != null else ""
@@ -65,7 +67,8 @@ static func calculate_snapshot(
 		var match_score := _calculate_business_match(block, category_id)
 		var competition_mod := _calculate_competition_mod(block, category_id)
 
-		var modifier := decay * accessibility_mod * match_score * competition_mod
+		var dynamic_visitor_multiplier := maxf(0.0, float(block_visitor_multipliers.get(block.id, 1.0)))
+		var modifier := decay * accessibility_mod * match_score * competition_mod * dynamic_visitor_multiplier * maxf(0.0, city_region_visitor_multiplier)
 		if modifier <= 0.0:
 			continue
 
@@ -98,6 +101,8 @@ static func calculate_snapshot(
 			"accessibility_mod": accessibility_mod,
 			"business_match": match_score,
 			"competition_mod": competition_mod,
+			"dynamic_visitor_multiplier": dynamic_visitor_multiplier,
+			"city_region_visitor_multiplier": city_region_visitor_multiplier,
 			"group_supply": contributed_groups,
 			"external_supply": contributed_external,
 			"contribution": block_contribution,

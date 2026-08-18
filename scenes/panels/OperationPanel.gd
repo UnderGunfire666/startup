@@ -22,10 +22,23 @@ signal store_opened
 @onready var stress_label: Label = $VBox/StatsGrid/StressLabel
 @onready var owner_present_check: CheckBox = $VBox/OwnerRow/OwnerPresentCheck
 @onready var customer_feed: VBoxContainer = $VBox/CustomerFeedScroll/CustomerFeed
+@onready var root_box: VBoxContainer = $VBox
+var decision_box: VBoxContainer
+var interrupt_box: VBoxContainer
 
 const CUSTOMER_FEED_MAX_LINES: int = 20
 
 func _ready() -> void:
+	interrupt_box = VBoxContainer.new()
+	interrupt_box.name = "InterruptBox"
+	root_box.add_child(interrupt_box)
+	root_box.move_child(interrupt_box, customer_feed.get_parent().get_index())
+	decision_box = VBoxContainer.new()
+	decision_box.name = "DecisionBox"
+	root_box.add_child(decision_box)
+	root_box.move_child(decision_box, customer_feed.get_parent().get_index())
+	EventManager.decision_raised.connect(func(_event: ActiveGameEvent) -> void: _refresh_decisions())
+	EventManager.interrupt_raised.connect(func(_event: ActiveGameEvent) -> void: _refresh_interrupts())
 	for hour in range(25):
 		business_start_option.add_item("%02d:00" % hour)
 		business_end_option.add_item("%02d:00" % hour)
@@ -42,7 +55,51 @@ func _ready() -> void:
 	TimeManager.day_completed.connect(_on_day_completed)
 	TimeManager.clock_updated.connect(_on_clock_updated)
 	TimeManager.customer_event.connect(_on_customer_event)
+	EventManager.notice_raised.connect(_on_event_notice_raised)
 	refresh_display()
+
+func _refresh_decisions() -> void:
+	for child in decision_box.get_children(): child.queue_free()
+	var store := GameManager.store_state
+	if store == null: return
+	for event in EventManager.pending_decisions:
+		if event.store_id != store.id: continue
+		var label := Label.new()
+		label.text = "[\u51b3\u7b56] " + event.title + "\uff1a" + event.message
+		decision_box.add_child(label)
+		for option in event.options:
+			var button := Button.new()
+			var option_id: String = str(option.get("id", ""))
+			button.text = str(option.get("label", option_id))
+			button.pressed.connect(_on_decision_option_pressed.bind(event.event_id, option_id))
+			decision_box.add_child(button)
+
+
+func _refresh_interrupts() -> void:
+	for child in interrupt_box.get_children(): child.queue_free()
+	var store := GameManager.store_state
+	if store == null:
+		return
+	for event in EventManager.pending_interrupts:
+		if event.store_id != store.id:
+			continue
+		var label := Label.new()
+		label.text = "[\u7d27\u6025] " + event.title + "\uff1a" + event.message
+		interrupt_box.add_child(label)
+		var button := Button.new()
+		button.text = "\u786e\u8ba4\u5e76\u67e5\u770b\u5f71\u54cd"
+		button.pressed.connect(_on_interrupt_acknowledged.bind(event.event_id))
+		interrupt_box.add_child(button)
+
+
+func _on_decision_option_pressed(event_id: String, option_id: String) -> void:
+	EventManager.resolve_decision(event_id, option_id)
+	_refresh_decisions()
+
+
+func _on_interrupt_acknowledged(event_id: String) -> void:
+	EventManager.resolve_interrupt(event_id)
+	_refresh_interrupts()
 
 func _on_owner_present_toggled(pressed: bool) -> void:
 	var store := GameManager.store_state
@@ -118,6 +175,10 @@ func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: St
 
 func refresh_display() -> void:
 	var state := GameManager.store_state
+	if decision_box != null:
+		_refresh_decisions()
+	if interrupt_box != null:
+		_refresh_interrupts()
 	var has_character: bool = GameManager.player_state.is_character_created
 	var has_store: bool = state != null
 	if not has_character:
@@ -208,7 +269,14 @@ func _refresh_live_metrics(store: Store) -> void:
 	var avg_service := float(metrics.service_total) / float(metrics.service_count) if int(metrics.service_count) > 0 else 0.0
 	var avg_wait := float(metrics.wait_total) / float(metrics.orders) if int(metrics.orders) > 0 else 0.0
 	var title := "\u5b9e\u65f6\u7ecf\u8425\uff08\u672c\u5c0f\u65f6\uff09" if metrics.source == "live" else "\u6700\u8fd1\u5b8c\u6210\u65f6\u6bb5"
-	live_metrics_label.text = "%s\n\u5230\u5e97\uff1a%d -> \u60f3\u4e0b\u5355\uff1a%d -> \u6210\u4ea4\uff1a%d  |  \u6392\u961f\u79bb\u5f00\uff1a%d  |  \u7f3a\u8d27\u6d41\u5931\uff1a%d\n\u5e73\u5747\u51fa\u9910\uff1a%s  |  \u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s" % [title, metrics.visitors, metrics.intended_orders, metrics.orders, metrics.queue_left, metrics.inventory_left, _format_live_seconds(avg_service), _format_live_seconds(avg_wait), _format_live_seconds(float(metrics.max_wait))]
+	var awareness := 0.0
+	var storefront := GameManager.get_storefront(store.selected_storefront_id)
+	if storefront != null:
+		for block in GameManager.all_blocks:
+			if block.map_bounds.has_point(storefront.map_position):
+				awareness = float(store.awareness_by_block.get(block.id, 0.0))
+				break
+	live_metrics_label.text = "%s\n\u5230\u5e97\uff1a%d -> \u60f3\u4e0b\u5355\uff1a%d -> \u6210\u4ea4\uff1a%d  |  \u6392\u961f\u79bb\u5f00\uff1a%d  |  \u7f3a\u8d27\u6d41\u5931\uff1a%d\n\u6240\u5728\u533a\u5757\u77e5\u540d\u5ea6\uff1a%.1f / 100  |  \u5e97\u94fa\u53e3\u7891\uff1a%.1f / 100\n\u5e73\u5747\u51fa\u9910\uff1a%s  |  \u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s" % [title, metrics.visitors, metrics.intended_orders, metrics.orders, metrics.queue_left, metrics.inventory_left, awareness, store.reputation, _format_live_seconds(avg_service), _format_live_seconds(avg_wait), _format_live_seconds(float(metrics.max_wait))]
 
 
 func _format_live_seconds(value: float) -> String:
@@ -231,6 +299,13 @@ func _format_event_time(game_seconds: float) -> String:
 	var seconds_in_day := fposmod(game_seconds, TimeManager.DAY_SECONDS)
 	var total_seconds := int(seconds_in_day)
 	return "D%d %02d:%02d" % [1 + int(game_seconds / TimeManager.DAY_SECONDS), total_seconds / 3600, (total_seconds / 60) % 60]
+
+
+func _on_event_notice_raised(event: ActiveGameEvent) -> void:
+	var store := GameManager.store_state
+	if store == null or event.scope != GameEventDefinition.Scope.STORE or event.store_id != store.id:
+		return
+	_append_business_log("[\u4e8b\u4ef6] " + event.title + "\uff1a" + event.message)
 
 func _refresh_opening_prep() -> void:
 	var state := GameManager.store_state

@@ -2,6 +2,28 @@ class_name GameData
 
 const DATA_DIR := "res://data/"
 
+static func get_road_graph() -> RoadGraph:
+	var raw: Array = _load_json_array(DATA_DIR + "roads.json")
+	var graph := RoadGraph.new()
+	for item in raw:
+		if str(item.get("kind", "")) != "node":
+			continue
+		var node := RoadNode.new()
+		node.id = str(item.get("id", ""))
+		node.position = _dict_to_vector2(item.get("position", {}))
+		graph.add_node(node)
+	for item in raw:
+		if str(item.get("kind", "")) != "segment":
+			continue
+		var segment := RoadSegment.new()
+		segment.id = str(item.get("id", ""))
+		segment.from_node_id = str(item.get("from_node_id", ""))
+		segment.to_node_id = str(item.get("to_node_id", ""))
+		segment.accessibility = float(item.get("accessibility", 1.0))
+		segment.exposure = float(item.get("exposure", 1.0))
+		graph.add_segment(segment)
+	return graph
+
 static func get_city_regions() -> Array[CityRegionData]:
 	var raw := _load_json_array("res://data/city_regions.json")
 	var result: Array[CityRegionData] = []
@@ -50,6 +72,7 @@ static func get_blocks() -> Array[BlockData]:
 		block.city_region_id = str(item.get("city_region_id", ""))
 		block.map_bounds = _dict_to_rect2(item.get("map_bounds", {}))
 		block.center_position = _dict_to_vector2(item.get("center_position", {}))
+		block.road_entry_node_id = str(item.get("road_entry_node_id", ""))
 		block.block_type = str(item.get("block_type", "residential"))
 		block.tier = int(item.get("tier", 1))
 		block.area = float(item.get("area", 100.0))
@@ -129,6 +152,7 @@ static func get_storefronts() -> Array[StorefrontData]:
 		)
 		s.capture_modifier = entry.get("capture_modifier", 1.0)
 		s.accessibility_modifier = entry.get("accessibility_modifier", 1.0)
+		s.road_segment_id = str(entry.get("road_segment_id", ""))
 
 		list.append(s)
 	return list

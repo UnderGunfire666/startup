@@ -149,7 +149,7 @@ func _get_move_to_block_duration_hours(target_block_id: String) -> float:
 	var current_block := GameManager.get_block(current_block_id)
 	if current_block == null:
 		return -1.0
-	return MovementConfig.get_travel_hours(current_block, target_block)
+	return MovementConfig.get_travel_hours(current_block, target_block, GameManager.road_graph)
 
 func _check_preconditions(
 		action: ActionDefinition,
@@ -654,6 +654,7 @@ func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: floa
 		if current >= 100.0:
 			continue
 		GameManager.advance_block_understanding(block_id, gain)
+		EventManager.try_research_discovery(block_id)
 		affected_city_regions[block.city_region_id] = true
 		applied = true
 
@@ -693,6 +694,7 @@ func _apply_region_research_effect_continuous(block_ids: Array[String], elapsed_
 		var gain := minf(share, smallest_remaining)
 		for block in active_blocks:
 			GameManager.advance_block_understanding(block.id, gain)
+			EventManager.try_research_discovery(block.id)
 			affected_city_regions[block.city_region_id] = true
 		remaining_work -= gain * float(active_blocks.size())
 		for index in range(active_blocks.size() - 1, -1, -1):

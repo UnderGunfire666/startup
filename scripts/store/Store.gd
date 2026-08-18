@@ -33,6 +33,7 @@ var is_business_open: bool = false
 var business_hour_ranges: Array[Vector2i] = [Vector2i(9, 21)]
 
 var reputation: float = SettlementConfig.INITIAL_REPUTATION
+var awareness_by_block: Dictionary = {}
 
 var category_slots: Array[StoreCategorySlot] = []
 var equipment: Array[StoreEquipment] = []
@@ -341,6 +342,7 @@ func to_save_dict() -> Dictionary:
 		"is_business_open": is_business_open,
 		"business_hour_ranges": business_ranges_data,
 		"reputation": reputation,
+		"awareness_by_block": awareness_by_block,
 		"category_slots": slots_data,
 		"equipment": equipment_data,
 		"employees": employee_data,
@@ -375,6 +377,7 @@ static func from_save_dict(data: Dictionary) -> Store:
 	if s.business_hour_ranges.is_empty():
 		s.business_hour_ranges.append(Vector2i(9, 21))
 	s.reputation = data.get("reputation", SettlementConfig.INITIAL_REPUTATION)
+	s.awareness_by_block = data.get("awareness_by_block", {})
 
 	var slots_raw: Array = data.get("category_slots", [])
 	for sd in slots_raw:

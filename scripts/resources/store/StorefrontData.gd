@@ -23,6 +23,8 @@ extends Resource
 @export var city_region_id: String = ""
 ## 门面地图坐标，用于计算到各区块的距离
 @export var map_position: Vector2 = Vector2.ZERO
+## Nearest RoadSegment id; kept separate from visual storefront flow data.
+@export var road_segment_id: String = ""
 ## 门面截流/可见度修正，迁移自旧 flow_share 的语义（不再是"整区客流分成比例"）
 @export var capture_modifier: float = 1.0
 ## 门面自身易达性（临街、停车、入口等），配合区块accessibility共同决定可达性

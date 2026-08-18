@@ -19,6 +19,7 @@ var all_employee_candidates: Array[EmployeeCandidateData] = []
 
 var all_city_regions: Array[CityRegionData] = []
 var all_blocks: Array[BlockData] = []
+var road_graph: RoadGraph = RoadGraph.new()
 
 ## ── 多店重构阶段1 ────────────────────────────────────────────
 var stores: Array[Store] = []
@@ -47,6 +48,42 @@ func _ready() -> void:
 
 	all_city_regions = GameData.get_city_regions()
 	all_blocks = GameData.get_blocks()
+	road_graph = GameData.get_road_graph()
+	_build_runtime_road_links()
+
+
+func _build_runtime_road_links() -> void:
+	for block in all_blocks:
+		if not block.road_entry_node_id.is_empty() and road_graph.nodes.has(block.road_entry_node_id):
+			continue
+		var node_id := "entry_" + block.id
+		if not road_graph.nodes.has(node_id):
+			var node := RoadNode.new()
+			node.id = node_id
+			node.position = block.center_position
+			road_graph.add_node(node)
+		block.road_entry_node_id = node_id
+	for index in range(1, all_blocks.size()):
+		var segment := RoadSegment.new()
+		segment.id = "link_" + all_blocks[index - 1].id + "_" + all_blocks[index].id
+		segment.from_node_id = all_blocks[index - 1].road_entry_node_id
+		segment.to_node_id = all_blocks[index].road_entry_node_id
+		road_graph.add_segment(segment)
+	for storefront in all_storefronts:
+		if not storefront.road_segment_id.is_empty():
+			continue
+		var nearest_id := ""
+		var nearest_distance := INF
+		for segment in road_graph.segments:
+			var from_node: RoadNode = road_graph.nodes.get(segment.from_node_id, null)
+			var to_node: RoadNode = road_graph.nodes.get(segment.to_node_id, null)
+			if from_node == null or to_node == null:
+				continue
+			var distance := minf(storefront.map_position.distance_to(from_node.position), storefront.map_position.distance_to(to_node.position))
+			if distance < nearest_distance:
+				nearest_distance = distance
+				nearest_id = segment.id
+		storefront.road_segment_id = nearest_id
 
 
 func create_character(data: Dictionary) -> Dictionary:
@@ -1203,6 +1240,7 @@ func start_new_game() -> void:
 	active_simulations.clear()
 	TimeManager.reset()
 	ScheduleManager.reset_for_new_game()
+	EventManager.reset_for_new_game()
 
 
 func begin_slot_simulation() -> void:
@@ -1233,6 +1271,8 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 		active_product_count += category_slot.product_configs.size()
 	if active_product_count <= 0:
 		return
+	var block_visitor_multipliers := _get_block_visitor_multipliers()
+	var city_region_visitor_multiplier := _get_city_region_visitor_multiplier(city_region.id)
 
 	for cat_slot in store.category_slots:
 		var category := get_category(cat_slot.category_id)
@@ -1255,6 +1295,9 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 			scaled_storefront.hourly_capacity_base = maxi(1, int(round(
 				storefront.hourly_capacity_base * product_share)))
 			scaled_storefront.flow_share = storefront.flow_share * product_share
+			var capture_modifier_add := EventManager.get_modifier_total(
+				GameEventDefinition.Scope.STOREFRONT, storefront.id, "capture_multiplier_add")
+			scaled_storefront.capture_modifier = maxf(0.0, storefront.capture_modifier * (1.0 + capture_modifier_add))
 
 			var product_instance: ProductData = product_template.duplicate()
 			product_instance.average_price = pc.get_effective_price(product_template)
@@ -1262,11 +1305,22 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 
 			var trade_area := TradeAreaCalculator.calculate_snapshot(
 				scaled_storefront, category.id, product_template.id, hour,
-				city_region, all_blocks, is_weekend)
+				city_region, all_blocks, is_weekend,
+				TradeAreaCalculator.DEFAULT_MAX_RADIUS, block_visitor_multipliers,
+				city_region_visitor_multiplier)
 
 			var params: Dictionary = SettlementEngine.calculate_params_from_trade_area(
 				trade_area, scaled_storefront, category, product_instance,
 				store, player_state, hour, store.is_business_open, staffing_power)
+			var visitor_multiplier_add := EventManager.get_modifier_total(
+				GameEventDefinition.Scope.STORE, store.id, "natural_visitors_multiplier_add")
+			if visitor_multiplier_add != 0.0:
+				params.visitors = maxi(0, int(round(float(params.visitors) * (1.0 + visitor_multiplier_add))))
+			params.visitors += get_destination_visitors(store, storefront, product_share)
+			var conversion_rate_add := EventManager.get_modifier_total(
+				GameEventDefinition.Scope.STORE, store.id, "conversion_rate_add")
+			if conversion_rate_add != 0.0:
+				params.conversion_rate = clampf(float(params.conversion_rate) + conversion_rate_add, 0.0, 1.0)
 
 			var entry := {
 				"store_id": store.id, "sim": null, "params": params, "category": category,
@@ -1288,7 +1342,9 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 
 			if params.is_open:
 				var sim := CustomerSimulator.new()
-				var service_seconds := get_product_service_seconds(category, product_instance, staffing_power) * product_count
+				var service_time_multiplier_add := EventManager.get_modifier_total(
+					GameEventDefinition.Scope.STORE, store.id, "service_time_multiplier_add")
+				var service_seconds := get_product_service_seconds(category, product_instance, staffing_power) * product_count * maxf(0.1, 1.0 + service_time_multiplier_add)
 				var reserve_ingredients := _reserve_product_ingredients.bind(
 					store, product_template, ingredient_consumption_multiplier)
 				sim.setup(params.visitors, 3600.0, params.conversion_rate,
@@ -1317,6 +1373,61 @@ func advance_slot_simulation(elapsed_seconds: float) -> void:
 		var next_sim: CustomerSimulator = next_entry.get("sim", null)
 		if next_sim == null or not next_sim.process_next_arrival_if_due(elapsed_seconds):
 			break
+
+
+func get_storefront_road_exposure(storefront: StorefrontData) -> float:
+	if storefront == null:
+		return 0.0
+	for segment in road_graph.segments:
+		if segment.id == storefront.road_segment_id:
+			return maxf(0.0, segment.exposure)
+	return 0.0
+
+
+func _get_block_visitor_multipliers() -> Dictionary:
+	var multipliers: Dictionary = {}
+	for block in all_blocks:
+		var modifier_add := EventManager.get_modifier_total(
+			GameEventDefinition.Scope.BLOCK, block.id, "natural_visitors_multiplier_add")
+		if modifier_add != 0.0:
+			multipliers[block.id] = maxf(0.0, 1.0 + modifier_add)
+	return multipliers
+
+
+func _get_city_region_visitor_multiplier(city_region_id: String) -> float:
+	var modifier_add := EventManager.get_modifier_total(
+		GameEventDefinition.Scope.CITY_REGION, city_region_id, "natural_visitors_multiplier_add")
+	return maxf(0.0, 1.0 + modifier_add)
+
+
+func get_destination_visitors(store: Store, storefront: StorefrontData, product_share: float = 1.0) -> int:
+	if store == null or storefront == null or store.reputation <= 0.0:
+		return 0
+	var total := 0.0
+	for block_id in store.awareness_by_block.keys():
+		var awareness := float(store.awareness_by_block.get(block_id, 0.0))
+		var block := get_block(str(block_id))
+		if awareness <= 0.0 or block == null:
+			continue
+		var distance := get_block_to_storefront_road_distance(block, storefront)
+		var distance_factor := 1.0 / (1.0 + distance / 800.0)
+		total += awareness / 100.0 * store.reputation / 100.0 * 12.0 * distance_factor
+	return maxi(0, int(round(total * product_share)))
+
+
+func get_block_to_storefront_road_distance(block: BlockData, storefront: StorefrontData) -> float:
+	if block == null or storefront == null:
+		return INF
+	var best := INF
+	if road_graph.nodes.has(block.road_entry_node_id):
+		for segment in road_graph.segments:
+			if segment.id != storefront.road_segment_id:
+				continue
+			best = minf(best, road_graph.get_shortest_distance(block.road_entry_node_id, segment.from_node_id))
+			best = minf(best, road_graph.get_shortest_distance(block.road_entry_node_id, segment.to_node_id))
+	if is_inf(best):
+		return storefront.map_position.distance_to(block.center_position)
+	return best
 
 
 func _reserve_product_ingredients(
@@ -1551,12 +1662,62 @@ func _apply_operating_understanding_gain(store: Store, results: Array) -> void:
 		if result.is_open:
 			total_orders += result.actual_orders
 
+	_apply_store_awareness_growth(store, storefront, results, total_orders)
+
 	if total_orders <= 0:
 		return
 
 	var gain := float(total_orders) * SpatialConfig.OPERATING_UNDERSTANDING_PER_ORDER
 	advance_block_understanding(block.id, gain)
 	recalculate_region_intel(block.city_region_id)
+
+
+func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, results: Array, total_orders: int) -> void:
+	var local_block := _get_block_for_storefront(storefront)
+	if store == null or storefront == null or local_block == null:
+		return
+	## 只要实际营业，门面所在道路带来的曝光就会累积；它不依赖本时段是否成交。
+	var awareness_gain_multiplier := _get_store_awareness_gain_multiplier(store, storefront)
+	var exposure_gain := get_storefront_road_exposure(storefront) * 0.05 * awareness_gain_multiplier
+	_add_store_awareness(store, local_block.id, exposure_gain)
+	if total_orders <= 0:
+		return
+
+	var total_wait_seconds := 0.0
+	var total_reputation_delta := 0.0
+	for result in results:
+		if not result.is_open or result.actual_orders <= 0:
+			continue
+		total_wait_seconds += result.average_queue_wait_seconds * float(result.actual_orders)
+		total_reputation_delta += result.reputation_delta
+	var average_wait_seconds := total_wait_seconds / float(total_orders)
+	var quality_multiplier := clampf(
+		1.0 + total_reputation_delta * 0.4 - minf(average_wait_seconds / 600.0, 0.5), 0.25, 1.5)
+	var word_of_mouth_gain := float(total_orders) * 0.02 * quality_multiplier * awareness_gain_multiplier
+	for block in all_blocks:
+		var distance := get_block_to_storefront_road_distance(block, storefront)
+		var distance_factor := 1.0 / (1.0 + distance / 400.0)
+		_add_store_awareness(store, block.id, word_of_mouth_gain * distance_factor)
+
+
+func _get_store_awareness_gain_multiplier(store: Store, storefront: StorefrontData) -> float:
+	if storefront == null:
+		return 1.0
+	var modifier_add := EventManager.get_modifier_total(
+		GameEventDefinition.Scope.CITY_REGION, storefront.city_region_id, "awareness_gain_multiplier_add")
+	modifier_add += EventManager.get_modifier_total(
+		GameEventDefinition.Scope.STOREFRONT, storefront.id, "awareness_gain_multiplier_add")
+	if store != null:
+		modifier_add += EventManager.get_modifier_total(
+			GameEventDefinition.Scope.STORE, store.id, "awareness_gain_multiplier_add")
+	return maxf(0.0, 1.0 + modifier_add)
+
+
+func _add_store_awareness(store: Store, block_id: String, gain: float) -> void:
+	if store == null or block_id.is_empty() or gain <= 0.0:
+		return
+	store.awareness_by_block[block_id] = clampf(
+		float(store.awareness_by_block.get(block_id, 0.0)) + gain, 0.0, 100.0)
 
 
 ## 供多店场景使用：按天汇总"所有营业中店铺"的结算数据。

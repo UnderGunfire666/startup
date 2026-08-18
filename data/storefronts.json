@@ -1,6 +1,7 @@
 [
   {
 	"id": "S001",
+	"road_segment_id": "road_rs_5",
 	"name": "晨光街角档口",
 	"region_id": "A002",
 	"city_region_id": "CR002",
@@ -19,6 +20,7 @@
   },
   {
 	"id": "S002",
+	"road_segment_id": "road_rs_5",
 	"name": "旧影院后巷小馆",
 	"region_id": "A002",
 	"city_region_id": "CR002",
@@ -37,6 +39,7 @@
   },
   {
 	"id": "S003",
+	"road_segment_id": "road_cc_main_1",
 	"name": "工业园区路边摊",
 	"region_id": "A001",
 	"city_region_id": "CR001",
@@ -55,6 +58,7 @@
   },
   {
 	"id": "S004",
+	"road_segment_id": "road_cc_main_1",
 	"name": "校门口豆浆铺",
 	"region_id": "A001",
 	"city_region_id": "CR001",
@@ -73,6 +77,7 @@
   },
   {
 	"id": "S005",
+	"road_segment_id": "road_cc_main_1",
 	"name": "写字楼简餐窗口",
 	"region_id": "A001",
 	"city_region_id": "CR001",
@@ -91,6 +96,7 @@
   },
   {
 	"id": "S006",
+	"road_segment_id": "road_cc_main_2",
 	"name": "大学城奶茶店",
 	"region_id": "A001",
 	"city_region_id": "CR001",
@@ -109,6 +115,7 @@
   },
   {
 	"id": "S007",
+	"road_segment_id": "road_cc_main_3",
 	"name": "摊贩巷烤串档",
 	"region_id": "A001",
 	"city_region_id": "CR001",
@@ -127,6 +134,7 @@
   },
   {
 	"id": "S008",
+	"road_segment_id": "road_cc_main_4",
 	"name": "中环商业中心轻食",
 	"region_id": "A001",
 	"city_region_id": "CR001",
@@ -145,6 +153,7 @@
   },
   {
 	"id": "S009",
+	"road_segment_id": "road_rs_1",
 	"name": "河畔中学早点摆",
 	"region_id": "A002",
 	"city_region_id": "CR002",
@@ -163,6 +172,7 @@
   },
   {
 	"id": "S010",
+	"road_segment_id": "road_rs_2",
 	"name": "创业园咖啡角",
 	"region_id": "A002",
 	"city_region_id": "CR002",
@@ -181,6 +191,7 @@
   },
   {
 	"id": "S011",
+	"road_segment_id": "road_rs_4",
 	"name": "智能制造园快餐部",
 	"region_id": "A002",
 	"city_region_id": "CR002",
@@ -199,6 +210,7 @@
   },
   {
 	"id": "S012",
+	"road_segment_id": "road_rs_6",
 	"name": "科创产业园简餐",
 	"region_id": "A002",
 	"city_region_id": "CR002",

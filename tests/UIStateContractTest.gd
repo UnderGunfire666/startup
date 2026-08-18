@@ -18,6 +18,8 @@ func _ready() -> void:
 	_test_no_character()
 	_test_character_without_store()
 	_test_store_created()
+	_test_decision_box()
+	_test_interrupt_box()
 	_test_second_store_switch()
 	print("========== 测试结束：%d 通过 / %d 失败 ==========" % [_pass_count, _fail_count])
 	if _fail_count == 0:
@@ -100,8 +102,47 @@ func _test_store_created() -> void:
 	_check(procurement_status.text != "请先在「我的店铺」创建开店企划。", "ProcurementPanel不应继续显示无企划状态")
 
 
+func _test_decision_box() -> void:
+	print("\n── 4. 营业事件决策 ──")
+	_check(_operation_panel.decision_box != null, "OperationPanel应创建事件决策容器")
+	EventManager.reset_for_new_game()
+	var definition: GameEventDefinition = EventManager.definitions.get("store_activity_partnership")
+	var store: Store = GameManager.store_state
+	var event: ActiveGameEvent = EventManager._activate(definition, store.id, store.id)
+	_check(_operation_panel.decision_box.get_child_count() == 3, "营业事件应显示说明与两个决策按钮")
+	var accept_button: Button = null
+	for child in _operation_panel.decision_box.get_children():
+		if child is Button and (child as Button).text == "\u63a5\u53d7\u5408\u4f5c":
+			accept_button = child as Button
+			break
+	_check(accept_button != null, "营业事件应提供接受按钮")
+	if accept_button != null:
+		accept_button.emit_signal("pressed")
+	_check(EventManager.pending_decisions.is_empty(), "点击决策按钮后待处理事件应被移除")
+	_check(EventManager.get_modifier_total(GameEventDefinition.Scope.STORE, store.id, "natural_visitors_multiplier_add") == 0.15, "接受活动应立即应用客流加成")
+	_check(EventManager.event_history.has(event), "已处理决策应进入事件历史")
+
+
+func _test_interrupt_box() -> void:
+	print("\n── 5. 营业紧急事件 ──")
+	EventManager.reset_for_new_game()
+	var definition: GameEventDefinition = EventManager.definitions.get("store_equipment_failure")
+	var store: Store = GameManager.store_state
+	EventManager._activate(definition, store.id, store.id)
+	_check(_operation_panel.interrupt_box.get_child_count() == 2, "营业紧急事件应显示说明与确认按钮")
+	var acknowledge_button: Button = null
+	for child in _operation_panel.interrupt_box.get_children():
+		if child is Button:
+			acknowledge_button = child as Button
+			break
+	_check(acknowledge_button != null, "营业紧急事件应提供确认按钮")
+	if acknowledge_button != null:
+		acknowledge_button.emit_signal("pressed")
+	_check(EventManager.pending_interrupts.is_empty(), "确认紧急事件后待处理队列应清空")
+
+
 func _test_second_store_switch() -> void:
-	print("\n── 4. 多Store切换 ──")
+	print("\n── 6. 多Store切换 ──")
 	var first_id: String = GameManager.active_store_id
 	var result: Dictionary = GameManager.create_new_store("UI状态分店")
 	var second_id: String = str(result.get("store_id", ""))

@@ -1,6 +1,7 @@
 [
   {
 	"id": "cc_primary_school_1",
+	"road_entry_node_id": "road_cc_1",
 	"name": "中央实验小学",
 	"city_region_id": "CR001",
 	"map_bounds": {"x": 50, "y": 50, "w": 150, "h": 120},
@@ -26,6 +27,7 @@
   },
   {
 	"id": "cc_tower_office_2",
+	"road_entry_node_id": "road_cc_2",
 	"name": "金融街写字楼",
 	"city_region_id": "CR001",
 	"map_bounds": {"x": 300, "y": 50, "w": 250, "h": 200},
@@ -51,6 +53,7 @@
   },
   {
 	"id": "cc_university_3",
+	"road_entry_node_id": "road_cc_3",
 	"name": "新港大学城",
 	"city_region_id": "CR001",
 	"map_bounds": {"x": 600, "y": 100, "w": 350, "h": 300},
@@ -76,6 +79,7 @@
   },
   {
 	"id": "cc_vendor_lane_1",
+	"road_entry_node_id": "road_cc_4",
 	"name": "老城摊贩巷",
 	"city_region_id": "CR001",
 	"map_bounds": {"x": 150, "y": 400, "w": 200, "h": 150},
@@ -101,6 +105,7 @@
   },
   {
 	"id": "cc_business_center_3",
+	"road_entry_node_id": "road_cc_5",
 	"name": "中环商业中心",
 	"city_region_id": "CR001",
 	"map_bounds": {"x": 700, "y": 500, "w": 350, "h": 300},
@@ -126,6 +131,7 @@
   },
   {
 	"id": "rs_middle_school_2",
+	"road_entry_node_id": "road_rs_1",
 	"name": "河畔中学",
 	"city_region_id": "CR002",
 	"map_bounds": {"x": 1300, "y": 50, "w": 200, "h": 150},
@@ -151,6 +157,7 @@
   },
   {
 	"id": "rs_small_office_1",
+	"road_entry_node_id": "road_rs_2",
 	"name": "创业园小企业群",
 	"city_region_id": "CR002",
 	"map_bounds": {"x": 1550, "y": 50, "w": 200, "h": 150},
@@ -176,6 +183,7 @@
   },
   {
 	"id": "rs_mid_residential_2",
+	"road_entry_node_id": "road_rs_3",
 	"name": "河畔花园",
 	"city_region_id": "CR002",
 	"map_bounds": {"x": 1300, "y": 300, "w": 300, "h": 250},
@@ -201,6 +209,7 @@
   },
   {
 	"id": "rs_large_plant_3",
+	"road_entry_node_id": "road_rs_4",
 	"name": "河畔智能制造园",
 	"city_region_id": "CR002",
 	"map_bounds": {"x": 1650, "y": 300, "w": 350, "h": 300},
@@ -226,6 +235,7 @@
   },
   {
 	"id": "rs_commercial_street_2",
+	"road_entry_node_id": "road_rs_5",
 	"name": "河畔生活商业街",
 	"city_region_id": "CR002",
 	"map_bounds": {"x": 1300, "y": 650, "w": 300, "h": 250},
@@ -251,6 +261,7 @@
   },
   {
 	"id": "rs_industry_office_park_3",
+	"road_entry_node_id": "road_rs_6",
 	"name": "河畔科创产业园",
 	"city_region_id": "CR002",
 	"map_bounds": {"x": 1700, "y": 650, "w": 350, "h": 300},
@@ -276,6 +287,7 @@
   },
   {
 	"id": "pt_construction_site_1",
+	"road_entry_node_id": "road_pt_1",
 	"name": "松岭新城工地",
 	"city_region_id": "CR003",
 	"map_bounds": {"x": 50, "y": 1050, "w": 180, "h": 150},
@@ -301,6 +313,7 @@
   },
   {
 	"id": "pt_small_factory_2",
+	"road_entry_node_id": "road_pt_2",
 	"name": "松岭食品厂",
 	"city_region_id": "CR003",
 	"map_bounds": {"x": 300, "y": 1050, "w": 220, "h": 180},
@@ -326,6 +339,7 @@
   },
   {
 	"id": "pt_basic_residential_1",
+	"road_entry_node_id": "road_pt_3",
 	"name": "松岭老社区",
 	"city_region_id": "CR003",
 	"map_bounds": {"x": 50, "y": 1300, "w": 250, "h": 200},
@@ -351,6 +365,7 @@
   },
   {
 	"id": "pt_high_end_residential_3",
+	"road_entry_node_id": "road_pt_4",
 	"name": "松岭湖畔别院",
 	"city_region_id": "CR003",
 	"map_bounds": {"x": 650, "y": 1300, "w": 300, "h": 250},
@@ -376,6 +391,7 @@
   },
   {
 	"id": "pt_small_commercial_square_2",
+	"road_entry_node_id": "road_pt_5",
 	"name": "松岭商业广场",
 	"city_region_id": "CR003",
 	"map_bounds": {"x": 350, "y": 1600, "w": 300, "h": 250},

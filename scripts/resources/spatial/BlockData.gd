@@ -13,6 +13,8 @@ extends Resource
 @export var map_bounds: Rect2 = Rect2()
 ## 区块中心点：门店距离计算、调查区距离权重计算的锚点。
 @export var center_position: Vector2 = Vector2.ZERO
+## Road Graph entry used by future path-distance movement.
+@export var road_entry_node_id: String = ""
 
 ## school / office / commercial / industrial / residential
 @export var block_type: String = "residential"

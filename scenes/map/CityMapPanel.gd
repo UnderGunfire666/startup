@@ -21,7 +21,7 @@ const RESEARCH_MODE_SEQUENTIAL := 1
 
 
 func _ready() -> void:
-	map_canvas.setup(GameManager.all_city_regions, GameManager.all_blocks)
+	map_canvas.setup(GameManager.all_city_regions, GameManager.all_blocks, GameManager.road_graph)
 	map_canvas.selected_blocks_changed.connect(_on_selected_blocks_changed)
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
@@ -30,6 +30,7 @@ func _ready() -> void:
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
 	ScheduleManager.hour_effect_applied.connect(_on_action_progress_applied)
 	GameManager.storefronts_discovered.connect(_on_storefronts_discovered)
+	EventManager.notice_raised.connect(_on_event_notice_raised)
 
 	research_mode_option.clear()
 	research_mode_option.add_item("调查所选区块", RESEARCH_MODE_SELECTED_BLOCKS)
@@ -137,6 +138,13 @@ func _on_storefronts_discovered(_storefront_ids: Array[String]) -> void:
 			names.append(sf.name)
 	if not names.is_empty():
 		status_label.text = "🏪 新发现门面：%s" % "、".join(names)
+
+
+func _on_event_notice_raised(event: ActiveGameEvent) -> void:
+	if event.scope != GameEventDefinition.Scope.PLAYER and event.scope != GameEventDefinition.Scope.BLOCK and event.scope != GameEventDefinition.Scope.CITY_REGION:
+		return
+	status_label.text = "[\u53d1\u73b0] " + event.title + "\uff1a" + event.message
+	refresh()
 
 
 func _refresh_research_controls() -> void:

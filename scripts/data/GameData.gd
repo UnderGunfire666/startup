@@ -21,6 +21,7 @@ static func get_road_graph() -> RoadGraph:
 		segment.to_node_id = str(item.get("to_node_id", ""))
 		segment.accessibility = float(item.get("accessibility", 1.0))
 		segment.exposure = float(item.get("exposure", 1.0))
+		segment.road_class = str(item.get("road_class", "local"))
 		graph.add_segment(segment)
 	return graph
 

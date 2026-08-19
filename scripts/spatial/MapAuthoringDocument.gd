@@ -34,14 +34,16 @@ static func from_static_data() -> MapAuthoringDocument:
 		segment.to_node_id = source_segment.to_node_id
 		segment.accessibility = source_segment.accessibility
 		segment.exposure = source_segment.exposure
+		segment.road_class = source_segment.road_class
 		document.road_graph.add_segment(segment)
 		var from_node: RoadNode = source_graph.nodes.get(segment.from_node_id, null)
 		var to_node: RoadNode = source_graph.nodes.get(segment.to_node_id, null)
 		if from_node != null and to_node != null:
+			var road_class: String = segment.road_class if ROAD_CLASS_DATA.has(segment.road_class) else "local"
 			for cell in document._raster_line(
 				Vector2i(floori(from_node.position.x / GRID_CELL_SIZE), floori(from_node.position.y / GRID_CELL_SIZE)),
 				Vector2i(floori(to_node.position.x / GRID_CELL_SIZE), floori(to_node.position.y / GRID_CELL_SIZE))):
-				document._paint_road_width(cell, 2, "local", segment.id)
+				document._paint_road_width(cell, int(ROAD_CLASS_DATA[road_class].width), road_class, segment.id)
 	for source_block in GameData.get_blocks():
 		var block := source_block.duplicate() as BlockData
 		document.blocks.append(block)
@@ -147,6 +149,9 @@ func add_grid_road(segment_id: String, from_cell: Vector2i, to_cell: Vector2i, r
 	var data: Dictionary = ROAD_CLASS_DATA[road_class]
 	if not add_road_segment(segment_id, from_id, to_id, float(data.accessibility), float(data.exposure)):
 		return false
+	var segment := _get_road_segment(segment_id)
+	if segment != null:
+		segment.road_class = road_class
 	for cell in _raster_line(from_cell, to_cell):
 		_paint_road_width(cell, int(data.width), road_class, segment_id)
 	return true
@@ -215,6 +220,9 @@ func set_road_class(segment_id: String, road_class: String) -> bool:
 		if str(road_data.get("segment_id", "")) == segment_id:
 			road_data["class"] = road_class
 			road_cells[cell] = road_data
+	var segment := _get_road_segment(segment_id)
+	if segment != null:
+		segment.road_class = road_class
 	_rebuild_road_cells()
 	return true
 
@@ -743,7 +751,7 @@ func _serialize_roads() -> Array[Dictionary]:
 		entries.append({
 			"kind": "segment", "id": segment.id,
 			"from_node_id": segment.from_node_id, "to_node_id": segment.to_node_id,
-			"accessibility": segment.accessibility, "exposure": segment.exposure,
+			"accessibility": segment.accessibility, "exposure": segment.exposure, "road_class": segment.road_class,
 		})
 	return entries
 
@@ -852,6 +860,13 @@ func _has_road_segment(segment_id: String) -> bool:
 		if segment.id == segment_id:
 			return true
 	return false
+
+
+func _get_road_segment(segment_id: String) -> RoadSegment:
+	for segment in road_graph.segments:
+		if segment.id == segment_id:
+			return segment
+	return null
 
 
 func _get_storefront(storefront_id: String) -> StorefrontData:

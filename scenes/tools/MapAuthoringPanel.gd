@@ -42,12 +42,13 @@ func _build_interface() -> void:
 	workspace.add_theme_constant_override("separation", 12)
 	add_child(workspace)
 	var controls_scroll := ScrollContainer.new()
-	controls_scroll.custom_minimum_size = Vector2(390, 0)
+	controls_scroll.custom_minimum_size = Vector2(480, 0)
 	controls_scroll.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	controls_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_child(controls_scroll)
 	var root := VBoxContainer.new()
-	root.custom_minimum_size = Vector2(370, 0)
+	root.custom_minimum_size = Vector2(460, 0)
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_theme_constant_override("separation", 8)
 	controls_scroll.add_child(root)
 

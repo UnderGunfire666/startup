@@ -1,10 +1,1 @@
-[
-  {"kind":"node","id":"road_cc_1","position":{"x":14,"y":14}},
-  {"kind":"node","id":"road_cc_2","position":{"x":84,"y":14}},
-  {"kind":"node","id":"road_cc_3","position":{"x":84,"y":84}},
-  {"kind":"node","id":"road_cc_4","position":{"x":14,"y":84}},
-  {"kind":"segment","id":"road_cc_main_1","from_node_id":"road_cc_1","to_node_id":"road_cc_2","accessibility":1.0,"exposure":1.1},
-  {"kind":"segment","id":"road_cc_main_2","from_node_id":"road_cc_2","to_node_id":"road_cc_3","accessibility":0.9,"exposure":0.9},
-  {"kind":"segment","id":"road_cc_main_3","from_node_id":"road_cc_3","to_node_id":"road_cc_4","accessibility":0.8,"exposure":0.7},
-  {"kind":"segment","id":"road_cc_main_4","from_node_id":"road_cc_4","to_node_id":"road_cc_1","accessibility":0.8,"exposure":0.7}
-]
+[]

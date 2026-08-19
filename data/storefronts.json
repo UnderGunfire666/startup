@@ -1,3 +1,1 @@
-[
-  {"id":"S006","name":"\u793a\u4f8b\u8857\u89d2\u95e8\u9762","region_id":"A001","city_region_id":"CR001","road_segment_id":"road_cc_main_1","map_position":{"x":26,"y":26},"block_id":"cc_primary_school_1","block_local_position":{"x":-2.0,"y":1.5},"grid_cells":[{"x":7,"y":7}],"capture_modifier":1.0,"accessibility_modifier":1.0,"monthly_rent_wan":0.6,"area":20,"decoration_level":"normal","storefront_flow":"main","flow_share":0.45,"supported_categories":[],"equipment_condition":"normal","hourly_capacity_base":18,"notes":""}
-]
+[]

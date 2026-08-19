@@ -99,7 +99,8 @@ func _update_canvas_size() -> void:
 	for cell in document.road_cells:
 		max_position.x = maxf(max_position.x, (float(cell.x) + 1.0) * MapAuthoringDocument.GRID_CELL_SIZE)
 		max_position.y = maxf(max_position.y, (float(cell.y) + 1.0) * MapAuthoringDocument.GRID_CELL_SIZE)
-	custom_minimum_size = (max_position / MapAuthoringDocument.GRID_CELL_SIZE + Vector2(4, 4)) * grid_screen_size
+	# Keep a clear five-cell editing margin after the furthest authored element.
+	custom_minimum_size = (max_position / MapAuthoringDocument.GRID_CELL_SIZE + Vector2(5, 5)) * grid_screen_size
 
 
 func _gui_input(event: InputEvent) -> void:

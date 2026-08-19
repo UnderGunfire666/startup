@@ -1,4 +1,1 @@
-[
-  {"id":"cc_primary_school_1","name":"\u793a\u4f8b\u5b66\u6821","city_region_id":"CR001","road_entry_node_id":"road_cc_1","grid_cell_size":3.5,"grid_cells":[{"x":7,"y":5},{"x":7,"y":6},{"x":7,"y":7},{"x":8,"y":7},{"x":7,"y":8}],"block_type":"school","tier":1,"area":36.75,"accessibility":0.8,"active_time_profile":{},"group_supply_weights":{"student":0.6,"office_worker":0.1,"worker":0.0,"family_household":0.3,"high_spend_household":0.0},"spending_profile":{},"business_demand_tags":["breakfast"],"competition_profile":{},"tags":["school_gate"]},
-  {"id":"sample_commercial_1","name":"\u793a\u4f8b\u5546\u4e1a\u8857","city_region_id":"CR001","road_entry_node_id":"road_cc_2","grid_cell_size":3.5,"grid_cells":[{"x":18,"y":7},{"x":19,"y":7},{"x":20,"y":7},{"x":18,"y":8}],"block_type":"commercial","tier":2,"area":49,"accessibility":0.9,"active_time_profile":{},"group_supply_weights":{"student":0.1,"office_worker":0.3,"worker":0.1,"family_household":0.4,"high_spend_household":0.1},"spending_profile":{},"business_demand_tags":["quick_meal"],"competition_profile":{},"tags":["street"]}
-]
+[]

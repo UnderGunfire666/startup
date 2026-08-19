@@ -140,13 +140,12 @@ static func get_storefronts() -> Array[StorefrontData]:
 		s.name = entry.get("name", "")
 		s.region_id = entry.get("region_id", "")
 		s.monthly_rent_wan = entry.get("monthly_rent_wan", 1.0)
-		s.area = entry.get("area", 20)
+		s.area = float(entry.get("area", 20.0))
 		s.decoration_level = entry.get("decoration_level", "normal")
 		s.storefront_flow = entry.get("storefront_flow", "main")
 		s.flow_share = entry.get("flow_share", 0.4)
 		s.supported_categories = _to_string_array(entry.get("supported_categories", []))
 		s.equipment_condition = entry.get("equipment_condition", "normal")
-		s.hourly_capacity_base = entry.get("hourly_capacity_base", 20)
 		s.notes = entry.get("notes", "")
 
 		## 空间系统新增字段：city_region_id留空时，
@@ -166,8 +165,15 @@ static func get_storefronts() -> Array[StorefrontData]:
 		for raw_cell in entry.get("grid_cells", []):
 			if raw_cell is Dictionary:
 				s.grid_cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
+		s.footprint_area = float(entry.get("footprint_area", float(maxi(1, s.grid_cells.size())) * 12.25))
+		s.area = minf(s.area, s.footprint_area * 0.85)
 		s.capture_modifier = entry.get("capture_modifier", 1.0)
 		s.accessibility_modifier = entry.get("accessibility_modifier", 1.0)
+		var required_storefront_cells: int = maxi(1, roundi(s.footprint_area / 12.25))
+		var default_awareness_radius: float = (8.0 + float(required_storefront_cells) * 2.0) * 3.5
+		s.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false))
+		s.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", default_awareness_radius))) if s.awareness_radius_manual_override else default_awareness_radius
+		s.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0)))
 		s.road_segment_id = str(entry.get("road_segment_id", ""))
 
 		list.append(s)

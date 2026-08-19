@@ -17,13 +17,37 @@ func _ready() -> void:
 	var storefront_cells: Array[Vector2i] = [Vector2i(7, 6)]
 	var storefront := document.create_storefront_from_cells("storefront", "Storefront", "CR001", storefront_cells)
 	_assert(storefront != null, "storefront can be authored inside a block")
-	_assert(document.update_storefront_properties("storefront", "Updated", 1.2, 24, 32, "test"), "storefront business properties can be edited")
+	_assert(is_equal_approx(storefront.awareness_radius, 35.0), "one-cell storefront defaults to a ten-cell awareness radius")
+	_assert(MapAuthoringDocument.get_required_storefront_cell_count(12.25) == 1 and MapAuthoringDocument.get_required_storefront_cell_count(24.5) == 2 and MapAuthoringDocument.get_required_storefront_cell_count(36.75) == 3, "storefront footprint maps to the required occupied grid-cell count")
+	_assert(is_equal_approx(MapAuthoringDocument.get_default_storefront_awareness_radius(2), 42.0) and is_equal_approx(MapAuthoringDocument.get_default_storefront_awareness_radius(3), 49.0), "each extra storefront cell adds two grid cells to awareness radius")
+	storefront.awareness_radius = 2.0
+	_assert(is_equal_approx(StorefrontInfluenceCalculator.get_block_coverage_ratio(storefront, block), 0.75), "storefront awareness circle reports partial block coverage by grid cell")
+	storefront.awareness_radius = 35.0
+	_assert(document.update_storefront_properties("storefront", "Updated", 1.2, 10.0, 32, "test", 35.0, 1.25) and storefront.grid_cells.size() == 1, "storefront usable area updates without changing its footprint")
 	var exported := document.export_map_data()
 	var imported: Dictionary = MapAuthoringDocument.from_exported_map_data(exported)
 	_assert(bool(imported.get("success", false)), "exported map passes import preview validation")
 	var imported_document: MapAuthoringDocument = imported.get("document", null)
 	var imported_storefront: StorefrontData = imported_document._get_storefront("storefront") if imported_document != null else null
-	_assert(imported_storefront != null and imported_storefront.monthly_rent_wan == 1.2 and imported_storefront.area == 24 and imported_storefront.hourly_capacity_base == 32, "storefront data survives export and import")
+	_assert(imported_storefront != null and imported_storefront.monthly_rent_wan == 1.2 and imported_storefront.area == 10.0 and imported_storefront.footprint_area == 12.25 and imported_storefront.awareness_radius == 35.0 and imported_storefront.awareness_exposure_modifier == 1.25, "storefront business and awareness data survive export and import")
+	var legacy_export: Dictionary = exported.duplicate(true)
+	var legacy_storefronts: Array = legacy_export.get("storefronts", [])
+	if not legacy_storefronts.is_empty():
+		var legacy_storefront: Dictionary = legacy_storefronts[0]
+		legacy_storefront["awareness_radius"] = 120.0
+		legacy_storefront.erase("awareness_radius_manual_override")
+	var legacy_imported: Dictionary = MapAuthoringDocument.from_exported_map_data(legacy_export)
+	var legacy_document: MapAuthoringDocument = legacy_imported.get("document", null)
+	var migrated_storefront: StorefrontData = legacy_document._get_storefront("storefront") if legacy_document != null else null
+	_assert(migrated_storefront != null and migrated_storefront.grid_cells.size() == 1 and is_equal_approx(migrated_storefront.awareness_radius, 35.0), "legacy storefront radius and occupied cells are migrated from its footprint")
+	var extra_storefront_cells: Array[Vector2i] = [Vector2i(7, 7)]
+	_assert(document.add_cells_to_storefront("storefront", extra_storefront_cells) and storefront.footprint_area == 24.5 and is_equal_approx(storefront.awareness_radius, 42.0), "expanding a storefront keeps footprint, occupied cells, and awareness radius aligned")
+	var neighboring_storefront_cells: Array[Vector2i] = [Vector2i(8, 6)]
+	var neighboring_storefront := document.create_storefront_from_cells("storefront_b", "Second", "CR001", neighboring_storefront_cells)
+	_assert(neighboring_storefront != null and document.merge_storefronts("storefront", "storefront_b") and storefront.grid_cells.size() == 3 and is_equal_approx(storefront.monthly_rent_wan, 2.2), "adjacent storefronts merge names, rent, and occupied cells")
+	var neighboring_block_cells: Array[Vector2i] = [Vector2i(9, 6)]
+	var neighboring_block := document.create_block_from_cells("block_b", "Second Block", "CR001", neighboring_block_cells, "commercial", 1)
+	_assert(neighboring_block != null and document.merge_blocks("block", "block_b") and block.grid_cells.size() == 5, "adjacent blocks merge their grid cells")
 	print("========== Map Editor Workflow Test: %d passed / %d failed ==========" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)
 

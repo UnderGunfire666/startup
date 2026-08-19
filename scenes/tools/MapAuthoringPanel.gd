@@ -21,7 +21,12 @@ var storefront_id_input: LineEdit
 var storefront_name_input: LineEdit
 var storefront_rent_input: LineEdit
 var storefront_area_input: LineEdit
+var storefront_footprint_input: LineEdit
+var block_merge_target_input: LineEdit
+var storefront_merge_target_input: LineEdit
 var storefront_capacity_input: LineEdit
+var storefront_awareness_radius_input: LineEdit
+var storefront_awareness_exposure_input: LineEdit
 var export_text: TextEdit
 var map_canvas: MapAuthoringCanvas
 var save_dialog: FileDialog
@@ -93,6 +98,7 @@ func _build_interface() -> void:
 	map_canvas.node_moved.connect(_on_canvas_node_moved)
 	map_canvas.storefront_moved.connect(_on_canvas_storefront_moved)
 	map_canvas.storefront_selected.connect(_on_storefront_selected)
+	map_canvas.additional_element_selected.connect(_on_additional_element_selected)
 	map_canvas.block_moved.connect(_on_canvas_block_moved)
 	map_canvas.grid_road_requested.connect(_on_grid_road_requested)
 	map_canvas.grid_cells_selected.connect(_on_grid_cells_selected)
@@ -140,7 +146,7 @@ func _build_interface() -> void:
 	var delete_selection_button := Button.new()
 	delete_selection_button.text = "\u5220\u9664\u6846\u9009\u7f51\u683c"
 	delete_selection_button.pressed.connect(_on_delete_selected_cells_pressed)
-	for control in [selection_offset_x_input, selection_offset_y_input, move_selection_button, copy_selection_button, delete_selection_button]:
+	for control in [_make_labeled_field("\u6c34\u5e73\u504f\u79fb", selection_offset_x_input), _make_labeled_field("\u5782\u76f4\u504f\u79fb", selection_offset_y_input), move_selection_button, copy_selection_button, delete_selection_button]:
 		selection_tools_row.add_child(control)
 	root.add_child(selection_tools_row)
 	block_editor_row = HFlowContainer.new()
@@ -165,7 +171,7 @@ func _build_interface() -> void:
 	var delete_block_button := Button.new()
 	delete_block_button.text = "删除选中区块"
 	delete_block_button.pressed.connect(_on_delete_selected_block_pressed)
-	for control in [block_id_input, block_name_input, block_region_input, block_type_option, block_tier_option, create_block_button, update_block_button, append_cells_button, delete_block_button]:
+	for control in [_make_labeled_field("\u533a\u5757 ID", block_id_input), _make_labeled_field("\u533a\u5757\u540d\u79f0", block_name_input), _make_labeled_field("\u57ce\u5e02\u533a\u57df ID", block_region_input), _make_labeled_field("\u533a\u5757\u7c7b\u578b", block_type_option), _make_labeled_field("\u533a\u5757\u7b49\u7ea7", block_tier_option), create_block_button, update_block_button, append_cells_button, delete_block_button]:
 		block_editor_row.add_child(control)
 	root.add_child(block_editor_row)
 	block_editor_row.visible = false
@@ -186,7 +192,7 @@ func _build_interface() -> void:
 	var update_simulation_button := Button.new()
 	update_simulation_button.text = "\u66f4\u65b0\u533a\u5757\u7ecf\u8425\u5c5e\u6027"
 	update_simulation_button.pressed.connect(_on_update_block_simulation_pressed)
-	for control in [block_accessibility_input, block_development_input, block_price_input, block_quality_input, block_time_input, block_competition_option, block_rent_pressure_option, block_tags_input, update_simulation_button]:
+	for control in [_make_labeled_field("\u53ef\u8fbe\u6027", block_accessibility_input), _make_labeled_field("\u53d1\u5c55\u5ea6", block_development_input), _make_labeled_field("\u4ef7\u683c\u654f\u611f\u5ea6", block_price_input), _make_labeled_field("\u54c1\u8d28\u504f\u597d", block_quality_input), _make_labeled_field("\u65f6\u6bb5\u7cfb\u6570", block_time_input), _make_labeled_field("\u7ade\u4e89\u7b49\u7ea7", block_competition_option), _make_labeled_field("\u79df\u91d1\u538b\u529b", block_rent_pressure_option), _make_labeled_field("\u6807\u7b7e", block_tags_input), update_simulation_button]:
 		block_simulation_row.add_child(control)
 	root.add_child(block_simulation_row)
 	block_simulation_row.visible = false
@@ -197,9 +203,9 @@ func _build_interface() -> void:
 	node_id_input = _make_input("node_id")
 	node_x_input = _make_input("x")
 	node_y_input = _make_input("y")
-	node_row.add_child(node_id_input)
-	node_row.add_child(node_x_input)
-	node_row.add_child(node_y_input)
+	node_row.add_child(_make_labeled_field("\u8282\u70b9 ID", node_id_input))
+	node_row.add_child(_make_labeled_field("X \u5750\u6807", node_x_input))
+	node_row.add_child(_make_labeled_field("Y \u5750\u6807", node_y_input))
 	var add_node_button := Button.new()
 	add_node_button.text = "\u6dfb\u52a0\u8282\u70b9"
 	add_node_button.pressed.connect(_on_add_node_pressed)
@@ -219,11 +225,11 @@ func _build_interface() -> void:
 	segment_accessibility_input.text = "1.0"
 	segment_exposure_input = _make_input("\u66dd\u5149")
 	segment_exposure_input.text = "1.0"
-	segment_row.add_child(segment_id_input)
-	segment_row.add_child(segment_from_option)
-	segment_row.add_child(segment_to_option)
-	segment_row.add_child(segment_accessibility_input)
-	segment_row.add_child(segment_exposure_input)
+	segment_row.add_child(_make_labeled_field("\u8def\u6bb5 ID", segment_id_input))
+	segment_row.add_child(_make_labeled_field("\u8d77\u70b9\u8282\u70b9", segment_from_option))
+	segment_row.add_child(_make_labeled_field("\u7ec8\u70b9\u8282\u70b9", segment_to_option))
+	segment_row.add_child(_make_labeled_field("\u53ef\u8fbe\u6027", segment_accessibility_input))
+	segment_row.add_child(_make_labeled_field("\u66dd\u5149\u5ea6", segment_exposure_input))
 	var add_segment_button := Button.new()
 	add_segment_button.text = "\u6dfb\u52a0\u8def\u6bb5"
 	add_segment_button.pressed.connect(_on_add_segment_pressed)
@@ -248,6 +254,12 @@ func _build_interface() -> void:
 	assign_block_button.text = "\u8bbe\u7f6e\u533a\u5757\u5165\u53e3"
 	assign_block_button.pressed.connect(_on_assign_block_entry_pressed)
 	block_link_row.add_child(assign_block_button)
+	block_merge_target_input = _make_input("\u8981\u5408\u5e76\u7684\u533a\u5757 ID")
+	block_link_row.add_child(block_merge_target_input)
+	var merge_block_button := Button.new()
+	merge_block_button.text = "\u5408\u5e76\u76f8\u90bb\u533a\u5757"
+	merge_block_button.pressed.connect(_on_merge_blocks_pressed)
+	block_link_row.add_child(merge_block_button)
 	root.add_child(block_link_row)
 	block_link_row.visible = false
 	storefront_link_row = HFlowContainer.new()
@@ -261,6 +273,12 @@ func _build_interface() -> void:
 	append_storefront_cells_button.text = "\u5c06\u6846\u9009\u7f51\u683c\u52a0\u5165\u9009\u4e2d\u95e8\u9762"
 	append_storefront_cells_button.pressed.connect(_on_append_cells_to_storefront_pressed)
 	storefront_link_row.add_child(append_storefront_cells_button)
+	storefront_merge_target_input = _make_input("\u8981\u5408\u5e76\u7684\u95e8\u9762 ID")
+	storefront_link_row.add_child(storefront_merge_target_input)
+	var merge_storefront_button := Button.new()
+	merge_storefront_button.text = "\u5408\u5e76\u76f8\u90bb\u95e8\u9762"
+	merge_storefront_button.pressed.connect(_on_merge_storefronts_pressed)
+	storefront_link_row.add_child(merge_storefront_button)
 	root.add_child(storefront_link_row)
 	storefront_link_row.visible = false
 	storefront_editor_row = HFlowContainer.new()
@@ -268,7 +286,10 @@ func _build_interface() -> void:
 	storefront_name_input = _make_input("\u95e8\u9762\u540d\u79f0")
 	storefront_rent_input = _make_input("\u6708\u79df(\u4e07)")
 	storefront_area_input = _make_input("\u9762\u79ef")
+	storefront_footprint_input = _make_input("12.25")
 	storefront_capacity_input = _make_input("\u6bcf\u5c0f\u65f6\u5bb9\u91cf")
+	storefront_awareness_radius_input = _make_input("35")
+	storefront_awareness_exposure_input = _make_input("1.0")
 	var create_storefront_button := Button.new()
 	create_storefront_button.text = "\u7528\u6846\u9009\u7f51\u683c\u521b\u5efa\u95e8\u9762"
 	create_storefront_button.pressed.connect(_on_create_storefront_pressed)
@@ -278,7 +299,7 @@ func _build_interface() -> void:
 	var delete_storefront_button := Button.new()
 	delete_storefront_button.text = "\u5220\u9664\u9009\u4e2d\u95e8\u9762"
 	delete_storefront_button.pressed.connect(_on_delete_storefront_pressed)
-	for control in [storefront_id_input, storefront_name_input, storefront_rent_input, storefront_area_input, storefront_capacity_input, create_storefront_button, update_storefront_button, delete_storefront_button]:
+	for control in [_make_labeled_field("\u95e8\u9762 ID", storefront_id_input), _make_labeled_field("\u95e8\u9762\u540d\u79f0", storefront_name_input), _make_labeled_field("\u6708\u79df\uff08\u4e07\u5143）", storefront_rent_input), _make_labeled_field("\u53ef\u7528\u9762\u79ef\uff08\u33a1）", storefront_area_input), _make_labeled_field("\u5360\u5730\u9762\u79ef\uff08\u33a1）", storefront_footprint_input), _make_labeled_field("\u7ebf\u4e0b\u5f71\u54cd\u534a\u5f84\uff08\u7c73）", storefront_awareness_radius_input), _make_labeled_field("\u77e5\u540d\u5ea6\u66dd\u5149\u4fee\u6b63", storefront_awareness_exposure_input), create_storefront_button, update_storefront_button, delete_storefront_button]:
 		storefront_editor_row.add_child(control)
 	root.add_child(storefront_editor_row)
 	storefront_editor_row.visible = false
@@ -328,6 +349,17 @@ func _make_input(placeholder: String) -> LineEdit:
 	input.placeholder_text = placeholder
 	input.custom_minimum_size = Vector2(95, 0)
 	return input
+
+
+func _make_labeled_field(label_text: String, control: Control) -> VBoxContainer:
+	var field := VBoxContainer.new()
+	field.add_theme_constant_override("separation", 2)
+	var label := Label.new()
+	label.text = label_text
+	label.add_theme_font_size_override("font_size", 12)
+	field.add_child(label)
+	field.add_child(control)
+	return field
 
 
 func _make_separator() -> HSeparator:
@@ -498,6 +530,15 @@ func _on_canvas_storefront_moved(storefront_id: String) -> void:
 	_set_status("\u5df2\u79fb\u52a8\u95e8\u9762\u5e76\u91cd\u65b0\u5173\u8054\u6700\u8fd1\u9053\u8def\uff1a" + storefront_id)
 
 
+func _on_additional_element_selected(element_id: String, is_storefront: bool) -> void:
+	var target_input := storefront_merge_target_input if is_storefront else block_merge_target_input
+	var ids: PackedStringArray = target_input.text.split(",", false)
+	if not ids.has(element_id):
+		ids.append(element_id)
+	target_input.text = ",".join(ids)
+	_set_status("\u5df2\u6dfb\u52a0\u5408\u5e76\u9009\u62e9\uff1a" + str(ids.size() + 1))
+
+
 func _on_storefront_selected(storefront_id: String) -> void:
 	_set_editor_visibility(false, true)
 	for storefront in document.storefronts:
@@ -508,7 +549,9 @@ func _on_storefront_selected(storefront_id: String) -> void:
 		storefront_name_input.text = storefront.name
 		storefront_rent_input.text = str(storefront.monthly_rent_wan)
 		storefront_area_input.text = str(storefront.area)
-		storefront_capacity_input.text = str(storefront.hourly_capacity_base)
+		storefront_footprint_input.text = str(storefront.footprint_area)
+		storefront_awareness_radius_input.text = str(storefront.awareness_radius)
+		storefront_awareness_exposure_input.text = str(storefront.awareness_exposure_modifier)
 		for index in range(storefront_option.item_count):
 			if str(storefront_option.get_item_metadata(index)) == storefront_id:
 				storefront_option.select(index)
@@ -550,6 +593,7 @@ func _on_grid_cells_selected(cells: Array[Vector2i]) -> void:
 		if not document.road_cells.has(cell) and not selected_grid_cells.has(cell):
 			selected_grid_cells.append(cell)
 	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	storefront_awareness_radius_input.text = str(MapAuthoringDocument.get_default_storefront_awareness_radius(selected_grid_cells.size()))
 	_set_status("已选择 %d 个非道路网格。" % selected_grid_cells.size())
 
 
@@ -696,8 +740,36 @@ func _on_append_cells_to_storefront_pressed() -> void:
 		return
 	selected_grid_cells.clear()
 	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	_on_storefront_selected(storefront_id)
 	map_canvas.refresh_canvas()
 	_set_status("\u5df2\u5c06\u7f51\u683c\u52a0\u5165\u9009\u4e2d\u95e8\u9762\u3002")
+
+
+func _on_merge_blocks_pressed() -> void:
+	var merged := false
+	for target_id in block_merge_target_input.text.split(",", false):
+		merged = document.merge_blocks(selected_block_id, target_id.strip_edges()) or merged
+	if merged:
+		_refresh_options()
+		_on_grid_block_selected(selected_block_id)
+		map_canvas.refresh_canvas()
+		_set_status("\u5df2\u5408\u5e76\u76f8\u90bb\u533a\u5757\u3002")
+	else:
+		_set_status("\u533a\u5757\u5408\u5e76\u5931\u8d25\uff1a\u9700\u4e3a\u540c\u57ce\u5e02\u533a\u57df\u4e14\u7f51\u683c\u76f8\u90bb\u3002")
+
+
+func _on_merge_storefronts_pressed() -> void:
+	var primary_id := _selected_id(storefront_option)
+	var merged := false
+	for target_id in storefront_merge_target_input.text.split(",", false):
+		merged = document.merge_storefronts(primary_id, target_id.strip_edges()) or merged
+	if merged:
+		_refresh_options()
+		_on_storefront_selected(primary_id)
+		map_canvas.refresh_canvas()
+		_set_status("\u5df2\u5408\u5e76\u76f8\u90bb\u95e8\u9762\u3002")
+	else:
+		_set_status("\u95e8\u9762\u5408\u5e76\u5931\u8d25\uff1a\u9700\u4e3a\u540c\u533a\u5757\u4e14\u7f51\u683c\u76f8\u90bb\u3002")
 
 
 func _on_create_storefront_pressed() -> void:
@@ -705,16 +777,17 @@ func _on_create_storefront_pressed() -> void:
 	if storefront == null:
 		_set_status("\u65e0\u6cd5\u521b\u5efa\u95e8\u9762\uff1a\u8bf7\u4f7f\u7528\u540c\u4e00\u533a\u5757\u5185\u7684\u8fde\u901a\u7f51\u683c\u3002")
 		return
-	document.update_storefront_properties(storefront.id, storefront.name, storefront_rent_input.text.to_float(), maxi(1, storefront_area_input.text.to_int()), maxi(1, storefront_capacity_input.text.to_int()), "")
+	document.update_storefront_properties(storefront.id, storefront.name, storefront_rent_input.text.to_float(), maxf(0.1, storefront_area_input.text.to_float()), 20, "", storefront.awareness_radius, maxf(0.0, storefront_awareness_exposure_input.text.to_float()), storefront.footprint_area)
 	selected_grid_cells.clear()
 	map_canvas.set_selected_grid_cells(selected_grid_cells)
 	_refresh_options()
+	_on_storefront_selected(storefront.id)
 	map_canvas.refresh_canvas()
 
 
 func _on_update_storefront_pressed() -> void:
 	var storefront_id := _selected_id(storefront_option)
-	if document.update_storefront_properties(storefront_id, storefront_name_input.text, storefront_rent_input.text.to_float(), storefront_area_input.text.to_int(), storefront_capacity_input.text.to_int(), ""):
+	if document.update_storefront_properties(storefront_id, storefront_name_input.text, storefront_rent_input.text.to_float(), maxf(0.1, storefront_area_input.text.to_float()), 20, "", maxf(0.0, storefront_awareness_radius_input.text.to_float()), maxf(0.0, storefront_awareness_exposure_input.text.to_float()), storefront_footprint_input.text.to_float()):
 		_refresh_options()
 		map_canvas.refresh_canvas()
 

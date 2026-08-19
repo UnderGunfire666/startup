@@ -40,7 +40,6 @@ static func calculate_params_from_trade_area(
 
 	var visitors := 0
 	var conversion_rate := 0.0
-	var slot_capacity := 0
 
 	if is_open:
 		conversion_rate = clampf(
@@ -53,7 +52,6 @@ static func calculate_params_from_trade_area(
 		)
 
 		visitors = int(float(base_visitors) * (1.0 + trait_mods))
-		slot_capacity = _calc_slot_capacity(storefront, category, staffing_power)
 
 	var rent_cost := _calc_rent_cost(storefront)
 	var utility_cost := _calc_utility_cost(product, store_state, is_open)
@@ -63,7 +61,6 @@ static func calculate_params_from_trade_area(
 		"is_open": is_open,
 		"visitors": visitors,
 		"conversion_rate": conversion_rate,
-		"slot_capacity": slot_capacity,
 		"rent_cost": rent_cost,
 		"utility_cost": utility_cost,
 		"staff_cost": staff_cost,
@@ -108,7 +105,6 @@ static func finalize_from_simulation(
 	r.reachable_traffic = slot_foot_traffic * storefront.flow_share * capture_multiplier if storefront != null else 0.0
 	r.entry_rate = category.base_entry_rate
 	r.conversion_rate = float(params.get("conversion_rate", 0.0))
-	r.slot_capacity = int(params.get("slot_capacity", 0))
 	r.inventory_limit = inventory_limit
 	r.base_visitors = int(params.get("base_visitors", 0))
 	r.business_open = bool(params.get("business_open", false))
@@ -214,14 +210,6 @@ static func _calc_reputation_mod(reputation: float) -> float:
 ## 这里先返回0.0占位，等特质系统真的扩展出这类效果时再实现具体逻辑。
 static func _calc_trait_mods(player_state: PlayerState, category: CategoryData, product: ProductData) -> float:
 	return 0.0
-
-
-## 用真实字段重建：hourly_capacity_base × 服务速度系数，缺关键员工时按
-static func _calc_slot_capacity(storefront: StorefrontData, category: CategoryData, staffing_power: float) -> int:
-	var cap := float(storefront.hourly_capacity_base)
-	cap *= SettlementConfig.SERVICE_SPEED_MOD.get(category.base_service_speed, 1.0)
-	cap *= staffing_power
-	return maxi(1, int(cap))
 
 
 ## 用真实字段重建：monthly_rent_wan换算到每小时。取代原来编造的daily_rent字段。

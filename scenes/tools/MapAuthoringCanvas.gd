@@ -13,6 +13,7 @@ signal road_node_selected(node_id: String)
 signal road_segment_selected(segment_id: String)
 signal selection_cleared
 signal edit_rejected(message: String)
+signal additional_element_selected(element_id: String, is_storefront: bool)
 
 const MAP_SCALE := 0.3
 const NODE_RADIUS := 7.0
@@ -31,9 +32,12 @@ var grid_screen_size: float = GRID_SCREEN_SIZE
 var selected_grid_cells: Array[Vector2i] = []
 var validation_errors: Array[String] = []
 var selected_storefront_id := ""
+var selected_storefront_ids: Array[String] = []
+var selected_block_ids: Array[String] = []
 
 func set_selected_storefront(storefront_id: String) -> void:
 	selected_storefront_id = storefront_id
+	selected_storefront_ids = [storefront_id] if not storefront_id.is_empty() else []
 	queue_redraw()
 
 func set_validation_errors(errors: Array[String]) -> void:
@@ -120,6 +124,8 @@ func _gui_input(event: InputEvent) -> void:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
 			_cancel_active_block_drag()
+			selected_storefront_ids.clear()
+			selected_block_ids.clear()
 			selection_cleared.emit()
 			return
 		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
@@ -146,8 +152,15 @@ func _gui_input(event: InputEvent) -> void:
 			if _dragging_node_id.is_empty():
 				_dragging_storefront_id = _find_storefront_at_screen(mouse_button.position)
 				if not _dragging_storefront_id.is_empty():
-					selected_storefront_id = _dragging_storefront_id
-					storefront_selected.emit(_dragging_storefront_id)
+					if mouse_button.ctrl_pressed:
+						if not selected_storefront_ids.has(_dragging_storefront_id):
+							selected_storefront_ids.append(_dragging_storefront_id)
+						additional_element_selected.emit(_dragging_storefront_id, true)
+					else:
+						selected_storefront_id = _dragging_storefront_id
+						selected_storefront_ids = [_dragging_storefront_id]
+						selected_block_ids.clear()
+						storefront_selected.emit(_dragging_storefront_id)
 			if _dragging_node_id.is_empty() and _dragging_storefront_id.is_empty():
 				var segment_id := _find_segment_at_screen(mouse_button.position)
 				if not segment_id.is_empty():
@@ -159,7 +172,14 @@ func _gui_input(event: InputEvent) -> void:
 				_dragging_block_id = _find_block_at_screen(mouse_button.position)
 				if not _dragging_block_id.is_empty():
 					document.begin_block_move(_dragging_block_id)
-					grid_block_selected.emit(_dragging_block_id)
+					if mouse_button.ctrl_pressed:
+						if not selected_block_ids.has(_dragging_block_id):
+							selected_block_ids.append(_dragging_block_id)
+						additional_element_selected.emit(_dragging_block_id, false)
+					else:
+						selected_block_ids = [_dragging_block_id]
+						selected_storefront_ids.clear()
+						grid_block_selected.emit(_dragging_block_id)
 		else:
 			_dragging_node_id = ""
 			_dragging_storefront_id = ""
@@ -295,6 +315,8 @@ func _draw() -> void:
 				var cell_rect := Rect2(Vector2(cell) * grid_screen_size, Vector2.ONE * grid_screen_size)
 				draw_rect(cell_rect, block_color, true)
 				draw_rect(cell_rect, block_color.lightened(0.25), false, 1.0)
+				if selected_block_ids.has(block.id):
+					draw_rect(cell_rect.grow(1.0), Color(1.0, 0.85, 0.2, 1.0), false, 2.0)
 			var tier_position := block.center_position / MapAuthoringDocument.GRID_CELL_SIZE * grid_screen_size
 			draw_string(ThemeDB.fallback_font, tier_position, str(block.tier), HORIZONTAL_ALIGNMENT_CENTER, 18, 14)
 	for segment in document.road_graph.segments:
@@ -311,11 +333,14 @@ func _draw() -> void:
 		draw_circle(screen_position, NODE_RADIUS, Color(1.0, 0.72, 0.25, 1.0))
 		draw_string(ThemeDB.fallback_font, screen_position + Vector2(9, 4), node.id, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
 	for storefront in document.storefronts:
+		if storefront.id == selected_storefront_id and storefront.awareness_radius > 0.0:
+			var awareness_radius_screen: float = storefront.awareness_radius / MapAuthoringDocument.GRID_CELL_SIZE * grid_screen_size
+			draw_arc(_world_to_grid_screen(storefront.map_position), awareness_radius_screen, 0.0, TAU, 64, Color(1.0, 0.8, 0.2, 0.72), 1.5, true)
 		for cell in storefront.grid_cells:
 			var storefront_cell_rect := Rect2(Vector2(cell) * grid_screen_size, Vector2.ONE * grid_screen_size)
 			draw_rect(storefront_cell_rect, Color(0.2, 0.95, 0.55, 0.42), true)
 			draw_rect(storefront_cell_rect, Color(0.65, 1.0, 0.78, 0.9), false, 1.0)
-			if storefront.id == selected_storefront_id:
+			if selected_storefront_ids.has(storefront.id):
 				draw_rect(storefront_cell_rect.grow(1.0), Color(1.0, 0.85, 0.2, 1.0), false, 2.0)
 		var storefront_position := _world_to_grid_screen(storefront.map_position)
 		draw_circle(storefront_position, 5.0, Color(0.25, 0.95, 0.55, 1.0))

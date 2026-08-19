@@ -5,13 +5,15 @@ extends Resource
 @export var name: String = ""
 @export var region_id: String = ""
 @export var monthly_rent_wan: float = 1.0       # 配置用万元，加载时换算
-@export var area: int = 20
+## Usable interior area for equipment and operations.
+@export var area: float = 10.0
+## Ground footprint. Must be an integer multiple of one 3.5m by 3.5m grid cell.
+@export var footprint_area: float = 12.25
 @export var decoration_level: String = "normal" # poor/normal/good
 @export var storefront_flow: String = "main"    # main/secondary/hidden
 @export var flow_share: float = 0.4
 @export var supported_categories: Array[String] = []
 @export var equipment_condition: String = "normal"
-@export var hourly_capacity_base: int = 20
 @export var notes: String = ""
 
 @export var deposit_months: int = 2
@@ -35,6 +37,12 @@ extends Resource
 @export var capture_modifier: float = 1.0
 ## 门面自身易达性（临街、停车、入口等），配合区块accessibility共同决定可达性
 @export var accessibility_modifier: float = 1.0
+## 线下知名度影响半径（地图逻辑单位）。仅覆盖范围内的 Block 接收线下曝光与口碑传播。
+@export var awareness_radius: float = 35.0
+## True only when the map author intentionally overrides the size-based radius formula.
+@export var awareness_radius_manual_override: bool = false
+## 门面自身被注意、被记住的效率；道路 Exposure 会与此项共同决定线下知名度增长。
+@export var awareness_exposure_modifier: float = 1.0
 
 func get_monthly_rent_yuan() -> float:
 	return monthly_rent_wan * 10000.0

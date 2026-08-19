@@ -270,13 +270,28 @@ func _refresh_live_metrics(store: Store) -> void:
 	var avg_wait := float(metrics.wait_total) / float(metrics.orders) if int(metrics.orders) > 0 else 0.0
 	var title := "\u5b9e\u65f6\u7ecf\u8425\uff08\u672c\u5c0f\u65f6\uff09" if metrics.source == "live" else "\u6700\u8fd1\u5b8c\u6210\u65f6\u6bb5"
 	var awareness := 0.0
+	var offline_awareness_text := ""
+	var destination_sources_text := ""
 	var storefront := GameManager.get_storefront(store.selected_storefront_id)
 	if storefront != null:
 		for block in GameManager.all_blocks:
 			if block.has_map_point(storefront.map_position):
 				awareness = float(store.awareness_by_block.get(block.id, 0.0))
 				break
-	live_metrics_label.text = "%s\n\u5230\u5e97\uff1a%d -> \u60f3\u4e0b\u5355\uff1a%d -> \u6210\u4ea4\uff1a%d  |  \u6392\u961f\u79bb\u5f00\uff1a%d  |  \u7f3a\u8d27\u6d41\u5931\uff1a%d\n\u6240\u5728\u533a\u5757\u77e5\u540d\u5ea6\uff1a%.1f / 100  |  \u5e97\u94fa\u53e3\u7891\uff1a%.1f / 100\n\u5e73\u5747\u51fa\u9910\uff1a%s  |  \u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s" % [title, metrics.visitors, metrics.intended_orders, metrics.orders, metrics.queue_left, metrics.inventory_left, awareness, store.reputation, _format_live_seconds(avg_service), _format_live_seconds(avg_wait), _format_live_seconds(float(metrics.max_wait))]
+		var coverage_ratios := StorefrontInfluenceCalculator.get_covered_block_ratios(storefront, GameManager.all_blocks)
+		var coverage_parts: Array[String] = []
+		for raw_block_id in coverage_ratios.keys():
+			var block := GameManager.get_block(str(raw_block_id))
+			if block != null:
+				coverage_parts.append("%s %.0f%%" % [block.name, float(coverage_ratios[raw_block_id]) * 100.0])
+		offline_awareness_text = "\n\u7ebf\u4e0b\u5f71\u54cd\u8303\u56f4\uff1a%.0f  |  \u66dd\u5149\u4fee\u6b63\uff1a%.2f  |  \u8986\u76d6\u533a\u5757\uff1a%s" % [storefront.awareness_radius, storefront.awareness_exposure_modifier, "\u3001".join(coverage_parts)]
+		var source_parts: Array[String] = []
+		for source in GameManager.get_destination_visitor_sources(store, storefront):
+			var source_block := GameManager.get_block(str(source.get("block_id", "")))
+			if source_block != null:
+				source_parts.append("%s(\u77e5\u540d%.1f, \u9884\u4f30%.1f)" % [source_block.name, float(source.get("awareness", 0.0)), float(source.get("estimated_visitors", 0.0))])
+		destination_sources_text = "\n\u8de8\u533a\u76ee\u7684\u6027\u5ba2\u6d41\u6765\u6e90\uff1a" + ("\u3001".join(source_parts) if not source_parts.is_empty() else "\u6682\u65e0")
+	live_metrics_label.text = "%s\n\u5230\u5e97\uff1a%d -> \u60f3\u4e0b\u5355\uff1a%d -> \u6210\u4ea4\uff1a%d  |  \u6392\u961f\u79bb\u5f00\uff1a%d  |  \u7f3a\u8d27\u6d41\u5931\uff1a%d\n\u6240\u5728\u533a\u5757\u77e5\u540d\u5ea6\uff1a%.1f / 100  |  \u5e97\u94fa\u53e3\u7891\uff1a%.1f / 100%s%s\n\u5e73\u5747\u51fa\u9910\uff1a%s  |  \u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s" % [title, metrics.visitors, metrics.intended_orders, metrics.orders, metrics.queue_left, metrics.inventory_left, awareness, store.reputation, offline_awareness_text, destination_sources_text, _format_live_seconds(avg_service), _format_live_seconds(avg_wait), _format_live_seconds(float(metrics.max_wait))]
 
 
 func _format_live_seconds(value: float) -> String:

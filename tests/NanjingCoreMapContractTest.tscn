@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://rcqqdv5pkvl3"]
-
-[ext_resource type="Script" path="res://tests/NanjingCoreMapContractTest.gd" id="1"]
-
-[node name="NanjingCoreMapContractTest" type="Node" unique_id=1657344406]
-script = ExtResource("1")

@@ -6,6 +6,10 @@ var blocks: Array[BlockData] = []
 var storefronts: Array[StorefrontData] = []
 var _block_move_snapshots: Dictionary = {}
 const GRID_CELL_SIZE: float = 3.5
+const STOREFRONT_AREA_PER_GRID_CELL: float = GRID_CELL_SIZE * GRID_CELL_SIZE
+const STOREFRONT_MAX_USABLE_AREA_RATIO: float = 0.85
+const STOREFRONT_AWARENESS_BASE_CELLS: float = 10.0
+const STOREFRONT_AWARENESS_PER_EXTRA_CELL: float = 2.0
 const ROAD_CLASS_DATA := {
 	"alley": {"width": 1, "accessibility": 0.55, "exposure": 0.45},
 	"local": {"width": 2, "accessibility": 0.75, "exposure": 0.65},
@@ -241,6 +245,16 @@ func grid_to_world_intersection(point: Vector2i) -> Vector2:
 	return Vector2(point) * GRID_CELL_SIZE
 
 
+static func get_default_storefront_awareness_radius(cell_count: int) -> float:
+	var occupied_cell_count := maxi(1, cell_count)
+	var radius_in_cells := STOREFRONT_AWARENESS_BASE_CELLS + float(occupied_cell_count - 1) * STOREFRONT_AWARENESS_PER_EXTRA_CELL
+	return radius_in_cells * GRID_CELL_SIZE
+
+
+static func get_required_storefront_cell_count(footprint_area: float) -> int:
+	return maxi(1, roundi(footprint_area / STOREFRONT_AREA_PER_GRID_CELL))
+
+
 func create_block_from_cells(block_id: String, block_name: String, city_region_id: String, cells: Array[Vector2i], block_type: String, tier: int) -> BlockData:
 	if block_id.is_empty() or city_region_id.is_empty() or cells.is_empty() or _has_block(block_id):
 		return null
@@ -317,8 +331,11 @@ func create_storefront_from_cells(storefront_id: String, storefront_name: String
 	storefront.id = storefront_id
 	storefront.name = storefront_name
 	storefront.city_region_id = city_region_id
+	storefront.footprint_area = float(cells.size()) * STOREFRONT_AREA_PER_GRID_CELL
+	storefront.area = storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO
 	storefront.grid_cells = cells.duplicate()
 	storefront.map_position = _grid_cells_center(cells)
+	storefront.awareness_radius = get_default_storefront_awareness_radius(cells.size())
 	_set_storefront_block(storefront, block)
 	storefronts.append(storefront)
 	assign_storefront_nearest_road(storefront.id)
@@ -330,6 +347,7 @@ func add_cells_to_storefront(storefront_id: String, cells: Array[Vector2i]) -> b
 	if storefront == null or cells.is_empty():
 		return false
 	_ensure_storefront_grid_cells()
+	var previous_cell_count := storefront.grid_cells.size()
 	var combined: Array[Vector2i] = storefront.grid_cells.duplicate()
 	for cell in cells:
 		if not combined.has(cell):
@@ -343,20 +361,77 @@ func add_cells_to_storefront(storefront_id: String, cells: Array[Vector2i]) -> b
 		return false
 	storefront.grid_cells = combined
 	storefront.map_position = _grid_cells_center(combined)
+	storefront.footprint_area = float(combined.size()) * STOREFRONT_AREA_PER_GRID_CELL
+	storefront.area = minf(storefront.area, storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)
+	if storefront.awareness_radius_manual_override:
+		storefront.awareness_radius += float(combined.size() - previous_cell_count) * STOREFRONT_AWARENESS_PER_EXTRA_CELL * GRID_CELL_SIZE
+	else:
+		storefront.awareness_radius = get_default_storefront_awareness_radius(combined.size())
 	_set_storefront_block(storefront, block)
 	assign_storefront_nearest_road(storefront.id)
 	return true
 
 
-func update_storefront_properties(storefront_id: String, storefront_name: String, monthly_rent_wan: float, area: int, hourly_capacity: int, notes: String) -> bool:
+func update_storefront_properties(storefront_id: String, storefront_name: String, monthly_rent_wan: float, area: float, hourly_capacity: int, notes: String, awareness_radius: float = -1.0, awareness_exposure_modifier: float = -1.0, footprint_area: float = -1.0) -> bool:
 	var storefront := _get_storefront(storefront_id)
-	if storefront == null or storefront_name.strip_edges().is_empty() or monthly_rent_wan < 0.0 or area <= 0 or hourly_capacity <= 0:
+	var resolved_footprint: float = storefront.footprint_area if storefront != null and footprint_area < 0.0 else footprint_area
+	if storefront == null or storefront_name.strip_edges().is_empty() or monthly_rent_wan < 0.0 or area <= 0.0 or hourly_capacity <= 0 or awareness_radius < -1.0 or awareness_exposure_modifier < -1.0 or resolved_footprint < STOREFRONT_AREA_PER_GRID_CELL or not is_equal_approx(resolved_footprint / STOREFRONT_AREA_PER_GRID_CELL, roundf(resolved_footprint / STOREFRONT_AREA_PER_GRID_CELL)) or area > resolved_footprint * STOREFRONT_MAX_USABLE_AREA_RATIO:
 		return false
 	storefront.name = storefront_name.strip_edges()
 	storefront.monthly_rent_wan = monthly_rent_wan
 	storefront.area = area
-	storefront.hourly_capacity_base = hourly_capacity
+	storefront.footprint_area = resolved_footprint
 	storefront.notes = notes.strip_edges()
+	_normalize_storefront_grid_cells_for_area()
+	if awareness_radius >= 0.0:
+		storefront.awareness_radius = awareness_radius
+		storefront.awareness_radius_manual_override = not is_equal_approx(awareness_radius, get_default_storefront_awareness_radius(storefront.grid_cells.size()))
+	if awareness_exposure_modifier >= 0.0:
+		storefront.awareness_exposure_modifier = awareness_exposure_modifier
+	return true
+
+
+func merge_blocks(primary_id: String, secondary_id: String) -> bool:
+	var primary := _get_block(primary_id)
+	var secondary := _get_block(secondary_id)
+	if primary == null or secondary == null or primary == secondary or primary.city_region_id != secondary.city_region_id or not _cells_touch_block(primary.grid_cells, secondary.grid_cells):
+		return false
+	for cell in secondary.grid_cells:
+		if not primary.grid_cells.has(cell):
+			primary.grid_cells.append(cell)
+	primary.name = primary.name + " + " + secondary.name
+	primary.tier = maxi(primary.tier, secondary.tier)
+	primary.block_type = primary.block_type if primary.block_type == secondary.block_type else "mixed"
+	primary.area = float(primary.grid_cells.size()) * GRID_CELL_SIZE * GRID_CELL_SIZE
+	primary.rebuild_bounds_from_grid_cells()
+	for storefront in storefronts:
+		if storefront.block_id == secondary.id:
+			_set_storefront_block(storefront, primary)
+	blocks.erase(secondary)
+	return true
+
+
+func merge_storefronts(primary_id: String, secondary_id: String) -> bool:
+	var primary := _get_storefront(primary_id)
+	var secondary := _get_storefront(secondary_id)
+	if primary == null or secondary == null or primary == secondary or primary.block_id != secondary.block_id or not _cells_touch_block(primary.grid_cells, secondary.grid_cells):
+		return false
+	for cell in secondary.grid_cells:
+		if not primary.grid_cells.has(cell):
+			primary.grid_cells.append(cell)
+	primary.name = primary.name + " + " + secondary.name
+	primary.monthly_rent_wan += secondary.monthly_rent_wan
+	primary.footprint_area = float(primary.grid_cells.size()) * STOREFRONT_AREA_PER_GRID_CELL
+	primary.area = minf(primary.area + secondary.area, primary.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)
+	primary.capture_modifier = (primary.capture_modifier + secondary.capture_modifier) * 0.5
+	primary.accessibility_modifier = (primary.accessibility_modifier + secondary.accessibility_modifier) * 0.5
+	for category_id in secondary.supported_categories:
+		if not primary.supported_categories.has(category_id):
+			primary.supported_categories.append(category_id)
+	primary.map_position = _grid_cells_center(primary.grid_cells)
+	primary.awareness_radius = get_default_storefront_awareness_radius(primary.grid_cells.size())
+	primary.awareness_radius_manual_override = false
+	storefronts.erase(secondary)
 	return true
 
 
@@ -710,6 +785,8 @@ func validate() -> Array[String]:
 	for storefront in storefronts:
 		if storefront.grid_cells.is_empty():
 			errors.append("storefront %s has no occupied grid cells" % storefront.id)
+		elif storefront.grid_cells.size() != get_required_storefront_cell_count(storefront.footprint_area):
+			errors.append("storefront %s occupied-cell count does not match its area" % storefront.id)
 		elif not _cells_are_connected(storefront.grid_cells):
 			errors.append("storefront %s has disconnected grid cells" % storefront.id)
 		elif not _storefront_cells_valid(storefront.grid_cells, storefront.id):
@@ -760,12 +837,14 @@ func export_map_data() -> Dictionary:
 			"grid_cells": _serialize_grid_cells(storefront.grid_cells),
 			"capture_modifier": storefront.capture_modifier,
 			"accessibility_modifier": storefront.accessibility_modifier,
-			"monthly_rent_wan": storefront.monthly_rent_wan, "area": storefront.area,
+			"awareness_radius": storefront.awareness_radius,
+			"awareness_radius_manual_override": storefront.awareness_radius_manual_override,
+			"awareness_exposure_modifier": storefront.awareness_exposure_modifier,
+			"monthly_rent_wan": storefront.monthly_rent_wan, "area": storefront.area, "footprint_area": storefront.footprint_area,
 			"decoration_level": storefront.decoration_level, "storefront_flow": storefront.storefront_flow,
 			"flow_share": storefront.flow_share,
 			"supported_categories": storefront.supported_categories.duplicate(),
 			"equipment_condition": storefront.equipment_condition,
-			"hourly_capacity_base": storefront.hourly_capacity_base, "notes": storefront.notes,
 		})
 	return {
 		"success": true, "errors": [], "roads": _serialize_roads(),
@@ -812,9 +891,10 @@ static func from_exported_map_data(data: Dictionary) -> Dictionary:
 		if not entry is Dictionary:
 			continue
 		var storefront := StorefrontData.new()
-		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.area = int(entry.get("area", 20)); storefront.hourly_capacity_base = int(entry.get("hourly_capacity_base", 20)); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
+		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.footprint_area = float(entry.get("footprint_area", float(maxi(1, storefront.grid_cells.size())) * STOREFRONT_AREA_PER_GRID_CELL)); storefront.area = minf(float(entry.get("area", storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)), storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO); storefront.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false)); storefront.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", get_default_storefront_awareness_radius(storefront.grid_cells.size())))) if storefront.awareness_radius_manual_override else get_default_storefront_awareness_radius(storefront.grid_cells.size()); storefront.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0))); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
 	if bool(data.get("reflow_for_road_width", false)):
 		document._reflow_imported_map_for_road_width()
+	document._normalize_storefront_grid_cells_for_area()
 	document._ensure_storefront_block_assignments()
 	var errors := document.validate()
 	return {"success": errors.is_empty(), "errors": errors, "document": document}
@@ -852,6 +932,60 @@ func _reflow_imported_map_for_road_width() -> void:
 		if is_legal:
 			for cell in storefront.grid_cells:
 				occupied_storefront_cells[cell] = true
+
+
+func _normalize_storefront_grid_cells_for_area() -> void:
+	var occupied_cells: Dictionary = {}
+	for storefront in storefronts:
+		var block := _get_block(storefront.block_id)
+		if block == null:
+			continue
+		var required_cell_count := get_required_storefront_cell_count(storefront.footprint_area)
+		var current_cells: Array[Vector2i] = []
+		for cell in storefront.grid_cells:
+			if block.grid_cells.has(cell) and not road_cells.has(cell) and not occupied_cells.has(cell) and not current_cells.has(cell):
+				current_cells.append(cell)
+		if current_cells.size() != required_cell_count or not _cells_are_connected(current_cells):
+			current_cells = _find_nearest_available_storefront_cells(block, occupied_cells, required_cell_count, storefront.map_position)
+		if current_cells.size() == required_cell_count:
+			storefront.grid_cells = current_cells
+			storefront.map_position = _grid_cells_center(current_cells)
+			if not storefront.awareness_radius_manual_override:
+				storefront.awareness_radius = get_default_storefront_awareness_radius(current_cells.size())
+			_set_storefront_block(storefront, block)
+		for cell in storefront.grid_cells:
+			occupied_cells[cell] = true
+
+
+func _find_nearest_available_storefront_cells(block: BlockData, occupied_cells: Dictionary, required_cell_count: int, preferred_position: Vector2) -> Array[Vector2i]:
+	var available_cells: Dictionary = {}
+	var start_cell := Vector2i.ZERO
+	var has_start := false
+	var nearest_distance := INF
+	for cell in block.grid_cells:
+		if road_cells.has(cell) or occupied_cells.has(cell):
+			continue
+		available_cells[cell] = true
+		var distance := grid_to_world_center(cell).distance_squared_to(preferred_position)
+		if not has_start or distance < nearest_distance:
+			start_cell = cell
+			nearest_distance = distance
+			has_start = true
+	if not has_start:
+		return []
+	var result: Array[Vector2i] = []
+	var queue: Array[Vector2i] = [start_cell]
+	var queued_cells: Dictionary = {start_cell: true}
+	var neighbor_offsets: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+	while not queue.is_empty() and result.size() < required_cell_count:
+		var cell: Vector2i = queue.pop_front()
+		result.append(cell)
+		for offset in neighbor_offsets:
+			var neighbor := cell + offset
+			if available_cells.has(neighbor) and not queued_cells.has(neighbor):
+				queued_cells[neighbor] = true
+				queue.append(neighbor)
+	return result if result.size() == required_cell_count else []
 
 
 func _deserialize_grid_cells(raw_cells: Array) -> Array[Vector2i]:

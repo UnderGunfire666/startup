@@ -1292,8 +1292,6 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 				continue
 
 			var scaled_storefront: StorefrontData = storefront.duplicate()
-			scaled_storefront.hourly_capacity_base = maxi(1, int(round(
-				storefront.hourly_capacity_base * product_share)))
 			scaled_storefront.flow_share = storefront.flow_share * product_share
 			var capture_modifier_add := EventManager.get_modifier_total(
 				GameEventDefinition.Scope.STOREFRONT, storefront.id, "capture_multiplier_add")
@@ -1401,18 +1399,35 @@ func _get_city_region_visitor_multiplier(city_region_id: String) -> float:
 
 
 func get_destination_visitors(store: Store, storefront: StorefrontData, product_share: float = 1.0) -> int:
-	if store == null or storefront == null or store.reputation <= 0.0:
-		return 0
 	var total := 0.0
+	for source in get_destination_visitor_sources(store, storefront, product_share):
+		total += float(source.get("estimated_visitors", 0.0))
+	return maxi(0, int(round(total)))
+
+
+func get_destination_visitor_sources(store: Store, storefront: StorefrontData, product_share: float = 1.0) -> Array[Dictionary]:
+	var sources: Array[Dictionary] = []
+	if store == null or storefront == null or store.reputation <= 0.0:
+		return sources
+	var local_block := _get_block_for_storefront(storefront)
 	for block_id in store.awareness_by_block.keys():
 		var awareness := float(store.awareness_by_block.get(block_id, 0.0))
 		var block := get_block(str(block_id))
-		if awareness <= 0.0 or block == null:
+		# The host block belongs to the natural-visitor funnel. Destination
+		# visitors must originate in other blocks to avoid double counting.
+		if awareness <= 0.0 or block == null or (local_block != null and block.id == local_block.id):
 			continue
 		var distance := get_block_to_storefront_road_distance(block, storefront)
 		var distance_factor := 1.0 / (1.0 + distance / 800.0)
-		total += awareness / 100.0 * store.reputation / 100.0 * 12.0 * distance_factor
-	return maxi(0, int(round(total * product_share)))
+		var reputation_conversion := clampf(store.reputation / 100.0, 0.0, 1.0)
+		sources.append({
+			"block_id": block.id,
+			"awareness": awareness,
+			"distance": distance,
+			"distance_factor": distance_factor,
+			"estimated_visitors": awareness / 100.0 * reputation_conversion * 12.0 * distance_factor * product_share,
+		})
+	return sources
 
 
 func get_block_to_storefront_road_distance(block: BlockData, storefront: StorefrontData) -> float:
@@ -1673,13 +1688,13 @@ func _apply_operating_understanding_gain(store: Store, results: Array) -> void:
 
 
 func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, results: Array, total_orders: int) -> void:
-	var local_block := _get_block_for_storefront(storefront)
-	if store == null or storefront == null or local_block == null:
+	if store == null or storefront == null or _get_block_for_storefront(storefront) == null:
 		return
 	## 只要实际营业，门面所在道路带来的曝光就会累积；它不依赖本时段是否成交。
 	var awareness_gain_multiplier := _get_store_awareness_gain_multiplier(store, storefront)
-	var exposure_gain := get_storefront_road_exposure(storefront) * 0.05 * awareness_gain_multiplier
-	_add_store_awareness(store, local_block.id, exposure_gain)
+	var coverage_ratios := StorefrontInfluenceCalculator.get_covered_block_ratios(storefront, all_blocks)
+	var exposure_gain := get_storefront_road_exposure(storefront) * storefront.awareness_exposure_modifier * 0.05 * awareness_gain_multiplier
+	_apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, exposure_gain)
 	if total_orders <= 0:
 		return
 
@@ -1691,13 +1706,21 @@ func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, res
 		total_wait_seconds += result.average_queue_wait_seconds * float(result.actual_orders)
 		total_reputation_delta += result.reputation_delta
 	var average_wait_seconds := total_wait_seconds / float(total_orders)
-	var quality_multiplier := clampf(
-		1.0 + total_reputation_delta * 0.4 - minf(average_wait_seconds / 600.0, 0.5), 0.25, 1.5)
-	var word_of_mouth_gain := float(total_orders) * 0.02 * quality_multiplier * awareness_gain_multiplier
-	for block in all_blocks:
-		var distance := get_block_to_storefront_road_distance(block, storefront)
-		var distance_factor := 1.0 / (1.0 + distance / 400.0)
-		_add_store_awareness(store, block.id, word_of_mouth_gain * distance_factor)
+	var memorable_service_multiplier := 1.0 + absf(total_reputation_delta) * 0.4 + minf(average_wait_seconds / 600.0, 0.35)
+	var reputation_memory_multiplier := 1.0 + absf(store.reputation - SettlementConfig.INITIAL_REPUTATION) / 50.0
+	var word_of_mouth_gain := float(total_orders) * 0.02 * memorable_service_multiplier * reputation_memory_multiplier * storefront.awareness_exposure_modifier * awareness_gain_multiplier
+	_apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, word_of_mouth_gain)
+
+
+func _apply_offline_awareness_to_covered_blocks(store: Store, storefront: StorefrontData, coverage_ratios: Dictionary, base_gain: float) -> void:
+	if base_gain <= 0.0:
+		return
+	for raw_block_id in coverage_ratios.keys():
+		var block_id := str(raw_block_id)
+		var block := get_block(block_id)
+		if block == null or block.city_region_id != storefront.city_region_id:
+			continue
+		_add_store_awareness(store, block_id, base_gain * float(coverage_ratios.get(raw_block_id, 0.0)))
 
 
 func _get_store_awareness_gain_multiplier(store: Store, storefront: StorefrontData) -> float:

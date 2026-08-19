@@ -124,7 +124,6 @@ static func build_storefront_report(storefront: StorefrontData, diligence_state:
 	report["area"] = storefront.area
 	report["decoration_level"] = storefront.decoration_level
 	report["equipment_condition"] = storefront.equipment_condition
-	report["hourly_capacity_base"] = storefront.hourly_capacity_base
 	report["storefront_flow"] = storefront.storefront_flow
 	report["inspection_summary"] = storefront.inspection_summary
 

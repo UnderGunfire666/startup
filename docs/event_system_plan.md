@@ -193,12 +193,13 @@ Exposure 不应简单写成：
 
 正确方向是：
 
-`Road Exposure → 品牌曝光 → Awareness 增长`
+`Road Exposure × 门面影响范围覆盖比例 → Block Awareness 增长`
 
 因此：
 
 - Accessibility 主要影响当前本地客流；
-- Exposure 主要影响未来品牌知名度。
+- Exposure 主要影响未来品牌知名度，不直接增加当前 Visitors。
+- Exposure 只影响门面线下影响范围覆盖到的 Block；范围外 Block 不获得这部分知名度。
 
 ---
 
@@ -288,7 +289,26 @@ Road 不直接生成消费者。
 
 现有 `Store.reputation` 不应承担 Awareness 职责。
 
-### 9.3 Awareness 应具有空间维度
+### 9.3 门面线下影响范围
+
+每个 Storefront 具有独立的 `awareness_radius`（影响范围系数）。以门面地图位置为圆心、该半径为圆，圆覆盖到的 Block 才会获得该门面的线下知名度。
+
+覆盖比例按网格结算：
+
+`coverage_ratio = 被影响范围覆盖的 Block 网格数 / Block 总网格数`
+
+- 完全位于圆内的 Block 获得完整效果；
+- 一半网格位于圆内的 Block 获得 50% 效果；
+- 完全在圆外的 Block 不获得线下曝光知名度；
+- 该范围模拟路过、附近居民观察与线下口口相传，因此不应无限扩散到远区。
+
+线下曝光的单时段知名度增长概念式为：
+
+`road_exposure × storefront_exposure_modifier × awareness_radius_coverage × 经营状态修正`
+
+道路等级、道路 Exposure 和门面自身属性只决定“被看见与被记住的机会”；它们不直接创造自然客流。
+
+### 9.4 Awareness 应具有空间维度
 
 长期推荐按 Block 保存，而不是一个 Store 全局数值：
 
@@ -302,17 +322,17 @@ Road 不直接生成消费者。
 - 营销、口碑和事件造成特定区域传播；
 - 多店品牌影响范围重叠。
 
-### 9.4 Awareness 的主要增长来源
+### 9.5 Awareness 的主要增长来源
 
-- Road Exposure 带来的自然曝光；
-- 实际顾客的口碑传播；
+- Road Exposure 在门面影响范围内带来的自然曝光；
+- 实际顾客在门面影响范围内带来的线下口碑传播；
 - 营销；
 - 开业活动；
-- 社交媒体 / 媒体事件；
+- 社交媒体 / 媒体事件（未来的线上知名度系统）；
 - 特定随机事件；
 - 多店品牌协同。
 
-Exposure 只是 Awareness 的一个自然增长渠道，而不是唯一来源。
+Exposure 只是线下 Awareness 的一个自然增长渠道，而不是唯一来源。线上知名度是后续独立系统：它可以突破门面影响范围，但本阶段仅保留概念，不设计数值或实现。
 
 ---
 
@@ -326,9 +346,9 @@ Exposure 只是 Awareness 的一个自然增长渠道，而不是唯一来源。
 
 概念链路：
 
-`Awareness by Block`
+`门面在其他 Block 的 Awareness`
 
-`→ Reputation`
+`→ Reputation（高低都会加速传播）`
 
 `→ 品类吸引力 / 当前消费需求`
 
@@ -339,6 +359,13 @@ Exposure 只是 Awareness 的一个自然增长渠道，而不是唯一来源。
 最终总访客：
 
 `Total Visitors = Natural Visitors + Destination Visitors`
+
+规则边界：
+
+- 只计算门面所属 Block 以外的 Block，避免与 Natural Visitors 重复；
+- Awareness 只表示“知道门面存在的人数比例”，不代表好评；
+- 高口碑与低口碑都会让经历更容易被记住，因此都会加速 Awareness 传播；
+- 高口碑提高目的性客流转化，低口碑降低目的性客流转化。
 
 这样能够体现：
 
@@ -361,7 +388,7 @@ Exposure 只是 Awareness 的一个自然增长渠道，而不是唯一来源。
 
 ### 11.2 品牌 / 目的性客流线
 
-`Exposure / Word of Mouth / Marketing / Events → Awareness → Reputation + Distance → Destination Visitors`
+`线下 Exposure / 线下口碑 / 未来线上传播 / Marketing / Events → Block Awareness → Reputation + Distance → Destination Visitors`
 
 主要回答：
 
@@ -555,54 +582,21 @@ Exposure 只是 Awareness 的一个自然增长渠道，而不是唯一来源。
 
 ## 16. 推荐实现顺序
 
-### Phase 1：调查随机发现 MVP
+### 已完成基础
 
-保留现有调查进度、门面发现和 `block_understanding`。
+- 调查进度、门面发现、事件系统；
+- Road Graph、地图制作工具、Block 入口、Storefront 道路关联与地图校验；
+- 基于 Road Graph 的跨区移动耗时；
+- 自然客流、基础 `awareness_by_block`、口碑传播与目的性客流的第一版。
+- 区块事件、店铺营业事件与 Temporary Modifier 的基础框架。
 
-流程：
+### 下一阶段：门面影响范围知名度
 
-`region_research → 正常增长进度 → 检查固定阈值 → 尝试随机发现 → 应用知识结果`
-
-### Phase 2：道路与地图制作骨架
-
-建立最小 Road Graph 和地图制作工具：
-
-- RoadNode / RoadSegment；
-- Block 道路入口；
-- Storefront 道路关联；
-- Validator；
-- 道路距离计算。
-
-### Phase 3：移动耗时迁移到 Road Graph
-
-将跨区移动从简单直线空间关系逐步迁移到道路最短距离。
-
-### Phase 4：Accessibility 接入自然客流
-
-只作为本地消费者到达条件，不引入道路容量或 Agent 模拟。
-
-### Phase 5：Awareness MVP
-
-新增 Store 的空间知名度状态，优先实现：
-
-- `awareness_by_block`；
-- Exposure 自然增长；
-- 简单口碑传播；
-- Destination Visitors。
-
-### Phase 6：玩家所在区块随机事件
-
-基于：
-
-- `PlayerState.current_block_id`；
-- 当前时间；
-- Block 类型和 tags；
-- 当前行动；
-- cooldown。
-
-### Phase 7：店铺营业事件与 Temporary Modifier
-
-针对每个营业 Store 独立触发，必须显式 `store_id`，并逐步允许事件影响经营、Awareness 和动态空间环境。
+1. 为 Storefront 增加 `awareness_radius` 和门面曝光修正；
+2. 用圆形覆盖网格比例计算每个 Block 的线下影响范围；
+3. 将道路 Exposure 与线下口碑只写入被覆盖 Block 的 Awareness；
+4. 将 Destination Visitors 限制为门面所属 Block 以外的来源，并分离高低 Reputation 对传播速度与到访转化的影响；
+5. 线上知名度仅保留接口概念，暂不进入实现。
 
 ---
 

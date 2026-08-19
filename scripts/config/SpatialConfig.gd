@@ -5,7 +5,10 @@ class_name SpatialConfig
 const CITY_REGION_TYPES: Array[String] = ["urban", "suburban", "town"]
 
 # ── 区块类型 ──────────────────────────────────────────────
-const BLOCK_TYPES: Array[String] = ["school", "office", "commercial", "industrial", "residential"]
+const BLOCK_TYPES: Array[String] = [
+	"school", "office", "commercial", "industrial", "residential",
+	"mixed", "tourism", "public_green",
+]
 
 # ── 区块/区位等级，统一用1/2/3 ───────────────────────────
 const MIN_TIER: int = 1

@@ -40,10 +40,7 @@ static func from_static_data() -> MapAuthoringDocument:
 		var to_node: RoadNode = source_graph.nodes.get(segment.to_node_id, null)
 		if from_node != null and to_node != null:
 			var road_class: String = segment.road_class if ROAD_CLASS_DATA.has(segment.road_class) else "local"
-			for cell in document._raster_line(
-				Vector2i(floori(from_node.position.x / GRID_CELL_SIZE), floori(from_node.position.y / GRID_CELL_SIZE)),
-				Vector2i(floori(to_node.position.x / GRID_CELL_SIZE), floori(to_node.position.y / GRID_CELL_SIZE))):
-				document._paint_road_width(cell, int(ROAD_CLASS_DATA[road_class].width), road_class, segment.id)
+			document._paint_road_segment(from_node.position, to_node.position, int(ROAD_CLASS_DATA[road_class].width), road_class, segment.id)
 	for source_block in GameData.get_blocks():
 		var block := source_block.duplicate() as BlockData
 		document.blocks.append(block)
@@ -152,8 +149,7 @@ func add_grid_road(segment_id: String, from_cell: Vector2i, to_cell: Vector2i, r
 	var segment := _get_road_segment(segment_id)
 	if segment != null:
 		segment.road_class = road_class
-	for cell in _raster_line(from_cell, to_cell):
-		_paint_road_width(cell, int(data.width), road_class, segment_id)
+	_paint_road_segment(grid_to_world_intersection(from_cell), grid_to_world_intersection(to_cell), int(data.width), road_class, segment_id)
 	return true
 
 
@@ -198,10 +194,20 @@ func _is_road_path_already_occupied(from_cell: Vector2i, to_cell: Vector2i) -> b
 	var path := _raster_line(from_cell, to_cell)
 	if path.is_empty():
 		return false
+	var from := grid_to_world_intersection(from_cell)
+	var to := grid_to_world_intersection(to_cell)
+	var direction := to - from
+	var squared_length := direction.length_squared()
+	var checked_cell_count := 0
 	for cell in path:
+		var center := (Vector2(cell) + Vector2(0.5, 0.5)) * GRID_CELL_SIZE
+		var progress := (center - from).dot(direction)
+		if progress <= 0.0 or progress >= squared_length:
+			continue
+		checked_cell_count += 1
 		if not road_cells.has(cell):
 			return false
-	return true
+	return checked_cell_count > 0
 
 
 func get_road_class(segment_id: String) -> String:
@@ -278,6 +284,27 @@ func add_cells_to_block(block_id: String, cells: Array[Vector2i]) -> bool:
 	return false
 
 
+func remove_cells_from_block(block_id: String, cells: Array[Vector2i]) -> bool:
+	var block := _get_block(block_id)
+	if block == null or cells.is_empty():
+		return false
+	var remaining: Array[Vector2i] = []
+	for cell in block.grid_cells:
+		if not cells.has(cell):
+			remaining.append(cell)
+	if remaining.is_empty() or remaining.size() == block.grid_cells.size() or not _cells_are_connected(remaining) or not _cells_touch_road(remaining):
+		return false
+	for storefront in storefronts:
+		if storefront.block_id == block_id:
+			for storefront_cell in storefront.grid_cells:
+				if not remaining.has(storefront_cell):
+					return false
+	block.grid_cells = remaining
+	block.area = float(remaining.size()) * GRID_CELL_SIZE * GRID_CELL_SIZE
+	block.rebuild_bounds_from_grid_cells()
+	return true
+
+
 func create_storefront_from_cells(storefront_id: String, storefront_name: String, city_region_id: String, cells: Array[Vector2i]) -> StorefrontData:
 	if storefront_id.is_empty() or cells.is_empty() or _get_storefront(storefront_id) != null:
 		return null
@@ -321,6 +348,18 @@ func add_cells_to_storefront(storefront_id: String, cells: Array[Vector2i]) -> b
 	return true
 
 
+func update_storefront_properties(storefront_id: String, storefront_name: String, monthly_rent_wan: float, area: int, hourly_capacity: int, notes: String) -> bool:
+	var storefront := _get_storefront(storefront_id)
+	if storefront == null or storefront_name.strip_edges().is_empty() or monthly_rent_wan < 0.0 or area <= 0 or hourly_capacity <= 0:
+		return false
+	storefront.name = storefront_name.strip_edges()
+	storefront.monthly_rent_wan = monthly_rent_wan
+	storefront.area = area
+	storefront.hourly_capacity_base = hourly_capacity
+	storefront.notes = notes.strip_edges()
+	return true
+
+
 func update_block_properties(block_id: String, block_name: String, city_region_id: String, block_type: String, tier: int) -> bool:
 	for block in blocks:
 		if block.id == block_id:
@@ -330,6 +369,21 @@ func update_block_properties(block_id: String, block_name: String, city_region_i
 			block.tier = clampi(tier, 1, 3)
 			return true
 	return false
+
+
+func update_block_simulation_properties(block_id: String, accessibility: float, development_factor: float, price_sensitivity: float, quality_preference: float, time_profile: Dictionary, competition_level: String, rent_pressure: String, tags: Array[String]) -> bool:
+	var block := _get_block(block_id)
+	if block == null or accessibility < 0.0 or accessibility > 1.0 or development_factor < 0.0 or price_sensitivity < 0.0 or price_sensitivity > 1.0 or quality_preference < 0.0 or quality_preference > 1.0:
+		return false
+	block.accessibility = accessibility
+	block.development_factor = development_factor
+	block.spending_profile["price_sensitivity"] = price_sensitivity
+	block.spending_profile["quality_preference"] = quality_preference
+	block.active_time_profile = time_profile.duplicate()
+	block.competition_profile["competition_level"] = competition_level
+	block.competition_profile["rent_pressure"] = rent_pressure
+	block.tags = tags.duplicate()
+	return true
 
 
 func assign_block_road_entry(block_id: String, node_id: String) -> bool:
@@ -733,6 +787,81 @@ func export_json_files() -> Dictionary:
 	}
 
 
+static func from_exported_map_data(data: Dictionary) -> Dictionary:
+	var document := MapAuthoringDocument.new()
+	for entry in data.get("roads", []):
+		if not entry is Dictionary:
+			continue
+		if str(entry.get("kind", "")) == "node":
+			document.add_road_node(str(entry.get("id", "")), Vector2(float(entry.get("position", {}).get("x", 0.0)), float(entry.get("position", {}).get("y", 0.0))))
+	for entry in data.get("roads", []):
+		if not entry is Dictionary or str(entry.get("kind", "")) != "segment":
+			continue
+		document.add_road_segment(str(entry.get("id", "")), str(entry.get("from_node_id", "")), str(entry.get("to_node_id", "")), float(entry.get("accessibility", 1.0)), float(entry.get("exposure", 1.0)))
+		var segment := document._get_road_segment(str(entry.get("id", "")))
+		if segment != null:
+			segment.road_class = str(entry.get("road_class", "local"))
+	document._rebuild_road_cells()
+	for entry in data.get("blocks", []):
+		if not entry is Dictionary:
+			continue
+		var cells := document._deserialize_grid_cells(entry.get("grid_cells", []))
+		var block := BlockData.new()
+		block.id = str(entry.get("id", "")); block.name = str(entry.get("name", "")); block.city_region_id = str(entry.get("city_region_id", "")); block.road_entry_node_id = str(entry.get("road_entry_node_id", "")); block.block_type = str(entry.get("block_type", "residential")); block.tier = int(entry.get("tier", 1)); block.grid_cell_size = float(entry.get("grid_cell_size", GRID_CELL_SIZE)); block.grid_cells = cells; block.area = float(entry.get("area", cells.size() * GRID_CELL_SIZE * GRID_CELL_SIZE)); block.rebuild_bounds_from_grid_cells(); document.blocks.append(block)
+	for entry in data.get("storefronts", []):
+		if not entry is Dictionary:
+			continue
+		var storefront := StorefrontData.new()
+		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.area = int(entry.get("area", 20)); storefront.hourly_capacity_base = int(entry.get("hourly_capacity_base", 20)); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
+	if bool(data.get("reflow_for_road_width", false)):
+		document._reflow_imported_map_for_road_width()
+	document._ensure_storefront_block_assignments()
+	var errors := document.validate()
+	return {"success": errors.is_empty(), "errors": errors, "document": document}
+
+
+func _reflow_imported_map_for_road_width() -> void:
+	# Legacy hand-authored examples reserved one grid cell for every road. The
+	# current editor correctly gives each road class its configured width, so
+	# trim those old overlaps and relocate storefronts into legal block cells.
+	for block in blocks:
+		var legal_cells: Array[Vector2i] = []
+		for cell in block.grid_cells:
+			if not road_cells.has(cell):
+				legal_cells.append(cell)
+		if not legal_cells.is_empty():
+			block.grid_cells = legal_cells
+			block.area = float(legal_cells.size()) * GRID_CELL_SIZE * GRID_CELL_SIZE
+			block.rebuild_bounds_from_grid_cells()
+	var occupied_storefront_cells: Dictionary = {}
+	for storefront in storefronts:
+		var block := _get_block(storefront.block_id)
+		var is_legal := block != null and not storefront.grid_cells.is_empty()
+		if is_legal:
+			for cell in storefront.grid_cells:
+				if road_cells.has(cell) or not block.grid_cells.has(cell) or occupied_storefront_cells.has(cell):
+					is_legal = false
+					break
+		if not is_legal and block != null:
+			for cell in block.grid_cells:
+				if not occupied_storefront_cells.has(cell):
+					storefront.grid_cells = [cell]
+					storefront.map_position = grid_to_world_center(cell)
+					is_legal = true
+					break
+		if is_legal:
+			for cell in storefront.grid_cells:
+				occupied_storefront_cells[cell] = true
+
+
+func _deserialize_grid_cells(raw_cells: Array) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for raw_cell in raw_cells:
+		if raw_cell is Dictionary:
+			cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
+	return cells
+
+
 func _serialize_roads() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	var node_ids: Array[String] = []
@@ -782,12 +911,61 @@ func _find_nearest_road_node(position: Vector2) -> String:
 
 
 func _raster_line(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	# Roads begin and end at grid intersections. Test the line segment against
+	# each candidate cell rather than rounding samples along it: rounding skips
+	# shallow diagonal cells and adds cells the line never enters.
 	var cells: Array[Vector2i] = []
-	var delta := to - from
-	var steps := maxi(absi(delta.x), absi(delta.y))
-	for step in range(steps + 1):
-		cells.append(Vector2i(roundi(lerpf(float(from.x), float(to.x), float(step) / float(maxi(1, steps)))), roundi(lerpf(float(from.y), float(to.y), float(step) / float(maxi(1, steps))))))
+	var line_from := Vector2(from)
+	var line_to := Vector2(to)
+	var min_x := floori(minf(line_from.x, line_to.x))
+	var max_x := ceili(maxf(line_from.x, line_to.x)) - 1
+	var min_y := floori(minf(line_from.y, line_to.y))
+	var max_y := ceili(maxf(line_from.y, line_to.y)) - 1
+	# A horizontal or vertical road lies on a grid line. Use the cell on its
+	# positive side as the canonical one, matching the rest of the editor.
+	if is_equal_approx(line_from.x, line_to.x):
+		min_x = floori(line_from.x)
+		max_x = min_x
+	if is_equal_approx(line_from.y, line_to.y):
+		min_y = floori(line_from.y)
+		max_y = min_y
+	for x in range(min_x, max_x + 1):
+		for y in range(min_y, max_y + 1):
+			var cell := Vector2i(x, y)
+			if _segment_enters_grid_cell(line_from, line_to, cell):
+				cells.append(cell)
 	return cells
+
+
+func _segment_enters_grid_cell(line_from: Vector2, line_to: Vector2, cell: Vector2i) -> bool:
+	var direction := line_to - line_from
+	var entry_time := 0.0
+	var exit_time := 1.0
+	for axis in range(2):
+		var position := line_from.x if axis == 0 else line_from.y
+		var delta := direction.x if axis == 0 else direction.y
+		var cell_min := float(cell.x if axis == 0 else cell.y)
+		var cell_max := cell_min + 1.0
+		if is_zero_approx(delta):
+			# Half-open cells ensure a line on a grid boundary has exactly one
+			# canonical row or column instead of painting both sides.
+			if position < cell_min or position >= cell_max:
+				return false
+			continue
+		var first_time := (cell_min - position) / delta
+		var second_time := (cell_max - position) / delta
+		if first_time > second_time:
+			var swap_time := first_time
+			first_time = second_time
+			second_time = swap_time
+		entry_time = maxf(entry_time, first_time)
+		exit_time = minf(exit_time, second_time)
+		if exit_time < entry_time:
+			return false
+	# A line crossing a grid corner in its interior belongs to every cell that
+	# meets at that corner. Endpoint-only contact is deliberately excluded so a
+	# road does not spill past either of its nodes.
+	return exit_time >= entry_time and exit_time > 0.0 and entry_time < 1.0
 
 
 func _paint_road_width(cell: Vector2i, width: int, road_class: String, segment_id: String) -> void:
@@ -795,6 +973,27 @@ func _paint_road_width(cell: Vector2i, width: int, road_class: String, segment_i
 	for x in range(cell.x + start_offset, cell.x + start_offset + width):
 		for y in range(cell.y + start_offset, cell.y + start_offset + width):
 			road_cells[Vector2i(x, y)] = {"class": road_class, "segment_id": segment_id}
+
+
+func _paint_road_segment(from: Vector2, to: Vector2, width: int, road_class: String, segment_id: String) -> void:
+	var direction := to - from
+	var squared_length := direction.length_squared()
+	if squared_length <= 0.0:
+		return
+	var from_cell := Vector2i(floori(from.x / GRID_CELL_SIZE), floori(from.y / GRID_CELL_SIZE))
+	var to_cell := Vector2i(floori(to.x / GRID_CELL_SIZE), floori(to.y / GRID_CELL_SIZE))
+	for path_cell in _raster_line(from_cell, to_cell):
+		var start_offset := -int(width / 2)
+		for x in range(path_cell.x + start_offset, path_cell.x + start_offset + width):
+			for y in range(path_cell.y + start_offset, path_cell.y + start_offset + width):
+				var occupied_cell := Vector2i(x, y)
+				# Keep flat caps at endpoint intersections. Width painting must not
+				# turn the cells beyond either endpoint into road cells.
+				var center := (Vector2(occupied_cell) + Vector2(0.5, 0.5)) * GRID_CELL_SIZE
+				var progress := (center - from).dot(direction)
+				if progress <= 0.0 or progress >= squared_length:
+					continue
+				road_cells[occupied_cell] = {"class": road_class, "segment_id": segment_id}
 
 
 func _cells_touch_road(cells: Array[Vector2i]) -> bool:
@@ -851,8 +1050,7 @@ func _rebuild_road_cells() -> void:
 			continue
 		var road_class := str(class_by_segment.get(segment.id, "local"))
 		var road_data: Dictionary = ROAD_CLASS_DATA.get(road_class, ROAD_CLASS_DATA["local"])
-		for cell in _raster_line(Vector2i(floori(from_node.position.x / GRID_CELL_SIZE), floori(from_node.position.y / GRID_CELL_SIZE)), Vector2i(floori(to_node.position.x / GRID_CELL_SIZE), floori(to_node.position.y / GRID_CELL_SIZE))):
-			_paint_road_width(cell, int(road_data.width), road_class, segment.id)
+		_paint_road_segment(from_node.position, to_node.position, int(road_data.width), road_class, segment.id)
 
 
 func _has_road_segment(segment_id: String) -> bool:

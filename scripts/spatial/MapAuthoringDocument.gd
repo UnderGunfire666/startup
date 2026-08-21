@@ -831,6 +831,8 @@ func export_map_data() -> Dictionary:
 			"id": storefront.id, "name": storefront.name, "region_id": storefront.region_id,
 			"city_region_id": storefront.city_region_id,
 			"road_segment_id": storefront.road_segment_id,
+			"frontage_side": storefront.frontage_side,
+			"default_entrance_offset": storefront.default_entrance_offset,
 			"map_position": {"x": storefront.map_position.x, "y": storefront.map_position.y},
 			"block_id": storefront.block_id,
 			"block_local_position": {"x": storefront.block_local_position.x, "y": storefront.block_local_position.y},
@@ -891,7 +893,7 @@ static func from_exported_map_data(data: Dictionary) -> Dictionary:
 		if not entry is Dictionary:
 			continue
 		var storefront := StorefrontData.new()
-		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.footprint_area = float(entry.get("footprint_area", float(maxi(1, storefront.grid_cells.size())) * STOREFRONT_AREA_PER_GRID_CELL)); storefront.area = minf(float(entry.get("area", storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)), storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO); storefront.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false)); storefront.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", get_default_storefront_awareness_radius(storefront.grid_cells.size())))) if storefront.awareness_radius_manual_override else get_default_storefront_awareness_radius(storefront.grid_cells.size()); storefront.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0))); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
+		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.frontage_side = str(entry.get("frontage_side", "south")); storefront.default_entrance_offset = int(entry.get("default_entrance_offset", -1)); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.footprint_area = float(entry.get("footprint_area", float(maxi(1, storefront.grid_cells.size())) * STOREFRONT_AREA_PER_GRID_CELL)); storefront.area = minf(float(entry.get("area", storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)), storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO); storefront.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false)); storefront.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", get_default_storefront_awareness_radius(storefront.grid_cells.size())))) if storefront.awareness_radius_manual_override else get_default_storefront_awareness_radius(storefront.grid_cells.size()); storefront.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0))); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
 	if bool(data.get("reflow_for_road_width", false)):
 		document._reflow_imported_map_for_road_width()
 	document._normalize_storefront_grid_cells_for_area()
@@ -1182,7 +1184,8 @@ func _rebuild_road_cells() -> void:
 		var to_node: RoadNode = road_graph.nodes.get(segment.to_node_id, null)
 		if from_node == null or to_node == null:
 			continue
-		var road_class := str(class_by_segment.get(segment.id, "local"))
+		var fallback_class := segment.road_class if ROAD_CLASS_DATA.has(segment.road_class) else "local"
+		var road_class := str(class_by_segment.get(segment.id, fallback_class))
 		var road_data: Dictionary = ROAD_CLASS_DATA.get(road_class, ROAD_CLASS_DATA["local"])
 		_paint_road_segment(from_node.position, to_node.position, int(road_data.width), road_class, segment.id)
 

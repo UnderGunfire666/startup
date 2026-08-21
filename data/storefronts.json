@@ -1,1 +1,1083 @@
-[]
+[
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_nw_residential",
+		"block_local_position": {
+			"x": -8.75,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 11,
+				"y": 9
+			},
+			{
+				"x": 12,
+				"y": 9
+			}
+		],
+		"id": "sf_nw_grocery",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 42.0,
+			"y": 33.25
+		},
+		"monthly_rent_wan": 0.68,
+		"name": "社区生鲜铺",
+		"region_id": "",
+		"road_segment_id": "r_h18_10_20",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 10.4125,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 35.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_nw_residential",
+		"block_local_position": {
+			"x": -3.5,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 12.25,
+		"grid_cells": [
+			{
+				"x": 13,
+				"y": 9
+			}
+		],
+		"id": "sf_nw_corner",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 47.25,
+			"y": 33.25
+		},
+		"monthly_rent_wan": 0.82,
+		"name": "西北街角铺",
+		"region_id": "",
+		"road_segment_id": "r_v20_08_18",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 31.2375,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 49.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_n_commercial",
+		"block_local_position": {
+			"x": -8.75,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 36.75,
+		"grid_cells": [
+			{
+				"x": 22,
+				"y": 9
+			},
+			{
+				"x": 23,
+				"y": 9
+			},
+			{
+				"x": 22,
+				"y": 10
+			}
+		],
+		"id": "sf_n_commercial_01",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 80.5,
+			"y": 35.0
+		},
+		"monthly_rent_wan": 1.85,
+		"name": "北街一号铺",
+		"region_id": "",
+		"road_segment_id": "r_h18_20_26",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 41.65,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 56.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_n_commercial",
+		"block_local_position": {
+			"x": 0.0,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 49.0,
+		"grid_cells": [
+			{
+				"x": 24,
+				"y": 9
+			},
+			{
+				"x": 25,
+				"y": 9
+			},
+			{
+				"x": 24,
+				"y": 10
+			},
+			{
+				"x": 26,
+				"y": 9
+			}
+		],
+		"id": "sf_n_commercial_02",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 89.25,
+			"y": 35.0
+		},
+		"monthly_rent_wan": 2.4,
+		"name": "北街转角旗舰铺",
+		"region_id": "",
+		"road_segment_id": "r_v32_08_18",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_ne_office",
+		"block_local_position": {
+			"x": -10.5,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 35,
+				"y": 9
+			},
+			{
+				"x": 36,
+				"y": 9
+			}
+		],
+		"id": "sf_ne_cafe",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 126.0,
+			"y": 33.25
+		},
+		"monthly_rent_wan": 2.1,
+		"name": "写字楼咖啡铺",
+		"region_id": "",
+		"road_segment_id": "r_h18_32_45",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 31.2375,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 49.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_ne_office",
+		"block_local_position": {
+			"x": -3.5,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 36.75,
+		"grid_cells": [
+			{
+				"x": 37,
+				"y": 9
+			},
+			{
+				"x": 38,
+				"y": 9
+			},
+			{
+				"x": 37,
+				"y": 10
+			}
+		],
+		"id": "sf_ne_lunch",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 133.0,
+			"y": 35.0
+		},
+		"monthly_rent_wan": 2.32,
+		"name": "商务简餐铺",
+		"region_id": "",
+		"road_segment_id": "r_v45_08_18",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_far_ne_mixed",
+		"block_local_position": {
+			"x": -12.25,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 47,
+				"y": 9
+			},
+			{
+				"x": 48,
+				"y": 9
+			}
+		],
+		"id": "sf_mixed_bakery",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 168.0,
+			"y": 33.25
+		},
+		"monthly_rent_wan": 1.48,
+		"name": "社区烘焙店",
+		"region_id": "",
+		"road_segment_id": "r_h18_45_57",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_w_school",
+		"block_local_position": {
+			"x": -8.75,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 11,
+				"y": 20
+			},
+			{
+				"x": 12,
+				"y": 20
+			}
+		],
+		"id": "sf_school_stationery",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 42.0,
+			"y": 71.75
+		},
+		"monthly_rent_wan": 0.95,
+		"name": "文教文具铺",
+		"region_id": "",
+		"road_segment_id": "r_v20_18_30",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 10.4125,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 35.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_w_school",
+		"block_local_position": {
+			"x": -3.5,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 12.25,
+		"grid_cells": [
+			{
+				"x": 13,
+				"y": 20
+			}
+		],
+		"id": "sf_school_snack",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 47.25,
+			"y": 71.75
+		},
+		"monthly_rent_wan": 1.15,
+		"name": "校园小食铺",
+		"region_id": "",
+		"road_segment_id": "r_h30_10_20",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_c_commercial",
+		"block_local_position": {
+			"x": 0.0,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 25,
+				"y": 20
+			},
+			{
+				"x": 25,
+				"y": 21
+			}
+		],
+		"id": "sf_central_alley",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 89.25,
+			"y": 73.5
+		},
+		"monthly_rent_wan": 1.05,
+		"name": "巷内特色小店",
+		"region_id": "",
+		"road_segment_id": "r_alley_central_v",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 41.65,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 56.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_c_commercial",
+		"block_local_position": {
+			"x": -7.0,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 49.0,
+		"grid_cells": [
+			{
+				"x": 22,
+				"y": 20
+			},
+			{
+				"x": 23,
+				"y": 20
+			},
+			{
+				"x": 22,
+				"y": 21
+			},
+			{
+				"x": 24,
+				"y": 20
+			}
+		],
+		"id": "sf_central_main_01",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 82.25,
+			"y": 73.5
+		},
+		"monthly_rent_wan": 3.6,
+		"name": "中央大道一号铺",
+		"region_id": "",
+		"road_segment_id": "r_h30_20_32",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 52.0625,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 63.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_c_commercial",
+		"block_local_position": {
+			"x": -7.0,
+			"y": -5.25
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 61.25,
+		"grid_cells": [
+			{
+				"x": 23,
+				"y": 21
+			},
+			{
+				"x": 24,
+				"y": 21
+			},
+			{
+				"x": 23,
+				"y": 22
+			},
+			{
+				"x": 24,
+				"y": 22
+			},
+			{
+				"x": 22,
+				"y": 22
+			}
+		],
+		"id": "sf_central_main_02",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 82.25,
+			"y": 77.0
+		},
+		"monthly_rent_wan": 4.2,
+		"name": "中央大道二号铺",
+		"region_id": "",
+		"road_segment_id": "r_h30_20_32",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 31.2375,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 49.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_e_tourism",
+		"block_local_position": {
+			"x": -10.5,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 36.75,
+		"grid_cells": [
+			{
+				"x": 35,
+				"y": 20
+			},
+			{
+				"x": 36,
+				"y": 20
+			},
+			{
+				"x": 35,
+				"y": 21
+			}
+		],
+		"id": "sf_tourism_souvenir",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 126.0,
+			"y": 73.5
+		},
+		"monthly_rent_wan": 2.9,
+		"name": "城市纪念品店",
+		"region_id": "",
+		"road_segment_id": "r_h30_32_45",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 41.65,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 56.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_e_tourism",
+		"block_local_position": {
+			"x": -1.75,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 49.0,
+		"grid_cells": [
+			{
+				"x": 37,
+				"y": 20
+			},
+			{
+				"x": 38,
+				"y": 20
+			},
+			{
+				"x": 37,
+				"y": 21
+			},
+			{
+				"x": 39,
+				"y": 20
+			}
+		],
+		"id": "sf_tourism_tea",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 134.75,
+			"y": 73.5
+		},
+		"monthly_rent_wan": 2.55,
+		"name": "历史街茶馆",
+		"region_id": "",
+		"road_segment_id": "r_v45_18_30",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 10.4125,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 35.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_e_public_green",
+		"block_local_position": {
+			"x": -14.0,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 12.25,
+		"grid_cells": [
+			{
+				"x": 47,
+				"y": 20
+			}
+		],
+		"id": "sf_park_kiosk",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 166.25,
+			"y": 71.75
+		},
+		"monthly_rent_wan": 0.72,
+		"name": "公园入口售卖亭",
+		"region_id": "",
+		"road_segment_id": "r_h30_45_57",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 31.2375,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 49.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_e_public_green",
+		"block_local_position": {
+			"x": -8.75,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 36.75,
+		"grid_cells": [
+			{
+				"x": 48,
+				"y": 20
+			},
+			{
+				"x": 49,
+				"y": 20
+			},
+			{
+				"x": 48,
+				"y": 21
+			}
+		],
+		"id": "sf_park_cafe",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 171.5,
+			"y": 73.5
+		},
+		"monthly_rent_wan": 1.65,
+		"name": "绿地景观咖啡店",
+		"region_id": "",
+		"road_segment_id": "r_v57_18_30",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_sw_residential",
+		"block_local_position": {
+			"x": -8.75,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 11,
+				"y": 33
+			},
+			{
+				"x": 12,
+				"y": 33
+			}
+		],
+		"id": "sf_sw_breakfast",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 42.0,
+			"y": 117.25
+		},
+		"monthly_rent_wan": 0.78,
+		"name": "社区早餐铺",
+		"region_id": "",
+		"road_segment_id": "r_h30_10_20",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 10.4125,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 35.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_sw_residential",
+		"block_local_position": {
+			"x": -3.5,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 12.25,
+		"grid_cells": [
+			{
+				"x": 13,
+				"y": 33
+			}
+		],
+		"id": "sf_sw_service",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 47.25,
+			"y": 117.25
+		},
+		"monthly_rent_wan": 0.66,
+		"name": "社区服务门面",
+		"region_id": "",
+		"road_segment_id": "r_v20_30_42",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 41.65,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 56.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_s_mixed",
+		"block_local_position": {
+			"x": -7.0,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 49.0,
+		"grid_cells": [
+			{
+				"x": 22,
+				"y": 33
+			},
+			{
+				"x": 23,
+				"y": 33
+			},
+			{
+				"x": 22,
+				"y": 34
+			},
+			{
+				"x": 24,
+				"y": 33
+			}
+		],
+		"id": "sf_s_mixed_main",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 82.25,
+			"y": 119.0
+		},
+		"monthly_rent_wan": 2.45,
+		"name": "南城大道综合店",
+		"region_id": "",
+		"road_segment_id": "r_h30_20_32",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_s_mixed",
+		"block_local_position": {
+			"x": -5.25,
+			"y": -7.0
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 23,
+				"y": 34
+			},
+			{
+				"x": 24,
+				"y": 34
+			}
+		],
+		"id": "sf_s_mixed_local",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 84.0,
+			"y": 120.75
+		},
+		"monthly_rent_wan": 1.32,
+		"name": "南城生活店",
+		"region_id": "",
+		"road_segment_id": "r_h42_20_32",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 31.2375,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 49.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_se_office",
+		"block_local_position": {
+			"x": -10.5,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 36.75,
+		"grid_cells": [
+			{
+				"x": 35,
+				"y": 33
+			},
+			{
+				"x": 36,
+				"y": 33
+			},
+			{
+				"x": 35,
+				"y": 34
+			}
+		],
+		"id": "sf_se_lunch",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 126.0,
+			"y": 119.0
+		},
+		"monthly_rent_wan": 2.1,
+		"name": "南站工作餐铺",
+		"region_id": "",
+		"road_segment_id": "r_v32_30_42",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 20.825,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 42.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_se_office",
+		"block_local_position": {
+			"x": -3.5,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 24.5,
+		"grid_cells": [
+			{
+				"x": 37,
+				"y": 33
+			},
+			{
+				"x": 38,
+				"y": 33
+			}
+		],
+		"id": "sf_se_convenience",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 133.0,
+			"y": 117.25
+		},
+		"monthly_rent_wan": 1.88,
+		"name": "办公区便利店",
+		"region_id": "",
+		"road_segment_id": "r_h42_32_45",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 41.65,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 56.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_far_se_industrial",
+		"block_local_position": {
+			"x": -10.5,
+			"y": -8.75
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 49.0,
+		"grid_cells": [
+			{
+				"x": 47,
+				"y": 33
+			},
+			{
+				"x": 48,
+				"y": 33
+			},
+			{
+				"x": 47,
+				"y": 34
+			},
+			{
+				"x": 49,
+				"y": 33
+			}
+		],
+		"id": "sf_industrial_canteen",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 169.75,
+			"y": 119.0
+		},
+		"monthly_rent_wan": 0.88,
+		"name": "产业园食堂档口",
+		"region_id": "",
+		"road_segment_id": "r_v45_30_42",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 31.2375,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 49.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_far_se_industrial",
+		"block_local_position": {
+			"x": -8.75,
+			"y": -5.25
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 36.75,
+		"grid_cells": [
+			{
+				"x": 48,
+				"y": 34
+			},
+			{
+				"x": 49,
+				"y": 34
+			},
+			{
+				"x": 48,
+				"y": 35
+			}
+		],
+		"id": "sf_industrial_supply",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 171.5,
+			"y": 122.5
+		},
+		"monthly_rent_wan": 0.74,
+		"name": "产业配套商店",
+		"region_id": "",
+		"road_segment_id": "r_h42_45_51",
+		"storefront_flow": "main",
+		"supported_categories": []
+	},
+	{
+		"accessibility_modifier": 1.0,
+		"area": 10.4125,
+		"awareness_exposure_modifier": 1.0,
+		"awareness_radius": 35.0,
+		"awareness_radius_manual_override": false,
+		"block_id": "block_far_se_industrial",
+		"block_local_position": {
+			"x": -3.5,
+			"y": -10.5
+		},
+		"capture_modifier": 1.0,
+		"city_region_id": "CR001",
+		"decoration_level": "normal",
+		"equipment_condition": "normal",
+		"flow_share": 0.4,
+		"footprint_area": 12.25,
+		"grid_cells": [
+			{
+				"x": 50,
+				"y": 33
+			}
+		],
+		"id": "sf_industrial_alley",
+		"frontage_side": "south",
+		"default_entrance_offset": -1,
+		"map_position": {
+			"x": 176.75,
+			"y": 117.25
+		},
+		"monthly_rent_wan": 0.58,
+		"name": "园区巷口铺",
+		"region_id": "",
+		"road_segment_id": "r_alley_east_v",
+		"storefront_flow": "main",
+		"supported_categories": []
+	}
+]

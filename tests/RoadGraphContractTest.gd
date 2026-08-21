@@ -6,6 +6,7 @@ var failed := 0
 func _ready() -> void:
 	_test_in_memory_graph()
 	_test_loaded_road_data()
+	_test_sample_map_region_mapping()
 	_test_map_reference_validation()
 	_test_runtime_map_links()
 	_test_static_map_links()
@@ -47,9 +48,20 @@ func _test_in_memory_graph() -> void:
 
 func _test_loaded_road_data() -> void:
 	var graph := GameData.get_road_graph()
-	_assert(graph.nodes.size() == 16 and graph.segments.size() == 14, "road data loads all configured nodes and segments")
-	_assert(is_equal_approx(graph.get_shortest_distance("road_cc_1", "road_cc_3"), 666.6604), "loaded road graph computes its configured shortest path")
+	_assert(graph.nodes.size() == 33 and graph.segments.size() == 50, "road data loads all sample-map nodes and segments")
+	_assert(is_equal_approx(graph.get_shortest_distance("n_10_08", "n_20_08"), 35.0), "loaded road graph computes a sample-map road distance")
 	_assert(graph.validate().is_empty(), "loaded road data passes graph validation")
+
+func _test_sample_map_region_mapping() -> void:
+	var blocks := GameData.get_blocks()
+	var storefronts := GameData.get_storefronts()
+	_assert(blocks.size() == 12 and storefronts.size() == 25, "runtime map loads all sample blocks and storefronts")
+	var all_in_primary_region := true
+	for block in blocks:
+		all_in_primary_region = all_in_primary_region and block.city_region_id == "CR001"
+	for storefront in storefronts:
+		all_in_primary_region = all_in_primary_region and storefront.city_region_id == "CR001"
+	_assert(all_in_primary_region, "sample map blocks and storefronts map to CR001")
 
 func _test_map_reference_validation() -> void:
 	var graph := RoadGraph.new()
@@ -67,9 +79,13 @@ func _test_map_reference_validation() -> void:
 	graph.add_segment(segment)
 	var block := BlockData.new()
 	block.id = "block_ok"
+	block.city_region_id = "test_region"
+	block.map_bounds = Rect2(-1, -1, 2, 2)
 	block.road_entry_node_id = "a"
 	var storefront := StorefrontData.new()
 	storefront.id = "storefront_ok"
+	storefront.city_region_id = "test_region"
+	storefront.map_position = Vector2.ZERO
 	storefront.road_segment_id = "ab"
 	var blocks: Array[BlockData] = [block]
 	var storefronts: Array[StorefrontData] = [storefront]
@@ -115,10 +131,10 @@ func _test_map_authoring_document() -> void:
 	_assert(document.validate().is_empty(), "authoring document starts as a valid independent map copy")
 	_assert(document.add_road_node("authoring_node", Vector2(20, 20)), "authoring document can add a road node")
 	_assert(document.move_road_node("authoring_node", Vector2(30, 20)), "authoring document can move a road node")
-	_assert(document.add_road_segment("authoring_segment", "authoring_node", "road_cc_1"), "authoring document can add a road segment")
-	_assert(not document.add_road_segment("authoring_segment", "authoring_node", "road_cc_1"), "authoring document rejects duplicate road segment IDs")
-	_assert(document.assign_block_road_entry("cc_primary_school_1", "authoring_node"), "authoring document can update a block road entry")
-	_assert(document.assign_storefront_nearest_road("S006"), "authoring document can assign a storefront to its nearest road")
+	_assert(document.add_road_segment("authoring_segment", "authoring_node", "n_10_08"), "authoring document can add a road segment")
+	_assert(not document.add_road_segment("authoring_segment", "authoring_node", "n_10_08"), "authoring document rejects duplicate road segment IDs")
+	_assert(document.assign_block_road_entry("block_nw_residential", "authoring_node"), "authoring document can update a block road entry")
+	_assert(document.assign_storefront_nearest_road("sf_nw_grocery"), "authoring document can assign a storefront to its nearest road")
 	_assert(GameData.get_blocks()[0].road_entry_node_id != "authoring_node", "authoring document does not mutate the static map data")
 	var export_data := document.export_roads_data()
 	var exported_roads: Array = export_data.get("roads", [])

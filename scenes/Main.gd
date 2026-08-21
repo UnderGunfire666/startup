@@ -28,6 +28,7 @@ extends Control
 	$MarginContainer/RootVBox/MainTabs/MapPanel
 @onready var store_list_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/StoreListPanel
+@onready var interior_layout_panel: Control = $InteriorLayoutPanel
 
 var settlement_history: Array[Dictionary] = []
 
@@ -40,6 +41,7 @@ func _ready() -> void:
 	procurement_panel.procurement_completed.connect(_on_procurement_completed)
 	store_list_panel.setup_requested.connect(_on_store_setup_requested)
 	store_list_panel.procurement_requested.connect(_on_procurement_requested)
+	map_panel.storefront_interior_requested.connect(_on_storefront_interior_requested)
 	operation_panel.settlement_done.connect(_on_settlement_done)
 	operation_panel.store_opened.connect(_on_store_opened)
 	operation_panel.day_ended.connect(_on_day_ended)
@@ -97,6 +99,9 @@ func _on_procurement_requested() -> void:
 
 func _on_store_opened() -> void:
 	_on_procurement_requested()
+
+func _on_storefront_interior_requested(storefront_id: String) -> void:
+	interior_layout_panel.open_for_storefront(storefront_id)
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()

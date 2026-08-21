@@ -9,6 +9,8 @@ func _ready() -> void:
 	_test_click_selects_block()
 	_test_click_again_deselects_block()
 	_test_multiple_blocks_can_be_selected()
+	_test_content_is_centered_and_clicks_round_trip()
+	_test_storefront_label_layout()
 	_test_clear_selection()
 	_test_region_research_uses_selected_blocks()
 	print("========== 测试结束：%d 通过 / %d 失败 ==========" % [_passed, _failed])
@@ -42,6 +44,10 @@ func _click(canvas: CityMapCanvas, screen_position: Vector2) -> void:
 	canvas._gui_input(event)
 
 
+func _map_click_position(canvas: CityMapCanvas, map_position: Vector2) -> Vector2:
+	return canvas._map_to_screen(map_position)
+
+
 func _expect(condition: bool, description: String) -> void:
 	if condition:
 		_passed += 1
@@ -53,26 +59,66 @@ func _expect(condition: bool, description: String) -> void:
 
 func _test_click_selects_block() -> void:
 	var canvas := _make_canvas()
-	_click(canvas, Vector2(15, 15))
+	_click(canvas, _map_click_position(canvas, Vector2(50, 50)))
 	_expect(canvas.selected_block_ids == ["TEST_B001"], "鼠标点击区块后应选中该区块")
 	canvas.free()
 
 
 func _test_click_again_deselects_block() -> void:
 	var canvas := _make_canvas()
-	_click(canvas, Vector2(15, 15))
-	_click(canvas, Vector2(15, 15))
+	_click(canvas, _map_click_position(canvas, Vector2(50, 50)))
+	_click(canvas, _map_click_position(canvas, Vector2(50, 50)))
 	_expect(canvas.selected_block_ids.is_empty(), "再次点击已选区块应取消选择")
 	canvas.free()
 
 
 func _test_multiple_blocks_can_be_selected() -> void:
 	var canvas := _make_canvas()
-	_click(canvas, Vector2(15, 15))
-	_click(canvas, Vector2(45, 15))
+	_click(canvas, _map_click_position(canvas, Vector2(50, 50)))
+	_click(canvas, _map_click_position(canvas, Vector2(150, 50)))
 	_expect(canvas.selected_block_ids == ["TEST_B001", "TEST_B002"], "鼠标点击不同区块后应允许同时选择多个区块")
-	_click(canvas, Vector2(45, 15))
+	_click(canvas, _map_click_position(canvas, Vector2(150, 50)))
 	_expect(canvas.selected_block_ids == ["TEST_B001"], "再次点击第二个区块应只取消第二个区块")
+	canvas.free()
+
+
+func _test_content_is_centered_and_clicks_round_trip() -> void:
+	var canvas := _make_canvas()
+	canvas.size = Vector2(1400, 900)
+	var content_center := canvas._map_to_screen(Vector2(100, 50))
+	_expect(content_center.is_equal_approx(Vector2(700, 450)), "地图内容在较大画布中居中显示")
+	var restored_map_position := canvas._screen_to_map(content_center)
+	_expect(restored_map_position.is_equal_approx(Vector2(100, 50)), "居中偏移后的屏幕坐标可正确反算为地图坐标")
+	_click(canvas, canvas._map_to_screen(Vector2(150, 50)))
+	_expect(canvas.selected_block_ids == ["TEST_B002"], "居中地图中的点击可选中目标区块")
+	canvas.free()
+
+
+func _test_storefront_label_layout() -> void:
+	GameManager.start_new_game()
+	var canvas := CityMapCanvas.new()
+	var storefronts: Array[StorefrontData] = []
+	for index in range(8):
+		var storefront := StorefrontData.new()
+		storefront.id = "label_%d" % index
+		storefront.name = "相邻门面名称%d" % index
+		storefront.map_position = Vector2(float(index % 2), float(index / 2))
+		storefronts.append(storefront)
+		GameManager.player_state.storefront_diligence[storefront.id] = "initial_viewing"
+	canvas.setup([], [])
+	canvas.refresh_storefronts(storefronts)
+	canvas.size = Vector2(1000, 700)
+	_expect(canvas.map_scale > 3.0, "示例地图可放大超过旧缩放上限")
+	_expect(canvas.get_storefront_label_text("社区综合服务门面") == "社区综合…", "门面地图标签使用四字简称")
+	var layout := canvas.get_storefront_label_layout()
+	var labels_do_not_overlap := true
+	for first_index in range(layout.size()):
+		for second_index in range(first_index + 1, layout.size()):
+			var first_rect: Rect2 = layout[first_index].get("rect", Rect2())
+			var second_rect: Rect2 = layout[second_index].get("rect", Rect2())
+			labels_do_not_overlap = labels_do_not_overlap and not first_rect.grow(2.0).intersects(second_rect.grow(2.0))
+	_expect(labels_do_not_overlap, "相邻门面的地图简称标签不重叠")
+	_expect(layout.size() < storefronts.size(), "无可用位置的门面标签会隐藏而不重叠")
 	canvas.free()
 
 

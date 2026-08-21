@@ -1,4 +1,5 @@
 extends Control
+signal storefront_interior_requested(storefront_id: String)
 ## 地图页：鼠标点选一个或多个区块。
 ## Phase 2：调查行动直接绑定选中的 Block，不再通过 SurveyArea 启动调查。
 ## Phase 7：通过调查方式下拉菜单提供“随便逛逛”和“按顺序逛”两种模式。
@@ -9,6 +10,7 @@ extends Control
 @onready var report_label: Label = $HBoxContainer/SidePanel/ReportScroll/ReportLabel
 @onready var status_label: Label = $HBoxContainer/SidePanel/StatusLabel
 @onready var clear_selection_button: Button = $HBoxContainer/SidePanel/ClearSelectionButton
+@onready var show_all_storefronts_button: Button = $HBoxContainer/SidePanel/ShowAllStorefrontsButton
 @onready var research_mode_option: OptionButton = $HBoxContainer/SidePanel/ResearchModeOption
 @onready var start_research_button: Button = $HBoxContainer/SidePanel/StartResearchButton
 
@@ -25,6 +27,7 @@ func _ready() -> void:
 	map_canvas.selected_blocks_changed.connect(_on_selected_blocks_changed)
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
+	show_all_storefronts_button.pressed.connect(_on_show_all_storefronts_pressed)
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
 	start_research_button.pressed.connect(_on_start_research_pressed)
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
@@ -64,6 +67,15 @@ func _on_clear_selection_pressed() -> void:
 	map_canvas.clear_block_selection()
 	ScheduleManager.set_selected_map_block_ids([])
 	status_label.text = "已清空区块选择"
+
+
+func _on_show_all_storefronts_pressed() -> void:
+	var newly_revealed := GameManager.reveal_all_storefronts()
+	refresh()
+	if newly_revealed.is_empty():
+		status_label.text = "全部门面已显示；仍需完成完整尽调才能选址"
+	else:
+		status_label.text = "✅ 已显示 %d 个门面；仍需完成完整尽调才能选址" % newly_revealed.size()
 
 
 func _on_start_research_pressed() -> void:
@@ -166,7 +178,18 @@ func _get_incomplete_block_ids(selected_blocks: Array[BlockData]) -> Array[Strin
 
 
 func _on_storefront_clicked(storefront_id: String) -> void:
-	status_label.text = "已点击门面：%s" % storefront_id
+	var storefront := GameManager.get_storefront(storefront_id)
+	var store := GameManager.store_state
+	if storefront == null:
+		return
+	if store == null:
+		status_label.text = "⚠ 请先创建开店企划"
+		return
+	if store.selected_storefront_id != storefront_id and store.signed_storefront_id != storefront_id:
+		status_label.text = "⚠ 请先在门面列表中选定此门面"
+		return
+	storefront_interior_requested.emit(storefront_id)
+	status_label.text = "正在打开门面室内：%s" % storefront.name
 
 
 func _refresh_report() -> void:

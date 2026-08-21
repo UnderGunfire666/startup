@@ -175,6 +175,8 @@ static func get_storefronts() -> Array[StorefrontData]:
 		s.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", default_awareness_radius))) if s.awareness_radius_manual_override else default_awareness_radius
 		s.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0)))
 		s.road_segment_id = str(entry.get("road_segment_id", ""))
+		s.frontage_side = str(entry.get("frontage_side", "south"))
+		s.default_entrance_offset = int(entry.get("default_entrance_offset", -1))
 
 		list.append(s)
 	return list

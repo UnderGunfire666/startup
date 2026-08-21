@@ -1,1 +1,3186 @@
-[]
+[
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 600.25,
+		"block_type": "residential",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 50.75,
+			"y": 43.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 11,
+				"y": 9
+			},
+			{
+				"x": 12,
+				"y": 9
+			},
+			{
+				"x": 13,
+				"y": 9
+			},
+			{
+				"x": 14,
+				"y": 9
+			},
+			{
+				"x": 15,
+				"y": 9
+			},
+			{
+				"x": 16,
+				"y": 9
+			},
+			{
+				"x": 17,
+				"y": 9
+			},
+			{
+				"x": 11,
+				"y": 10
+			},
+			{
+				"x": 12,
+				"y": 10
+			},
+			{
+				"x": 13,
+				"y": 10
+			},
+			{
+				"x": 14,
+				"y": 10
+			},
+			{
+				"x": 15,
+				"y": 10
+			},
+			{
+				"x": 16,
+				"y": 10
+			},
+			{
+				"x": 17,
+				"y": 10
+			},
+			{
+				"x": 11,
+				"y": 11
+			},
+			{
+				"x": 12,
+				"y": 11
+			},
+			{
+				"x": 13,
+				"y": 11
+			},
+			{
+				"x": 14,
+				"y": 11
+			},
+			{
+				"x": 15,
+				"y": 11
+			},
+			{
+				"x": 16,
+				"y": 11
+			},
+			{
+				"x": 17,
+				"y": 11
+			},
+			{
+				"x": 11,
+				"y": 12
+			},
+			{
+				"x": 12,
+				"y": 12
+			},
+			{
+				"x": 13,
+				"y": 12
+			},
+			{
+				"x": 14,
+				"y": 12
+			},
+			{
+				"x": 15,
+				"y": 12
+			},
+			{
+				"x": 16,
+				"y": 12
+			},
+			{
+				"x": 17,
+				"y": 12
+			},
+			{
+				"x": 11,
+				"y": 13
+			},
+			{
+				"x": 12,
+				"y": 13
+			},
+			{
+				"x": 13,
+				"y": 13
+			},
+			{
+				"x": 14,
+				"y": 13
+			},
+			{
+				"x": 15,
+				"y": 13
+			},
+			{
+				"x": 16,
+				"y": 13
+			},
+			{
+				"x": 17,
+				"y": 13
+			},
+			{
+				"x": 11,
+				"y": 14
+			},
+			{
+				"x": 12,
+				"y": 14
+			},
+			{
+				"x": 13,
+				"y": 14
+			},
+			{
+				"x": 14,
+				"y": 14
+			},
+			{
+				"x": 15,
+				"y": 14
+			},
+			{
+				"x": 16,
+				"y": 14
+			},
+			{
+				"x": 17,
+				"y": 14
+			},
+			{
+				"x": 11,
+				"y": 15
+			},
+			{
+				"x": 12,
+				"y": 15
+			},
+			{
+				"x": 13,
+				"y": 15
+			},
+			{
+				"x": 14,
+				"y": 15
+			},
+			{
+				"x": 15,
+				"y": 15
+			},
+			{
+				"x": 16,
+				"y": 15
+			},
+			{
+				"x": 17,
+				"y": 15
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_nw_residential",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 24.5,
+			"x": 38.5,
+			"y": 31.5
+		},
+		"name": "西北老社区",
+		"notes": "",
+		"road_entry_node_id": "n_10_08",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 1
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 600.25,
+		"block_type": "commercial",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 89.25,
+			"y": 43.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 22,
+				"y": 9
+			},
+			{
+				"x": 23,
+				"y": 9
+			},
+			{
+				"x": 24,
+				"y": 9
+			},
+			{
+				"x": 25,
+				"y": 9
+			},
+			{
+				"x": 26,
+				"y": 9
+			},
+			{
+				"x": 27,
+				"y": 9
+			},
+			{
+				"x": 28,
+				"y": 9
+			},
+			{
+				"x": 22,
+				"y": 10
+			},
+			{
+				"x": 23,
+				"y": 10
+			},
+			{
+				"x": 24,
+				"y": 10
+			},
+			{
+				"x": 25,
+				"y": 10
+			},
+			{
+				"x": 26,
+				"y": 10
+			},
+			{
+				"x": 27,
+				"y": 10
+			},
+			{
+				"x": 28,
+				"y": 10
+			},
+			{
+				"x": 22,
+				"y": 11
+			},
+			{
+				"x": 23,
+				"y": 11
+			},
+			{
+				"x": 24,
+				"y": 11
+			},
+			{
+				"x": 25,
+				"y": 11
+			},
+			{
+				"x": 26,
+				"y": 11
+			},
+			{
+				"x": 27,
+				"y": 11
+			},
+			{
+				"x": 28,
+				"y": 11
+			},
+			{
+				"x": 22,
+				"y": 12
+			},
+			{
+				"x": 23,
+				"y": 12
+			},
+			{
+				"x": 24,
+				"y": 12
+			},
+			{
+				"x": 25,
+				"y": 12
+			},
+			{
+				"x": 26,
+				"y": 12
+			},
+			{
+				"x": 27,
+				"y": 12
+			},
+			{
+				"x": 28,
+				"y": 12
+			},
+			{
+				"x": 22,
+				"y": 13
+			},
+			{
+				"x": 23,
+				"y": 13
+			},
+			{
+				"x": 24,
+				"y": 13
+			},
+			{
+				"x": 25,
+				"y": 13
+			},
+			{
+				"x": 26,
+				"y": 13
+			},
+			{
+				"x": 27,
+				"y": 13
+			},
+			{
+				"x": 28,
+				"y": 13
+			},
+			{
+				"x": 22,
+				"y": 14
+			},
+			{
+				"x": 23,
+				"y": 14
+			},
+			{
+				"x": 24,
+				"y": 14
+			},
+			{
+				"x": 25,
+				"y": 14
+			},
+			{
+				"x": 26,
+				"y": 14
+			},
+			{
+				"x": 27,
+				"y": 14
+			},
+			{
+				"x": 28,
+				"y": 14
+			},
+			{
+				"x": 22,
+				"y": 15
+			},
+			{
+				"x": 23,
+				"y": 15
+			},
+			{
+				"x": 24,
+				"y": 15
+			},
+			{
+				"x": 25,
+				"y": 15
+			},
+			{
+				"x": 26,
+				"y": 15
+			},
+			{
+				"x": 27,
+				"y": 15
+			},
+			{
+				"x": 28,
+				"y": 15
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_n_commercial",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 24.5,
+			"x": 77.0,
+			"y": 31.5
+		},
+		"name": "北街商业区",
+		"notes": "",
+		"road_entry_node_id": "n_20_18",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 2
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 686.0,
+		"block_type": "office",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 136.5,
+			"y": 43.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 35,
+				"y": 9
+			},
+			{
+				"x": 36,
+				"y": 9
+			},
+			{
+				"x": 37,
+				"y": 9
+			},
+			{
+				"x": 38,
+				"y": 9
+			},
+			{
+				"x": 39,
+				"y": 9
+			},
+			{
+				"x": 40,
+				"y": 9
+			},
+			{
+				"x": 41,
+				"y": 9
+			},
+			{
+				"x": 42,
+				"y": 9
+			},
+			{
+				"x": 35,
+				"y": 10
+			},
+			{
+				"x": 36,
+				"y": 10
+			},
+			{
+				"x": 37,
+				"y": 10
+			},
+			{
+				"x": 38,
+				"y": 10
+			},
+			{
+				"x": 39,
+				"y": 10
+			},
+			{
+				"x": 40,
+				"y": 10
+			},
+			{
+				"x": 41,
+				"y": 10
+			},
+			{
+				"x": 42,
+				"y": 10
+			},
+			{
+				"x": 35,
+				"y": 11
+			},
+			{
+				"x": 36,
+				"y": 11
+			},
+			{
+				"x": 37,
+				"y": 11
+			},
+			{
+				"x": 38,
+				"y": 11
+			},
+			{
+				"x": 39,
+				"y": 11
+			},
+			{
+				"x": 40,
+				"y": 11
+			},
+			{
+				"x": 41,
+				"y": 11
+			},
+			{
+				"x": 42,
+				"y": 11
+			},
+			{
+				"x": 35,
+				"y": 12
+			},
+			{
+				"x": 36,
+				"y": 12
+			},
+			{
+				"x": 37,
+				"y": 12
+			},
+			{
+				"x": 38,
+				"y": 12
+			},
+			{
+				"x": 39,
+				"y": 12
+			},
+			{
+				"x": 40,
+				"y": 12
+			},
+			{
+				"x": 41,
+				"y": 12
+			},
+			{
+				"x": 42,
+				"y": 12
+			},
+			{
+				"x": 35,
+				"y": 13
+			},
+			{
+				"x": 36,
+				"y": 13
+			},
+			{
+				"x": 37,
+				"y": 13
+			},
+			{
+				"x": 38,
+				"y": 13
+			},
+			{
+				"x": 39,
+				"y": 13
+			},
+			{
+				"x": 40,
+				"y": 13
+			},
+			{
+				"x": 41,
+				"y": 13
+			},
+			{
+				"x": 42,
+				"y": 13
+			},
+			{
+				"x": 35,
+				"y": 14
+			},
+			{
+				"x": 36,
+				"y": 14
+			},
+			{
+				"x": 37,
+				"y": 14
+			},
+			{
+				"x": 38,
+				"y": 14
+			},
+			{
+				"x": 39,
+				"y": 14
+			},
+			{
+				"x": 40,
+				"y": 14
+			},
+			{
+				"x": 41,
+				"y": 14
+			},
+			{
+				"x": 42,
+				"y": 14
+			},
+			{
+				"x": 35,
+				"y": 15
+			},
+			{
+				"x": 36,
+				"y": 15
+			},
+			{
+				"x": 37,
+				"y": 15
+			},
+			{
+				"x": 38,
+				"y": 15
+			},
+			{
+				"x": 39,
+				"y": 15
+			},
+			{
+				"x": 40,
+				"y": 15
+			},
+			{
+				"x": 41,
+				"y": 15
+			},
+			{
+				"x": 42,
+				"y": 15
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_ne_office",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 28.0,
+			"x": 122.5,
+			"y": 31.5
+		},
+		"name": "金融办公区",
+		"notes": "",
+		"road_entry_node_id": "n_32_18",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 3
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 771.75,
+		"block_type": "mixed",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 180.25,
+			"y": 43.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 47,
+				"y": 9
+			},
+			{
+				"x": 48,
+				"y": 9
+			},
+			{
+				"x": 49,
+				"y": 9
+			},
+			{
+				"x": 50,
+				"y": 9
+			},
+			{
+				"x": 51,
+				"y": 9
+			},
+			{
+				"x": 52,
+				"y": 9
+			},
+			{
+				"x": 53,
+				"y": 9
+			},
+			{
+				"x": 54,
+				"y": 9
+			},
+			{
+				"x": 55,
+				"y": 9
+			},
+			{
+				"x": 47,
+				"y": 10
+			},
+			{
+				"x": 48,
+				"y": 10
+			},
+			{
+				"x": 49,
+				"y": 10
+			},
+			{
+				"x": 50,
+				"y": 10
+			},
+			{
+				"x": 51,
+				"y": 10
+			},
+			{
+				"x": 52,
+				"y": 10
+			},
+			{
+				"x": 53,
+				"y": 10
+			},
+			{
+				"x": 54,
+				"y": 10
+			},
+			{
+				"x": 55,
+				"y": 10
+			},
+			{
+				"x": 47,
+				"y": 11
+			},
+			{
+				"x": 48,
+				"y": 11
+			},
+			{
+				"x": 49,
+				"y": 11
+			},
+			{
+				"x": 50,
+				"y": 11
+			},
+			{
+				"x": 51,
+				"y": 11
+			},
+			{
+				"x": 52,
+				"y": 11
+			},
+			{
+				"x": 53,
+				"y": 11
+			},
+			{
+				"x": 54,
+				"y": 11
+			},
+			{
+				"x": 55,
+				"y": 11
+			},
+			{
+				"x": 47,
+				"y": 12
+			},
+			{
+				"x": 48,
+				"y": 12
+			},
+			{
+				"x": 49,
+				"y": 12
+			},
+			{
+				"x": 50,
+				"y": 12
+			},
+			{
+				"x": 51,
+				"y": 12
+			},
+			{
+				"x": 52,
+				"y": 12
+			},
+			{
+				"x": 53,
+				"y": 12
+			},
+			{
+				"x": 54,
+				"y": 12
+			},
+			{
+				"x": 55,
+				"y": 12
+			},
+			{
+				"x": 47,
+				"y": 13
+			},
+			{
+				"x": 48,
+				"y": 13
+			},
+			{
+				"x": 49,
+				"y": 13
+			},
+			{
+				"x": 50,
+				"y": 13
+			},
+			{
+				"x": 51,
+				"y": 13
+			},
+			{
+				"x": 52,
+				"y": 13
+			},
+			{
+				"x": 53,
+				"y": 13
+			},
+			{
+				"x": 54,
+				"y": 13
+			},
+			{
+				"x": 55,
+				"y": 13
+			},
+			{
+				"x": 47,
+				"y": 14
+			},
+			{
+				"x": 48,
+				"y": 14
+			},
+			{
+				"x": 49,
+				"y": 14
+			},
+			{
+				"x": 50,
+				"y": 14
+			},
+			{
+				"x": 51,
+				"y": 14
+			},
+			{
+				"x": 52,
+				"y": 14
+			},
+			{
+				"x": 53,
+				"y": 14
+			},
+			{
+				"x": 54,
+				"y": 14
+			},
+			{
+				"x": 55,
+				"y": 14
+			},
+			{
+				"x": 47,
+				"y": 15
+			},
+			{
+				"x": 48,
+				"y": 15
+			},
+			{
+				"x": 49,
+				"y": 15
+			},
+			{
+				"x": 50,
+				"y": 15
+			},
+			{
+				"x": 51,
+				"y": 15
+			},
+			{
+				"x": 52,
+				"y": 15
+			},
+			{
+				"x": 53,
+				"y": 15
+			},
+			{
+				"x": 54,
+				"y": 15
+			},
+			{
+				"x": 55,
+				"y": 15
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_far_ne_mixed",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 31.5,
+			"x": 164.5,
+			"y": 31.5
+		},
+		"name": "东北混合街区",
+		"notes": "",
+		"road_entry_node_id": "n_45_18",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 2
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 600.25,
+		"block_type": "school",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 50.75,
+			"y": 82.25
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 11,
+				"y": 20
+			},
+			{
+				"x": 12,
+				"y": 20
+			},
+			{
+				"x": 13,
+				"y": 20
+			},
+			{
+				"x": 14,
+				"y": 20
+			},
+			{
+				"x": 15,
+				"y": 20
+			},
+			{
+				"x": 16,
+				"y": 20
+			},
+			{
+				"x": 17,
+				"y": 20
+			},
+			{
+				"x": 11,
+				"y": 21
+			},
+			{
+				"x": 12,
+				"y": 21
+			},
+			{
+				"x": 13,
+				"y": 21
+			},
+			{
+				"x": 14,
+				"y": 21
+			},
+			{
+				"x": 15,
+				"y": 21
+			},
+			{
+				"x": 16,
+				"y": 21
+			},
+			{
+				"x": 17,
+				"y": 21
+			},
+			{
+				"x": 11,
+				"y": 22
+			},
+			{
+				"x": 12,
+				"y": 22
+			},
+			{
+				"x": 13,
+				"y": 22
+			},
+			{
+				"x": 14,
+				"y": 22
+			},
+			{
+				"x": 15,
+				"y": 22
+			},
+			{
+				"x": 16,
+				"y": 22
+			},
+			{
+				"x": 17,
+				"y": 22
+			},
+			{
+				"x": 11,
+				"y": 23
+			},
+			{
+				"x": 12,
+				"y": 23
+			},
+			{
+				"x": 13,
+				"y": 23
+			},
+			{
+				"x": 14,
+				"y": 23
+			},
+			{
+				"x": 15,
+				"y": 23
+			},
+			{
+				"x": 16,
+				"y": 23
+			},
+			{
+				"x": 17,
+				"y": 23
+			},
+			{
+				"x": 11,
+				"y": 24
+			},
+			{
+				"x": 12,
+				"y": 24
+			},
+			{
+				"x": 13,
+				"y": 24
+			},
+			{
+				"x": 14,
+				"y": 24
+			},
+			{
+				"x": 15,
+				"y": 24
+			},
+			{
+				"x": 16,
+				"y": 24
+			},
+			{
+				"x": 17,
+				"y": 24
+			},
+			{
+				"x": 11,
+				"y": 25
+			},
+			{
+				"x": 12,
+				"y": 25
+			},
+			{
+				"x": 13,
+				"y": 25
+			},
+			{
+				"x": 14,
+				"y": 25
+			},
+			{
+				"x": 15,
+				"y": 25
+			},
+			{
+				"x": 16,
+				"y": 25
+			},
+			{
+				"x": 17,
+				"y": 25
+			},
+			{
+				"x": 11,
+				"y": 26
+			},
+			{
+				"x": 12,
+				"y": 26
+			},
+			{
+				"x": 13,
+				"y": 26
+			},
+			{
+				"x": 14,
+				"y": 26
+			},
+			{
+				"x": 15,
+				"y": 26
+			},
+			{
+				"x": 16,
+				"y": 26
+			},
+			{
+				"x": 17,
+				"y": 26
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_w_school",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 24.5,
+			"x": 38.5,
+			"y": 70.0
+		},
+		"name": "西城文教区",
+		"notes": "",
+		"road_entry_node_id": "n_10_24",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 2
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 465.5,
+		"block_type": "commercial",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 89.25,
+			"y": 82.25
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 22,
+				"y": 20
+			},
+			{
+				"x": 23,
+				"y": 20
+			},
+			{
+				"x": 24,
+				"y": 20
+			},
+			{
+				"x": 25,
+				"y": 20
+			},
+			{
+				"x": 27,
+				"y": 20
+			},
+			{
+				"x": 28,
+				"y": 20
+			},
+			{
+				"x": 22,
+				"y": 21
+			},
+			{
+				"x": 23,
+				"y": 21
+			},
+			{
+				"x": 24,
+				"y": 21
+			},
+			{
+				"x": 25,
+				"y": 21
+			},
+			{
+				"x": 27,
+				"y": 21
+			},
+			{
+				"x": 28,
+				"y": 21
+			},
+			{
+				"x": 22,
+				"y": 22
+			},
+			{
+				"x": 23,
+				"y": 22
+			},
+			{
+				"x": 24,
+				"y": 22
+			},
+			{
+				"x": 25,
+				"y": 22
+			},
+			{
+				"x": 27,
+				"y": 22
+			},
+			{
+				"x": 28,
+				"y": 22
+			},
+			{
+				"x": 22,
+				"y": 23
+			},
+			{
+				"x": 23,
+				"y": 23
+			},
+			{
+				"x": 24,
+				"y": 23
+			},
+			{
+				"x": 25,
+				"y": 23
+			},
+			{
+				"x": 27,
+				"y": 23
+			},
+			{
+				"x": 28,
+				"y": 23
+			},
+			{
+				"x": 22,
+				"y": 25
+			},
+			{
+				"x": 23,
+				"y": 25
+			},
+			{
+				"x": 24,
+				"y": 25
+			},
+			{
+				"x": 25,
+				"y": 25
+			},
+			{
+				"x": 26,
+				"y": 25
+			},
+			{
+				"x": 27,
+				"y": 25
+			},
+			{
+				"x": 28,
+				"y": 25
+			},
+			{
+				"x": 22,
+				"y": 26
+			},
+			{
+				"x": 23,
+				"y": 26
+			},
+			{
+				"x": 24,
+				"y": 26
+			},
+			{
+				"x": 25,
+				"y": 26
+			},
+			{
+				"x": 26,
+				"y": 26
+			},
+			{
+				"x": 27,
+				"y": 26
+			},
+			{
+				"x": 28,
+				"y": 26
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_c_commercial",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 24.5,
+			"x": 77.0,
+			"y": 70.0
+		},
+		"name": "中央商业街",
+		"notes": "",
+		"road_entry_node_id": "n_26_24",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 3
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 686.0,
+		"block_type": "tourism",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 136.5,
+			"y": 82.25
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 35,
+				"y": 20
+			},
+			{
+				"x": 36,
+				"y": 20
+			},
+			{
+				"x": 37,
+				"y": 20
+			},
+			{
+				"x": 38,
+				"y": 20
+			},
+			{
+				"x": 39,
+				"y": 20
+			},
+			{
+				"x": 40,
+				"y": 20
+			},
+			{
+				"x": 41,
+				"y": 20
+			},
+			{
+				"x": 42,
+				"y": 20
+			},
+			{
+				"x": 35,
+				"y": 21
+			},
+			{
+				"x": 36,
+				"y": 21
+			},
+			{
+				"x": 37,
+				"y": 21
+			},
+			{
+				"x": 38,
+				"y": 21
+			},
+			{
+				"x": 39,
+				"y": 21
+			},
+			{
+				"x": 40,
+				"y": 21
+			},
+			{
+				"x": 41,
+				"y": 21
+			},
+			{
+				"x": 42,
+				"y": 21
+			},
+			{
+				"x": 35,
+				"y": 22
+			},
+			{
+				"x": 36,
+				"y": 22
+			},
+			{
+				"x": 37,
+				"y": 22
+			},
+			{
+				"x": 38,
+				"y": 22
+			},
+			{
+				"x": 39,
+				"y": 22
+			},
+			{
+				"x": 40,
+				"y": 22
+			},
+			{
+				"x": 41,
+				"y": 22
+			},
+			{
+				"x": 42,
+				"y": 22
+			},
+			{
+				"x": 35,
+				"y": 23
+			},
+			{
+				"x": 36,
+				"y": 23
+			},
+			{
+				"x": 37,
+				"y": 23
+			},
+			{
+				"x": 38,
+				"y": 23
+			},
+			{
+				"x": 39,
+				"y": 23
+			},
+			{
+				"x": 40,
+				"y": 23
+			},
+			{
+				"x": 41,
+				"y": 23
+			},
+			{
+				"x": 42,
+				"y": 23
+			},
+			{
+				"x": 35,
+				"y": 24
+			},
+			{
+				"x": 36,
+				"y": 24
+			},
+			{
+				"x": 37,
+				"y": 24
+			},
+			{
+				"x": 38,
+				"y": 24
+			},
+			{
+				"x": 39,
+				"y": 24
+			},
+			{
+				"x": 40,
+				"y": 24
+			},
+			{
+				"x": 41,
+				"y": 24
+			},
+			{
+				"x": 42,
+				"y": 24
+			},
+			{
+				"x": 35,
+				"y": 25
+			},
+			{
+				"x": 36,
+				"y": 25
+			},
+			{
+				"x": 37,
+				"y": 25
+			},
+			{
+				"x": 38,
+				"y": 25
+			},
+			{
+				"x": 39,
+				"y": 25
+			},
+			{
+				"x": 40,
+				"y": 25
+			},
+			{
+				"x": 41,
+				"y": 25
+			},
+			{
+				"x": 42,
+				"y": 25
+			},
+			{
+				"x": 35,
+				"y": 26
+			},
+			{
+				"x": 36,
+				"y": 26
+			},
+			{
+				"x": 37,
+				"y": 26
+			},
+			{
+				"x": 38,
+				"y": 26
+			},
+			{
+				"x": 39,
+				"y": 26
+			},
+			{
+				"x": 40,
+				"y": 26
+			},
+			{
+				"x": 41,
+				"y": 26
+			},
+			{
+				"x": 42,
+				"y": 26
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_e_tourism",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 28.0,
+			"x": 122.5,
+			"y": 70.0
+		},
+		"name": "历史旅游区",
+		"notes": "",
+		"road_entry_node_id": "n_32_24",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 3
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 771.75,
+		"block_type": "public_green",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 180.25,
+			"y": 82.25
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 47,
+				"y": 20
+			},
+			{
+				"x": 48,
+				"y": 20
+			},
+			{
+				"x": 49,
+				"y": 20
+			},
+			{
+				"x": 50,
+				"y": 20
+			},
+			{
+				"x": 51,
+				"y": 20
+			},
+			{
+				"x": 52,
+				"y": 20
+			},
+			{
+				"x": 53,
+				"y": 20
+			},
+			{
+				"x": 54,
+				"y": 20
+			},
+			{
+				"x": 55,
+				"y": 20
+			},
+			{
+				"x": 47,
+				"y": 21
+			},
+			{
+				"x": 48,
+				"y": 21
+			},
+			{
+				"x": 49,
+				"y": 21
+			},
+			{
+				"x": 50,
+				"y": 21
+			},
+			{
+				"x": 51,
+				"y": 21
+			},
+			{
+				"x": 52,
+				"y": 21
+			},
+			{
+				"x": 53,
+				"y": 21
+			},
+			{
+				"x": 54,
+				"y": 21
+			},
+			{
+				"x": 55,
+				"y": 21
+			},
+			{
+				"x": 47,
+				"y": 22
+			},
+			{
+				"x": 48,
+				"y": 22
+			},
+			{
+				"x": 49,
+				"y": 22
+			},
+			{
+				"x": 50,
+				"y": 22
+			},
+			{
+				"x": 51,
+				"y": 22
+			},
+			{
+				"x": 52,
+				"y": 22
+			},
+			{
+				"x": 53,
+				"y": 22
+			},
+			{
+				"x": 54,
+				"y": 22
+			},
+			{
+				"x": 55,
+				"y": 22
+			},
+			{
+				"x": 47,
+				"y": 23
+			},
+			{
+				"x": 48,
+				"y": 23
+			},
+			{
+				"x": 49,
+				"y": 23
+			},
+			{
+				"x": 50,
+				"y": 23
+			},
+			{
+				"x": 51,
+				"y": 23
+			},
+			{
+				"x": 52,
+				"y": 23
+			},
+			{
+				"x": 53,
+				"y": 23
+			},
+			{
+				"x": 54,
+				"y": 23
+			},
+			{
+				"x": 55,
+				"y": 23
+			},
+			{
+				"x": 47,
+				"y": 24
+			},
+			{
+				"x": 48,
+				"y": 24
+			},
+			{
+				"x": 49,
+				"y": 24
+			},
+			{
+				"x": 50,
+				"y": 24
+			},
+			{
+				"x": 51,
+				"y": 24
+			},
+			{
+				"x": 52,
+				"y": 24
+			},
+			{
+				"x": 53,
+				"y": 24
+			},
+			{
+				"x": 54,
+				"y": 24
+			},
+			{
+				"x": 55,
+				"y": 24
+			},
+			{
+				"x": 47,
+				"y": 25
+			},
+			{
+				"x": 48,
+				"y": 25
+			},
+			{
+				"x": 49,
+				"y": 25
+			},
+			{
+				"x": 50,
+				"y": 25
+			},
+			{
+				"x": 51,
+				"y": 25
+			},
+			{
+				"x": 52,
+				"y": 25
+			},
+			{
+				"x": 53,
+				"y": 25
+			},
+			{
+				"x": 54,
+				"y": 25
+			},
+			{
+				"x": 55,
+				"y": 25
+			},
+			{
+				"x": 47,
+				"y": 26
+			},
+			{
+				"x": 48,
+				"y": 26
+			},
+			{
+				"x": 49,
+				"y": 26
+			},
+			{
+				"x": 50,
+				"y": 26
+			},
+			{
+				"x": 51,
+				"y": 26
+			},
+			{
+				"x": 52,
+				"y": 26
+			},
+			{
+				"x": 53,
+				"y": 26
+			},
+			{
+				"x": 54,
+				"y": 26
+			},
+			{
+				"x": 55,
+				"y": 26
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_e_public_green",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 31.5,
+			"x": 164.5,
+			"y": 70.0
+		},
+		"name": "城东公共绿地",
+		"notes": "",
+		"road_entry_node_id": "n_57_18",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 2
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 600.25,
+		"block_type": "residential",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 50.75,
+			"y": 127.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 11,
+				"y": 33
+			},
+			{
+				"x": 12,
+				"y": 33
+			},
+			{
+				"x": 13,
+				"y": 33
+			},
+			{
+				"x": 14,
+				"y": 33
+			},
+			{
+				"x": 15,
+				"y": 33
+			},
+			{
+				"x": 16,
+				"y": 33
+			},
+			{
+				"x": 17,
+				"y": 33
+			},
+			{
+				"x": 11,
+				"y": 34
+			},
+			{
+				"x": 12,
+				"y": 34
+			},
+			{
+				"x": 13,
+				"y": 34
+			},
+			{
+				"x": 14,
+				"y": 34
+			},
+			{
+				"x": 15,
+				"y": 34
+			},
+			{
+				"x": 16,
+				"y": 34
+			},
+			{
+				"x": 17,
+				"y": 34
+			},
+			{
+				"x": 11,
+				"y": 35
+			},
+			{
+				"x": 12,
+				"y": 35
+			},
+			{
+				"x": 13,
+				"y": 35
+			},
+			{
+				"x": 14,
+				"y": 35
+			},
+			{
+				"x": 15,
+				"y": 35
+			},
+			{
+				"x": 16,
+				"y": 35
+			},
+			{
+				"x": 17,
+				"y": 35
+			},
+			{
+				"x": 11,
+				"y": 36
+			},
+			{
+				"x": 12,
+				"y": 36
+			},
+			{
+				"x": 13,
+				"y": 36
+			},
+			{
+				"x": 14,
+				"y": 36
+			},
+			{
+				"x": 15,
+				"y": 36
+			},
+			{
+				"x": 16,
+				"y": 36
+			},
+			{
+				"x": 17,
+				"y": 36
+			},
+			{
+				"x": 11,
+				"y": 37
+			},
+			{
+				"x": 12,
+				"y": 37
+			},
+			{
+				"x": 13,
+				"y": 37
+			},
+			{
+				"x": 14,
+				"y": 37
+			},
+			{
+				"x": 15,
+				"y": 37
+			},
+			{
+				"x": 16,
+				"y": 37
+			},
+			{
+				"x": 17,
+				"y": 37
+			},
+			{
+				"x": 11,
+				"y": 38
+			},
+			{
+				"x": 12,
+				"y": 38
+			},
+			{
+				"x": 13,
+				"y": 38
+			},
+			{
+				"x": 14,
+				"y": 38
+			},
+			{
+				"x": 15,
+				"y": 38
+			},
+			{
+				"x": 16,
+				"y": 38
+			},
+			{
+				"x": 17,
+				"y": 38
+			},
+			{
+				"x": 11,
+				"y": 39
+			},
+			{
+				"x": 12,
+				"y": 39
+			},
+			{
+				"x": 13,
+				"y": 39
+			},
+			{
+				"x": 14,
+				"y": 39
+			},
+			{
+				"x": 15,
+				"y": 39
+			},
+			{
+				"x": 16,
+				"y": 39
+			},
+			{
+				"x": 17,
+				"y": 39
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_sw_residential",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 24.5,
+			"x": 38.5,
+			"y": 115.5
+		},
+		"name": "西南社区",
+		"notes": "",
+		"road_entry_node_id": "n_10_42",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 1
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 600.25,
+		"block_type": "mixed",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 89.25,
+			"y": 127.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 22,
+				"y": 33
+			},
+			{
+				"x": 23,
+				"y": 33
+			},
+			{
+				"x": 24,
+				"y": 33
+			},
+			{
+				"x": 25,
+				"y": 33
+			},
+			{
+				"x": 26,
+				"y": 33
+			},
+			{
+				"x": 27,
+				"y": 33
+			},
+			{
+				"x": 28,
+				"y": 33
+			},
+			{
+				"x": 22,
+				"y": 34
+			},
+			{
+				"x": 23,
+				"y": 34
+			},
+			{
+				"x": 24,
+				"y": 34
+			},
+			{
+				"x": 25,
+				"y": 34
+			},
+			{
+				"x": 26,
+				"y": 34
+			},
+			{
+				"x": 27,
+				"y": 34
+			},
+			{
+				"x": 28,
+				"y": 34
+			},
+			{
+				"x": 22,
+				"y": 35
+			},
+			{
+				"x": 23,
+				"y": 35
+			},
+			{
+				"x": 24,
+				"y": 35
+			},
+			{
+				"x": 25,
+				"y": 35
+			},
+			{
+				"x": 26,
+				"y": 35
+			},
+			{
+				"x": 27,
+				"y": 35
+			},
+			{
+				"x": 28,
+				"y": 35
+			},
+			{
+				"x": 22,
+				"y": 36
+			},
+			{
+				"x": 23,
+				"y": 36
+			},
+			{
+				"x": 24,
+				"y": 36
+			},
+			{
+				"x": 25,
+				"y": 36
+			},
+			{
+				"x": 26,
+				"y": 36
+			},
+			{
+				"x": 27,
+				"y": 36
+			},
+			{
+				"x": 28,
+				"y": 36
+			},
+			{
+				"x": 22,
+				"y": 37
+			},
+			{
+				"x": 23,
+				"y": 37
+			},
+			{
+				"x": 24,
+				"y": 37
+			},
+			{
+				"x": 25,
+				"y": 37
+			},
+			{
+				"x": 26,
+				"y": 37
+			},
+			{
+				"x": 27,
+				"y": 37
+			},
+			{
+				"x": 28,
+				"y": 37
+			},
+			{
+				"x": 22,
+				"y": 38
+			},
+			{
+				"x": 23,
+				"y": 38
+			},
+			{
+				"x": 24,
+				"y": 38
+			},
+			{
+				"x": 25,
+				"y": 38
+			},
+			{
+				"x": 26,
+				"y": 38
+			},
+			{
+				"x": 27,
+				"y": 38
+			},
+			{
+				"x": 28,
+				"y": 38
+			},
+			{
+				"x": 22,
+				"y": 39
+			},
+			{
+				"x": 23,
+				"y": 39
+			},
+			{
+				"x": 24,
+				"y": 39
+			},
+			{
+				"x": 25,
+				"y": 39
+			},
+			{
+				"x": 26,
+				"y": 39
+			},
+			{
+				"x": 27,
+				"y": 39
+			},
+			{
+				"x": 28,
+				"y": 39
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_s_mixed",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 24.5,
+			"x": 77.0,
+			"y": 115.5
+		},
+		"name": "南城混合区",
+		"notes": "",
+		"road_entry_node_id": "n_20_42",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 2
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 686.0,
+		"block_type": "office",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 136.5,
+			"y": 127.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 35,
+				"y": 33
+			},
+			{
+				"x": 36,
+				"y": 33
+			},
+			{
+				"x": 37,
+				"y": 33
+			},
+			{
+				"x": 38,
+				"y": 33
+			},
+			{
+				"x": 39,
+				"y": 33
+			},
+			{
+				"x": 40,
+				"y": 33
+			},
+			{
+				"x": 41,
+				"y": 33
+			},
+			{
+				"x": 42,
+				"y": 33
+			},
+			{
+				"x": 35,
+				"y": 34
+			},
+			{
+				"x": 36,
+				"y": 34
+			},
+			{
+				"x": 37,
+				"y": 34
+			},
+			{
+				"x": 38,
+				"y": 34
+			},
+			{
+				"x": 39,
+				"y": 34
+			},
+			{
+				"x": 40,
+				"y": 34
+			},
+			{
+				"x": 41,
+				"y": 34
+			},
+			{
+				"x": 42,
+				"y": 34
+			},
+			{
+				"x": 35,
+				"y": 35
+			},
+			{
+				"x": 36,
+				"y": 35
+			},
+			{
+				"x": 37,
+				"y": 35
+			},
+			{
+				"x": 38,
+				"y": 35
+			},
+			{
+				"x": 39,
+				"y": 35
+			},
+			{
+				"x": 40,
+				"y": 35
+			},
+			{
+				"x": 41,
+				"y": 35
+			},
+			{
+				"x": 42,
+				"y": 35
+			},
+			{
+				"x": 35,
+				"y": 36
+			},
+			{
+				"x": 36,
+				"y": 36
+			},
+			{
+				"x": 37,
+				"y": 36
+			},
+			{
+				"x": 38,
+				"y": 36
+			},
+			{
+				"x": 39,
+				"y": 36
+			},
+			{
+				"x": 40,
+				"y": 36
+			},
+			{
+				"x": 41,
+				"y": 36
+			},
+			{
+				"x": 42,
+				"y": 36
+			},
+			{
+				"x": 35,
+				"y": 37
+			},
+			{
+				"x": 36,
+				"y": 37
+			},
+			{
+				"x": 37,
+				"y": 37
+			},
+			{
+				"x": 38,
+				"y": 37
+			},
+			{
+				"x": 39,
+				"y": 37
+			},
+			{
+				"x": 40,
+				"y": 37
+			},
+			{
+				"x": 41,
+				"y": 37
+			},
+			{
+				"x": 42,
+				"y": 37
+			},
+			{
+				"x": 35,
+				"y": 38
+			},
+			{
+				"x": 36,
+				"y": 38
+			},
+			{
+				"x": 37,
+				"y": 38
+			},
+			{
+				"x": 38,
+				"y": 38
+			},
+			{
+				"x": 39,
+				"y": 38
+			},
+			{
+				"x": 40,
+				"y": 38
+			},
+			{
+				"x": 41,
+				"y": 38
+			},
+			{
+				"x": 42,
+				"y": 38
+			},
+			{
+				"x": 35,
+				"y": 39
+			},
+			{
+				"x": 36,
+				"y": 39
+			},
+			{
+				"x": 37,
+				"y": 39
+			},
+			{
+				"x": 38,
+				"y": 39
+			},
+			{
+				"x": 39,
+				"y": 39
+			},
+			{
+				"x": 40,
+				"y": 39
+			},
+			{
+				"x": 41,
+				"y": 39
+			},
+			{
+				"x": 42,
+				"y": 39
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_se_office",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 28.0,
+			"x": 122.5,
+			"y": 115.5
+		},
+		"name": "南站办公区",
+		"notes": "",
+		"road_entry_node_id": "n_32_42",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 3
+	},
+	{
+		"accessibility": 0.8,
+		"active_time_profile": {
+			"evening": 1.0,
+			"morning": 1.0,
+			"night": 1.0,
+			"noon": 1.0
+		},
+		"area": 771.75,
+		"block_type": "industrial",
+		"business_demand_tags": [],
+		"center_position": {
+			"x": 180.25,
+			"y": 127.75
+		},
+		"city_region_id": "CR001",
+		"competition_profile": {
+			"business_risk": "medium",
+			"competition_level": "medium",
+			"external_attraction": 0.0,
+			"rent_pressure": "medium",
+			"rent_trend": "stable"
+		},
+		"development_factor": 1.0,
+		"grid_cell_size": 3.5,
+		"grid_cells": [
+			{
+				"x": 47,
+				"y": 33
+			},
+			{
+				"x": 48,
+				"y": 33
+			},
+			{
+				"x": 49,
+				"y": 33
+			},
+			{
+				"x": 50,
+				"y": 33
+			},
+			{
+				"x": 51,
+				"y": 33
+			},
+			{
+				"x": 52,
+				"y": 33
+			},
+			{
+				"x": 53,
+				"y": 33
+			},
+			{
+				"x": 54,
+				"y": 33
+			},
+			{
+				"x": 55,
+				"y": 33
+			},
+			{
+				"x": 47,
+				"y": 34
+			},
+			{
+				"x": 48,
+				"y": 34
+			},
+			{
+				"x": 49,
+				"y": 34
+			},
+			{
+				"x": 50,
+				"y": 34
+			},
+			{
+				"x": 51,
+				"y": 34
+			},
+			{
+				"x": 52,
+				"y": 34
+			},
+			{
+				"x": 53,
+				"y": 34
+			},
+			{
+				"x": 54,
+				"y": 34
+			},
+			{
+				"x": 55,
+				"y": 34
+			},
+			{
+				"x": 47,
+				"y": 35
+			},
+			{
+				"x": 48,
+				"y": 35
+			},
+			{
+				"x": 49,
+				"y": 35
+			},
+			{
+				"x": 50,
+				"y": 35
+			},
+			{
+				"x": 51,
+				"y": 35
+			},
+			{
+				"x": 52,
+				"y": 35
+			},
+			{
+				"x": 53,
+				"y": 35
+			},
+			{
+				"x": 54,
+				"y": 35
+			},
+			{
+				"x": 55,
+				"y": 35
+			},
+			{
+				"x": 47,
+				"y": 36
+			},
+			{
+				"x": 48,
+				"y": 36
+			},
+			{
+				"x": 49,
+				"y": 36
+			},
+			{
+				"x": 50,
+				"y": 36
+			},
+			{
+				"x": 51,
+				"y": 36
+			},
+			{
+				"x": 52,
+				"y": 36
+			},
+			{
+				"x": 53,
+				"y": 36
+			},
+			{
+				"x": 54,
+				"y": 36
+			},
+			{
+				"x": 55,
+				"y": 36
+			},
+			{
+				"x": 47,
+				"y": 37
+			},
+			{
+				"x": 48,
+				"y": 37
+			},
+			{
+				"x": 49,
+				"y": 37
+			},
+			{
+				"x": 50,
+				"y": 37
+			},
+			{
+				"x": 51,
+				"y": 37
+			},
+			{
+				"x": 52,
+				"y": 37
+			},
+			{
+				"x": 53,
+				"y": 37
+			},
+			{
+				"x": 54,
+				"y": 37
+			},
+			{
+				"x": 55,
+				"y": 37
+			},
+			{
+				"x": 47,
+				"y": 38
+			},
+			{
+				"x": 48,
+				"y": 38
+			},
+			{
+				"x": 49,
+				"y": 38
+			},
+			{
+				"x": 50,
+				"y": 38
+			},
+			{
+				"x": 51,
+				"y": 38
+			},
+			{
+				"x": 52,
+				"y": 38
+			},
+			{
+				"x": 53,
+				"y": 38
+			},
+			{
+				"x": 54,
+				"y": 38
+			},
+			{
+				"x": 55,
+				"y": 38
+			},
+			{
+				"x": 47,
+				"y": 39
+			},
+			{
+				"x": 48,
+				"y": 39
+			},
+			{
+				"x": 49,
+				"y": 39
+			},
+			{
+				"x": 50,
+				"y": 39
+			},
+			{
+				"x": 51,
+				"y": 39
+			},
+			{
+				"x": 52,
+				"y": 39
+			},
+			{
+				"x": 53,
+				"y": 39
+			},
+			{
+				"x": 54,
+				"y": 39
+			},
+			{
+				"x": 55,
+				"y": 39
+			}
+		],
+		"group_supply_weights": {
+			"family_household": 0.0,
+			"high_spend_household": 0.0,
+			"office_worker": 0.0,
+			"student": 0.0,
+			"worker": 0.0
+		},
+		"id": "block_far_se_industrial",
+		"map_bounds": {
+			"h": 24.5,
+			"w": 31.5,
+			"x": 164.5,
+			"y": 115.5
+		},
+		"name": "东南产业区",
+		"notes": "",
+		"road_entry_node_id": "n_51_42",
+		"spending_profile": {
+			"price_sensitivity": 0.5,
+			"quality_preference": 0.5,
+			"spend_potential_tier": "medium"
+		},
+		"tags": [],
+		"tier": 1
+	}
+]

@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://7eli4towpjap" path="res://scenes/Main.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://g0pco8g00opv" path="res://scenes/panels/StoreListPanel.tscn" id="2_storelist"]
 [ext_resource type="PackedScene" uid="uid://vksjgk4ij6wn" path="res://scenes/panels/OperationPanel.tscn" id="3_operation"]
-[ext_resource type="PackedScene" uid="uid://cwkkld07d8bw4" path="res://scenes/panels/CategoryManagerPanel.tscn" id="4_category"]
+[ext_resource type="PackedScene" path="res://scenes/panels/CategoryManagerPanel.tscn" id="4_category"]
 [ext_resource type="PackedScene" uid="uid://qcx5mbxrqkiy" path="res://scenes/panels/ProcurementPanel.tscn" id="5_procurement"]
 [ext_resource type="PackedScene" uid="uid://cpcx36dd6onvq" path="res://scenes/panels/ReportPanel.tscn" id="6_report"]
 [ext_resource type="PackedScene" uid="uid://btfk3y4ccqthn" path="res://scenes/panels/HistoryPanel.tscn" id="7_history"]
@@ -11,7 +11,8 @@
 [ext_resource type="PackedScene" uid="uid://bbgtk87haxjj" path="res://scenes/panels/CharacterCreationPanel.tscn" id="9_character"]
 [ext_resource type="PackedScene" uid="uid://c3nwhfj115pun" path="res://scenes/panels/DayEndPanel.tscn" id="10_dayend"]
 [ext_resource type="PackedScene" uid="uid://dmvtdi23pfj6m" path="res://scenes/panels/SaveLoadBar.tscn" id="11_saveload"]
-[ext_resource type="PackedScene" uid="uid://d071q4epvwcf" path="res://scenes/map/CityMapPanel.tscn" id="14_citymap"]
+[ext_resource type="PackedScene" path="res://scenes/map/CityMapPanel.tscn" id="14_citymap"]
+[ext_resource type="PackedScene" path="res://scenes/interior/InteriorLayoutPanel.tscn" id="15_interior"]
 
 [node name="Main" type="Control" unique_id=401657002]
 layout_mode = 3
@@ -134,3 +135,5 @@ layout_mode = 2
 metadata/_tab_index = 2
 
 [node name="DayEndPanel" parent="." unique_id=596501704 instance=ExtResource("10_dayend")]
+
+[node name="InteriorLayoutPanel" parent="." instance=ExtResource("15_interior")]

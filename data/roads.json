@@ -1,1 +1,716 @@
-[]
+[
+	{
+		"id": "n_04_24",
+		"kind": "node",
+		"position": {
+			"x": 14.0,
+			"y": 84.0
+		}
+	},
+	{
+		"id": "n_10_08",
+		"kind": "node",
+		"position": {
+			"x": 35.0,
+			"y": 28.0
+		}
+	},
+	{
+		"id": "n_10_18",
+		"kind": "node",
+		"position": {
+			"x": 35.0,
+			"y": 63.0
+		}
+	},
+	{
+		"id": "n_10_24",
+		"kind": "node",
+		"position": {
+			"x": 35.0,
+			"y": 84.0
+		}
+	},
+	{
+		"id": "n_10_30",
+		"kind": "node",
+		"position": {
+			"x": 35.0,
+			"y": 105.0
+		}
+	},
+	{
+		"id": "n_10_42",
+		"kind": "node",
+		"position": {
+			"x": 35.0,
+			"y": 147.0
+		}
+	},
+	{
+		"id": "n_10_51",
+		"kind": "node",
+		"position": {
+			"x": 35.0,
+			"y": 178.5
+		}
+	},
+	{
+		"id": "n_20_08",
+		"kind": "node",
+		"position": {
+			"x": 70.0,
+			"y": 28.0
+		}
+	},
+	{
+		"id": "n_20_18",
+		"kind": "node",
+		"position": {
+			"x": 70.0,
+			"y": 63.0
+		}
+	},
+	{
+		"id": "n_20_30",
+		"kind": "node",
+		"position": {
+			"x": 70.0,
+			"y": 105.0
+		}
+	},
+	{
+		"id": "n_20_42",
+		"kind": "node",
+		"position": {
+			"x": 70.0,
+			"y": 147.0
+		}
+	},
+	{
+		"id": "n_20_51",
+		"kind": "node",
+		"position": {
+			"x": 70.0,
+			"y": 178.5
+		}
+	},
+	{
+		"id": "n_26_18",
+		"kind": "node",
+		"position": {
+			"x": 91.0,
+			"y": 63.0
+		}
+	},
+	{
+		"id": "n_26_24",
+		"kind": "node",
+		"position": {
+			"x": 91.0,
+			"y": 84.0
+		}
+	},
+	{
+		"id": "n_32_08",
+		"kind": "node",
+		"position": {
+			"x": 112.0,
+			"y": 28.0
+		}
+	},
+	{
+		"id": "n_32_18",
+		"kind": "node",
+		"position": {
+			"x": 112.0,
+			"y": 63.0
+		}
+	},
+	{
+		"id": "n_32_24",
+		"kind": "node",
+		"position": {
+			"x": 112.0,
+			"y": 84.0
+		}
+	},
+	{
+		"id": "n_32_30",
+		"kind": "node",
+		"position": {
+			"x": 112.0,
+			"y": 105.0
+		}
+	},
+	{
+		"id": "n_32_42",
+		"kind": "node",
+		"position": {
+			"x": 112.0,
+			"y": 147.0
+		}
+	},
+	{
+		"id": "n_32_51",
+		"kind": "node",
+		"position": {
+			"x": 112.0,
+			"y": 178.5
+		}
+	},
+	{
+		"id": "n_45_08",
+		"kind": "node",
+		"position": {
+			"x": 157.5,
+			"y": 28.0
+		}
+	},
+	{
+		"id": "n_45_18",
+		"kind": "node",
+		"position": {
+			"x": 157.5,
+			"y": 63.0
+		}
+	},
+	{
+		"id": "n_45_30",
+		"kind": "node",
+		"position": {
+			"x": 157.5,
+			"y": 105.0
+		}
+	},
+	{
+		"id": "n_45_42",
+		"kind": "node",
+		"position": {
+			"x": 157.5,
+			"y": 147.0
+		}
+	},
+	{
+		"id": "n_45_51",
+		"kind": "node",
+		"position": {
+			"x": 157.5,
+			"y": 178.5
+		}
+	},
+	{
+		"id": "n_51_42",
+		"kind": "node",
+		"position": {
+			"x": 178.5,
+			"y": 147.0
+		}
+	},
+	{
+		"id": "n_51_47",
+		"kind": "node",
+		"position": {
+			"x": 178.5,
+			"y": 164.5
+		}
+	},
+	{
+		"id": "n_57_08",
+		"kind": "node",
+		"position": {
+			"x": 199.5,
+			"y": 28.0
+		}
+	},
+	{
+		"id": "n_57_18",
+		"kind": "node",
+		"position": {
+			"x": 199.5,
+			"y": 63.0
+		}
+	},
+	{
+		"id": "n_57_30",
+		"kind": "node",
+		"position": {
+			"x": 199.5,
+			"y": 105.0
+		}
+	},
+	{
+		"id": "n_57_42",
+		"kind": "node",
+		"position": {
+			"x": 199.5,
+			"y": 147.0
+		}
+	},
+	{
+		"id": "n_57_47",
+		"kind": "node",
+		"position": {
+			"x": 199.5,
+			"y": 164.5
+		}
+	},
+	{
+		"id": "n_57_51",
+		"kind": "node",
+		"position": {
+			"x": 199.5,
+			"y": 178.5
+		}
+	},
+	{
+		"accessibility": 0.82,
+		"exposure": 0.42,
+		"from_node_id": "n_10_08",
+		"id": "r_h08_10_20",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_20_08"
+	},
+	{
+		"accessibility": 0.82,
+		"exposure": 0.44,
+		"from_node_id": "n_20_08",
+		"id": "r_h08_20_32",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_32_08"
+	},
+	{
+		"accessibility": 0.8,
+		"exposure": 0.46,
+		"from_node_id": "n_32_08",
+		"id": "r_h08_32_45",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_45_08"
+	},
+	{
+		"accessibility": 0.81,
+		"exposure": 0.43,
+		"from_node_id": "n_45_08",
+		"id": "r_h08_45_57",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_08"
+	},
+	{
+		"accessibility": 0.73,
+		"exposure": 0.72,
+		"from_node_id": "n_10_18",
+		"id": "r_h18_10_20",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_20_18"
+	},
+	{
+		"accessibility": 0.74,
+		"exposure": 0.76,
+		"from_node_id": "n_20_18",
+		"id": "r_h18_20_26",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_26_18"
+	},
+	{
+		"accessibility": 0.74,
+		"exposure": 0.78,
+		"from_node_id": "n_26_18",
+		"id": "r_h18_26_32",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_32_18"
+	},
+	{
+		"accessibility": 0.72,
+		"exposure": 0.8,
+		"from_node_id": "n_32_18",
+		"id": "r_h18_32_45",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_45_18"
+	},
+	{
+		"accessibility": 0.71,
+		"exposure": 0.74,
+		"from_node_id": "n_45_18",
+		"id": "r_h18_45_57",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_57_18"
+	},
+	{
+		"accessibility": 0.62,
+		"exposure": 0.9,
+		"from_node_id": "n_10_30",
+		"id": "r_h30_10_20",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_20_30"
+	},
+	{
+		"accessibility": 0.64,
+		"exposure": 0.94,
+		"from_node_id": "n_20_30",
+		"id": "r_h30_20_32",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_32_30"
+	},
+	{
+		"accessibility": 0.61,
+		"exposure": 0.96,
+		"from_node_id": "n_32_30",
+		"id": "r_h30_32_45",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_45_30"
+	},
+	{
+		"accessibility": 0.6,
+		"exposure": 0.91,
+		"from_node_id": "n_45_30",
+		"id": "r_h30_45_57",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_57_30"
+	},
+	{
+		"accessibility": 0.76,
+		"exposure": 0.7,
+		"from_node_id": "n_10_42",
+		"id": "r_h42_10_20",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_20_42"
+	},
+	{
+		"accessibility": 0.75,
+		"exposure": 0.74,
+		"from_node_id": "n_20_42",
+		"id": "r_h42_20_32",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_32_42"
+	},
+	{
+		"accessibility": 0.74,
+		"exposure": 0.77,
+		"from_node_id": "n_32_42",
+		"id": "r_h42_32_45",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_45_42"
+	},
+	{
+		"accessibility": 0.74,
+		"exposure": 0.73,
+		"from_node_id": "n_45_42",
+		"id": "r_h42_45_51",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_51_42"
+	},
+	{
+		"accessibility": 0.73,
+		"exposure": 0.69,
+		"from_node_id": "n_51_42",
+		"id": "r_h42_51_57",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_57_42"
+	},
+	{
+		"accessibility": 0.86,
+		"exposure": 0.36,
+		"from_node_id": "n_10_51",
+		"id": "r_h51_10_20",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_20_51"
+	},
+	{
+		"accessibility": 0.84,
+		"exposure": 0.39,
+		"from_node_id": "n_20_51",
+		"id": "r_h51_20_32",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_32_51"
+	},
+	{
+		"accessibility": 0.82,
+		"exposure": 0.41,
+		"from_node_id": "n_32_51",
+		"id": "r_h51_32_45",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_45_51"
+	},
+	{
+		"accessibility": 0.83,
+		"exposure": 0.38,
+		"from_node_id": "n_45_51",
+		"id": "r_h51_45_57",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_51"
+	},
+	{
+		"accessibility": 0.84,
+		"exposure": 0.45,
+		"from_node_id": "n_10_08",
+		"id": "r_v10_08_18",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_10_18"
+	},
+	{
+		"accessibility": 0.85,
+		"exposure": 0.43,
+		"from_node_id": "n_10_18",
+		"id": "r_v10_18_24",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_10_24"
+	},
+	{
+		"accessibility": 0.84,
+		"exposure": 0.45,
+		"from_node_id": "n_10_24",
+		"id": "r_v10_24_30",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_10_30"
+	},
+	{
+		"accessibility": 0.82,
+		"exposure": 0.48,
+		"from_node_id": "n_10_30",
+		"id": "r_v10_30_42",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_10_42"
+	},
+	{
+		"accessibility": 0.86,
+		"exposure": 0.4,
+		"from_node_id": "n_10_42",
+		"id": "r_v10_42_51",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_10_51"
+	},
+	{
+		"accessibility": 0.76,
+		"exposure": 0.69,
+		"from_node_id": "n_20_08",
+		"id": "r_v20_08_18",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_20_18"
+	},
+	{
+		"accessibility": 0.75,
+		"exposure": 0.72,
+		"from_node_id": "n_20_18",
+		"id": "r_v20_18_30",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_20_30"
+	},
+	{
+		"accessibility": 0.74,
+		"exposure": 0.75,
+		"from_node_id": "n_20_30",
+		"id": "r_v20_30_42",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_20_42"
+	},
+	{
+		"accessibility": 0.77,
+		"exposure": 0.67,
+		"from_node_id": "n_20_42",
+		"id": "r_v20_42_51",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_20_51"
+	},
+	{
+		"accessibility": 0.63,
+		"exposure": 0.91,
+		"from_node_id": "n_32_08",
+		"id": "r_v32_08_18",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_32_18"
+	},
+	{
+		"accessibility": 0.62,
+		"exposure": 0.94,
+		"from_node_id": "n_32_18",
+		"id": "r_v32_18_24",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_32_24"
+	},
+	{
+		"accessibility": 0.61,
+		"exposure": 0.96,
+		"from_node_id": "n_32_24",
+		"id": "r_v32_24_30",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_32_30"
+	},
+	{
+		"accessibility": 0.61,
+		"exposure": 0.95,
+		"from_node_id": "n_32_30",
+		"id": "r_v32_30_42",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_32_42"
+	},
+	{
+		"accessibility": 0.64,
+		"exposure": 0.89,
+		"from_node_id": "n_32_42",
+		"id": "r_v32_42_51",
+		"kind": "segment",
+		"road_class": "arterial",
+		"to_node_id": "n_32_51"
+	},
+	{
+		"accessibility": 0.75,
+		"exposure": 0.7,
+		"from_node_id": "n_45_08",
+		"id": "r_v45_08_18",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_45_18"
+	},
+	{
+		"accessibility": 0.73,
+		"exposure": 0.76,
+		"from_node_id": "n_45_18",
+		"id": "r_v45_18_30",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_45_30"
+	},
+	{
+		"accessibility": 0.72,
+		"exposure": 0.78,
+		"from_node_id": "n_45_30",
+		"id": "r_v45_30_42",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_45_42"
+	},
+	{
+		"accessibility": 0.76,
+		"exposure": 0.68,
+		"from_node_id": "n_45_42",
+		"id": "r_v45_42_51",
+		"kind": "segment",
+		"road_class": "secondary",
+		"to_node_id": "n_45_51"
+	},
+	{
+		"accessibility": 0.83,
+		"exposure": 0.44,
+		"from_node_id": "n_57_08",
+		"id": "r_v57_08_18",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_18"
+	},
+	{
+		"accessibility": 0.81,
+		"exposure": 0.49,
+		"from_node_id": "n_57_18",
+		"id": "r_v57_18_30",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_30"
+	},
+	{
+		"accessibility": 0.8,
+		"exposure": 0.5,
+		"from_node_id": "n_57_30",
+		"id": "r_v57_30_42",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_42"
+	},
+	{
+		"accessibility": 0.84,
+		"exposure": 0.42,
+		"from_node_id": "n_57_42",
+		"id": "r_v57_42_47",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_47"
+	},
+	{
+		"accessibility": 0.84,
+		"exposure": 0.4,
+		"from_node_id": "n_57_47",
+		"id": "r_v57_47_51",
+		"kind": "segment",
+		"road_class": "local",
+		"to_node_id": "n_57_51"
+	},
+	{
+		"accessibility": 0.91,
+		"exposure": 0.22,
+		"from_node_id": "n_04_24",
+		"id": "r_alley_west",
+		"kind": "segment",
+		"road_class": "alley",
+		"to_node_id": "n_10_24"
+	},
+	{
+		"accessibility": 0.93,
+		"exposure": 0.28,
+		"from_node_id": "n_26_18",
+		"id": "r_alley_central_v",
+		"kind": "segment",
+		"road_class": "alley",
+		"to_node_id": "n_26_24"
+	},
+	{
+		"accessibility": 0.94,
+		"exposure": 0.3,
+		"from_node_id": "n_26_24",
+		"id": "r_alley_central_h",
+		"kind": "segment",
+		"road_class": "alley",
+		"to_node_id": "n_32_24"
+	},
+	{
+		"accessibility": 0.92,
+		"exposure": 0.25,
+		"from_node_id": "n_51_42",
+		"id": "r_alley_east_v",
+		"kind": "segment",
+		"road_class": "alley",
+		"to_node_id": "n_51_47"
+	},
+	{
+		"accessibility": 0.91,
+		"exposure": 0.24,
+		"from_node_id": "n_51_47",
+		"id": "r_alley_east_h",
+		"kind": "segment",
+		"road_class": "alley",
+		"to_node_id": "n_57_47"
+	}
+]

@@ -1,0 +1,258 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/interior/InteriorLayoutPanel.gd" id="1_panel"]
+[ext_resource type="Script" path="res://scenes/interior/InteriorCanvas.gd" id="2_interior_canvas"]
+[ext_resource type="Script" path="res://scenes/facade/FacadeCanvas.gd" id="3_facade_canvas"]
+[ext_resource type="Script" path="res://scenes/facade/Facade3DCanvas.gd" id="4_facade_3d_canvas"]
+[ext_resource type="Script" path="res://scenes/interior/Interior3DCanvas.gd" id="5_interior_3d_canvas"]
+
+[node name="InteriorLayoutPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("1_panel")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.055, 0.09, 0.11, 0.97)
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "室内布局"
+
+[node name="Status" type="Label" parent="Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "选择设备后点击网格放置"
+
+[node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
+layout_mode = 2
+text = "返回地图"
+
+[node name="LayoutTabs" type="TabContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Interior" type="Control" parent="Margin/VBox/LayoutTabs"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox/LayoutTabs/Interior"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="CanvasScroll" type="ScrollContainer" parent="Margin/VBox/LayoutTabs/Interior/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="InteriorCanvas" type="Control" parent="Margin/VBox/LayoutTabs/Interior/Body/CanvasScroll"]
+custom_minimum_size = Vector2(352, 352)
+layout_mode = 2
+script = ExtResource("2_interior_canvas")
+
+[node name="Sidebar" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Interior/Body"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Hint" type="Label" parent="Margin/VBox/LayoutTabs/Interior/Body/Sidebar"]
+layout_mode = 2
+autowrap_mode = 3
+text = "已购设备\n点击设备后，再点击室内网格放置。点击已放置设备可选中，或直接拖动。"
+
+[node name="EquipmentScroll" type="ScrollContainer" parent="Margin/VBox/LayoutTabs/Interior/Body/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EquipmentList" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Interior/Body/Sidebar/EquipmentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Interior3D" type="Control" parent="Margin/VBox/LayoutTabs"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox/LayoutTabs/Interior3D"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="Interior3DCanvas" type="SubViewportContainer" parent="Margin/VBox/LayoutTabs/Interior3D/Body"]
+custom_minimum_size = Vector2(700, 500)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+script = ExtResource("5_interior_3d_canvas")
+
+[node name="Sidebar" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Interior3D/Body"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Hint" type="Label" parent="Margin/VBox/LayoutTabs/Interior3D/Body/Sidebar"]
+layout_mode = 2
+autowrap_mode = 3
+text = "室内 3D（正交编辑）\n选择设备后点击地面放置。左键拖动设备移动；中键水平旋转视角，滚轮缩放。"
+
+[node name="EquipmentScroll" type="ScrollContainer" parent="Margin/VBox/LayoutTabs/Interior3D/Body/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EquipmentList" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Interior3D/Body/Sidebar/EquipmentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Actions" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Interior3D/Body/Sidebar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RotateButton" type="Button" parent="Margin/VBox/LayoutTabs/Interior3D/Body/Sidebar/Actions"]
+layout_mode = 2
+text = "旋转"
+
+[node name="DeleteButton" type="Button" parent="Margin/VBox/LayoutTabs/Interior3D/Body/Sidebar/Actions"]
+layout_mode = 2
+text = "移除"
+
+[node name="Actions" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Interior/Body/Sidebar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RotateButton" type="Button" parent="Margin/VBox/LayoutTabs/Interior/Body/Sidebar/Actions"]
+layout_mode = 2
+text = "旋转"
+
+[node name="DeleteButton" type="Button" parent="Margin/VBox/LayoutTabs/Interior/Body/Sidebar/Actions"]
+layout_mode = 2
+text = "移除"
+
+[node name="Facade" type="Control" parent="Margin/VBox/LayoutTabs"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox/LayoutTabs/Facade"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="CanvasScroll" type="ScrollContainer" parent="Margin/VBox/LayoutTabs/Facade/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="FacadeCanvas" type="Control" parent="Margin/VBox/LayoutTabs/Facade/Body/CanvasScroll"]
+custom_minimum_size = Vector2(800, 352)
+layout_mode = 2
+script = ExtResource("3_facade_canvas")
+
+[node name="Sidebar" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Facade/Body"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Hint" type="Label" parent="Margin/VBox/LayoutTabs/Facade/Body/Sidebar"]
+layout_mode = 2
+autowrap_mode = 3
+text = "门面立面（正视图）\n选择组件后点击网格放置。拖动已放置组件可移动；组件不可重叠或越界。"
+
+[node name="ComponentList" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Facade/Body/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="Facade3D" type="Control" parent="Margin/VBox/LayoutTabs"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox/LayoutTabs/Facade3D"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="Facade3DCanvas" type="SubViewportContainer" parent="Margin/VBox/LayoutTabs/Facade3D/Body"]
+custom_minimum_size = Vector2(800, 500)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+script = ExtResource("4_facade_3d_canvas")
+
+[node name="Sidebar" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Facade3D/Body"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Hint" type="Label" parent="Margin/VBox/LayoutTabs/Facade3D/Body/Sidebar"]
+layout_mode = 2
+autowrap_mode = 3
+text = "门面 3D（透视编辑）\n选择组件后点击墙面放置。左键拖动组件移动；中键旋转视角，滚轮缩放。"
+
+[node name="ComponentList" type="VBoxContainer" parent="Margin/VBox/LayoutTabs/Facade3D/Body/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="DeleteButton" type="Button" parent="Margin/VBox/LayoutTabs/Facade3D/Body/Sidebar"]
+layout_mode = 2
+text = "移除选中组件"
+
+[node name="DeleteButton" type="Button" parent="Margin/VBox/LayoutTabs/Facade/Body/Sidebar"]
+layout_mode = 2
+text = "移除选中组件"

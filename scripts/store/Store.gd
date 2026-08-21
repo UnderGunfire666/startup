@@ -37,6 +37,10 @@ var awareness_by_block: Dictionary = {}
 
 var category_slots: Array[StoreCategorySlot] = []
 var equipment: Array[StoreEquipment] = []
+var furniture_layout: Array[StoreFurniturePlacement] = []
+var facade_layout: Array[StoreFacadePlacement] = []
+var facade_layout_initialized: bool = false
+var layout_grid_version: int = 2
 var employees: Array[StoreEmployee] = []
 
 var ingredient_stock: Dictionary = {}
@@ -243,6 +247,9 @@ func reset_to_defaults() -> void:
 	reputation = SettlementConfig.INITIAL_REPUTATION
 	category_slots.clear()
 	equipment.clear()
+	furniture_layout.clear()
+	facade_layout.clear()
+	facade_layout_initialized = false
 	employees.clear()
 	total_revenue = 0.0
 	total_cost = 0.0
@@ -327,6 +334,12 @@ func to_save_dict() -> Dictionary:
 	var employee_data: Array = []
 	for employee in employees:
 		employee_data.append(employee.to_dict())
+	var furniture_data: Array = []
+	for placement in furniture_layout:
+		furniture_data.append(placement.to_dict())
+	var facade_data: Array = []
+	for placement in facade_layout:
+		facade_data.append(placement.to_dict())
 	var business_ranges_data: Array = []
 	for hour_range in business_hour_ranges:
 		business_ranges_data.append([hour_range.x, hour_range.y])
@@ -345,6 +358,10 @@ func to_save_dict() -> Dictionary:
 		"awareness_by_block": awareness_by_block,
 		"category_slots": slots_data,
 		"equipment": equipment_data,
+		"furniture_layout": furniture_data,
+		"facade_layout": facade_data,
+		"facade_layout_initialized": facade_layout_initialized,
+		"layout_grid_version": layout_grid_version,
 		"employees": employee_data,
 		"total_revenue": total_revenue, "total_cost": total_cost,
 		"total_orders": total_orders,
@@ -384,7 +401,22 @@ static func from_save_dict(data: Dictionary) -> Store:
 		s.category_slots.append(StoreCategorySlot.from_dict(sd))
 	var equipment_raw: Array = data.get("equipment", [])
 	for item in equipment_raw:
-		s.equipment.append(StoreEquipment.from_dict(item))
+		var equipment_item := StoreEquipment.from_dict(item)
+		if equipment_item.instance_id.is_empty():
+			equipment_item.instance_id = "legacy_equipment_%d" % s.equipment.size()
+		s.equipment.append(equipment_item)
+	var furniture_raw: Array = data.get("furniture_layout", [])
+	for placement_data in furniture_raw:
+		if placement_data is Dictionary:
+			s.furniture_layout.append(StoreFurniturePlacement.from_dict(placement_data))
+	var facade_raw: Array = data.get("facade_layout", [])
+	for placement_data in facade_raw:
+		if placement_data is Dictionary:
+			var facade_placement := StoreFacadePlacement.from_dict(placement_data)
+			if FacadeLayoutValidator.is_known_type(facade_placement.type):
+				s.facade_layout.append(facade_placement)
+	s.facade_layout_initialized = bool(data.get("facade_layout_initialized", not facade_raw.is_empty()))
+	s.layout_grid_version = int(data.get("layout_grid_version", 1))
 	var employees_raw: Array = data.get("employees", [])
 	for employee_data in employees_raw:
 		s.employees.append(StoreEmployee.from_dict(employee_data))

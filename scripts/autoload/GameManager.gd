@@ -293,6 +293,18 @@ func _discover_storefronts_in_block(block_id: String) -> void:
 		storefronts_discovered.emit(newly_discovered)
 
 
+func reveal_all_storefronts() -> Array[String]:
+	var newly_revealed: Array[String] = []
+	for storefront in all_storefronts:
+		if get_storefront_diligence(storefront.id) != "not_viewed":
+			continue
+		player_state.storefront_diligence[storefront.id] = "initial_viewing"
+		newly_revealed.append(storefront.id)
+	if not newly_revealed.is_empty():
+		storefronts_discovered.emit(newly_revealed)
+	return newly_revealed
+
+
 # ── 门面尽调 (玩家层) ────────────────────────────────────────
 
 func get_storefront_diligence(storefront_id: String) -> String:
@@ -989,6 +1001,7 @@ func purchase_equipment(equipment_id: String) -> Dictionary:
 	if remaining_area + 0.001 < item.area:
 		return {"success": false, "reason": "\u95e8\u9762\u5269\u4f59\u9762\u79ef\u4e0d\u8db3\uff08\u8fd8\u5269 %.1f \u33a1\uff09" % maxf(0.0, remaining_area)}
 	var owned := StoreEquipment.new()
+	owned.instance_id = "equipment_%d_%d" % [Time.get_ticks_msec(), store.equipment.size()]
 	owned.equipment_id = item.id
 	owned.durability = item.max_durability
 	store.equipment.append(owned)

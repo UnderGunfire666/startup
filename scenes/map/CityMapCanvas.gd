@@ -7,8 +7,13 @@ extends Control
 signal selected_blocks_changed(block_ids: Array[String])
 signal storefront_clicked(storefront_id: String)
 
-const MAP_SCALE: float = 0.3
+const MIN_MAP_SCALE := 0.3
+const MAX_MAP_SCALE := 5.0
+const TARGET_CONTENT_SIZE := Vector2(1100.0, 820.0)
+const MIN_CONTENT_MARGIN := 16.0
 const STOREFRONT_CLICK_RADIUS_SCREEN_PX: float = 14.0
+const STOREFRONT_LABEL_FONT_SIZE := 11
+const STOREFRONT_LABEL_PADDING := Vector2(4.0, 2.0)
 
 const BLOCK_TYPE_COLORS: Dictionary = {
 	"school": Color(0.3, 0.5, 0.9, 0.5),
@@ -33,6 +38,12 @@ var road_graph: RoadGraph = null
 var survey_areas: Array[SurveyAreaState] = []
 var storefronts: Array[StorefrontData] = []
 var selected_block_ids: Array[String] = []
+var map_scale := MIN_MAP_SCALE
+var content_bounds := Rect2(Vector2.ZERO, Vector2.ONE)
+
+
+func _ready() -> void:
+	resized.connect(queue_redraw)
 
 
 func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData], new_road_graph: RoadGraph = null) -> void:
@@ -50,6 +61,7 @@ func refresh_survey_areas(new_survey_areas: Array[SurveyAreaState]) -> void:
 
 func refresh_storefronts(new_storefronts: Array[StorefrontData]) -> void:
 	storefronts = new_storefronts
+	_update_canvas_size()
 	queue_redraw()
 
 
@@ -100,13 +112,53 @@ func _find_block_by_id(block_id: String) -> BlockData:
 
 
 func _update_canvas_size() -> void:
-	var max_x := 0.0
-	var max_y := 0.0
-	for region in city_regions:
-		max_x = maxf(max_x, region.map_bounds.position.x + region.map_bounds.size.x)
-		max_y = maxf(max_y, region.map_bounds.position.y + region.map_bounds.size.y)
+	var min_x := INF
+	var min_y := INF
+	var max_x := -INF
+	var max_y := -INF
+	for block in blocks:
+		min_x = minf(min_x, block.map_bounds.position.x)
+		min_y = minf(min_y, block.map_bounds.position.y)
+		max_x = maxf(max_x, block.map_bounds.end.x)
+		max_y = maxf(max_y, block.map_bounds.end.y)
+	if road_graph != null:
+		for raw_node in road_graph.nodes.values():
+			if raw_node is RoadNode:
+				var node := raw_node as RoadNode
+				min_x = minf(min_x, node.position.x)
+				min_y = minf(min_y, node.position.y)
+				max_x = maxf(max_x, node.position.x)
+				max_y = maxf(max_y, node.position.y)
+	for storefront in storefronts:
+		min_x = minf(min_x, storefront.map_position.x)
+		min_y = minf(min_y, storefront.map_position.y)
+		max_x = maxf(max_x, storefront.map_position.x)
+		max_y = maxf(max_y, storefront.map_position.y)
+	if is_inf(min_x) or is_inf(min_y):
+		min_x = 0.0
+		min_y = 0.0
+		max_x = 1.0
+		max_y = 1.0
+	content_bounds = Rect2(
+		Vector2(min_x, min_y),
+		Vector2(maxf(1.0, max_x - min_x), maxf(1.0, max_y - min_y))
+	)
+	var target_scale := minf(TARGET_CONTENT_SIZE.x / content_bounds.size.x, TARGET_CONTENT_SIZE.y / content_bounds.size.y)
+	map_scale = clampf(target_scale, MIN_MAP_SCALE, MAX_MAP_SCALE)
+	custom_minimum_size = content_bounds.size * map_scale + Vector2.ONE * (MIN_CONTENT_MARGIN * 2.0)
 
-	custom_minimum_size = Vector2(max_x, max_y) * MAP_SCALE
+
+func _get_draw_offset() -> Vector2:
+	var rendered_size := content_bounds.size * map_scale
+	var available_size := size
+	if available_size.x < rendered_size.x + MIN_CONTENT_MARGIN * 2.0:
+		available_size.x = custom_minimum_size.x
+	if available_size.y < rendered_size.y + MIN_CONTENT_MARGIN * 2.0:
+		available_size.y = custom_minimum_size.y
+	return Vector2(
+		maxf(MIN_CONTENT_MARGIN, (available_size.x - rendered_size.x) * 0.5),
+		maxf(MIN_CONTENT_MARGIN, (available_size.y - rendered_size.y) * 0.5)
+	)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -152,11 +204,11 @@ func _find_block_at_screen(screen_pos: Vector2) -> BlockData:
 
 
 func _screen_to_map(screen_pos: Vector2) -> Vector2:
-	return screen_pos / MAP_SCALE
+	return (screen_pos - _get_draw_offset()) / map_scale + content_bounds.position
 
 
 func _map_to_screen(map_pos: Vector2) -> Vector2:
-	return map_pos * MAP_SCALE
+	return _get_draw_offset() + (map_pos - content_bounds.position) * map_scale
 
 
 func _draw() -> void:
@@ -169,9 +221,12 @@ func _draw() -> void:
 
 func _draw_city_regions() -> void:
 	for region in city_regions:
+		var visible_bounds := region.map_bounds.intersection(content_bounds)
+		if not visible_bounds.has_area():
+			continue
 		var rect := Rect2(
-			_map_to_screen(region.map_bounds.position),
-			region.map_bounds.size * MAP_SCALE
+			_map_to_screen(visible_bounds.position),
+			visible_bounds.size * map_scale
 		)
 		draw_rect(rect, Color(1, 1, 1, 0.05), true)
 		draw_rect(rect, Color(1, 1, 1, 0.6), false, 2.0)
@@ -199,7 +254,7 @@ func _draw_blocks() -> void:
 	for block in blocks:
 		var rect := Rect2(
 			_map_to_screen(block.map_bounds.position),
-			block.map_bounds.size * MAP_SCALE
+			block.map_bounds.size * map_scale
 		)
 		var color: Color = BLOCK_TYPE_COLORS.get(block.block_type, Color(1, 1, 1, 0.3))
 		draw_rect(rect, color, true)
@@ -220,12 +275,13 @@ func _draw_survey_areas() -> void:
 	## 旧调查区仍可视化，直到后续Phase完成迁移；Phase 1不再通过拖拽创建。
 	for area in survey_areas:
 		var screen_center := _map_to_screen(area.center_position)
-		var screen_radius := area.radius * MAP_SCALE
+		var screen_radius := area.radius * map_scale
 		draw_arc(screen_center, screen_radius, 0.0, TAU, 48, Color(0.2, 0.8, 1.0, 0.35), 1.0)
 
 
 func _draw_storefronts() -> void:
 	## not_viewed的门面完全不画——对应"未被发现前不可见/不可选"的设计。
+	var labels := get_storefront_label_layout()
 	for sf in storefronts:
 		var diligence := GameManager.get_storefront_diligence(sf.id)
 		if diligence == "not_viewed":
@@ -235,7 +291,68 @@ func _draw_storefronts() -> void:
 		var screen_pos := _map_to_screen(sf.map_position)
 		draw_circle(screen_pos, 6.0, color)
 		draw_circle(screen_pos, 6.0, Color(0, 0, 0, 0.6), false, 1.5)
+	for item in labels:
+		var rect: Rect2 = item.get("rect", Rect2())
+		var label_color: Color = item.get("color", Color.WHITE)
+		var label_text := str(item.get("label", ""))
+		draw_rect(rect, Color(0.04, 0.08, 0.11, 0.94), true)
+		draw_rect(rect, Color(label_color.r, label_color.g, label_color.b, 0.8), false, 1.0)
 		draw_string(
-			ThemeDB.fallback_font, screen_pos + Vector2(8, 4),
-			sf.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, color
+			ThemeDB.fallback_font,
+			rect.position + STOREFRONT_LABEL_PADDING + Vector2(0.0, STOREFRONT_LABEL_FONT_SIZE),
+			label_text,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			STOREFRONT_LABEL_FONT_SIZE,
+			label_color
 		)
+
+
+func get_storefront_label_text(storefront_name: String) -> String:
+	return storefront_name if storefront_name.length() <= 4 else storefront_name.left(4) + "…"
+
+
+func get_storefront_label_layout() -> Array[Dictionary]:
+	var layout: Array[Dictionary] = []
+	var occupied_rects: Array[Rect2] = []
+	for storefront in storefronts:
+		var diligence := GameManager.get_storefront_diligence(storefront.id)
+		if diligence == "not_viewed":
+			continue
+		var label := get_storefront_label_text(storefront.name)
+		var text_size := ThemeDB.fallback_font.get_string_size(
+			label,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			STOREFRONT_LABEL_FONT_SIZE
+		)
+		var label_size := text_size + STOREFRONT_LABEL_PADDING * 2.0
+		var anchor := _map_to_screen(storefront.map_position)
+		var candidate_offsets := [
+			Vector2(8.0, -label_size.y - 8.0),
+			Vector2(8.0, 8.0),
+			Vector2(-label_size.x - 8.0, -label_size.y - 8.0),
+			Vector2(-label_size.x - 8.0, 8.0),
+			Vector2(8.0, -label_size.y - 26.0),
+			Vector2(-label_size.x - 8.0, 26.0),
+		]
+		for offset in candidate_offsets:
+			var rect := Rect2(anchor + offset, label_size)
+			if _label_rect_overlaps(rect, occupied_rects):
+				continue
+			occupied_rects.append(rect)
+			layout.append({
+				"storefront_id": storefront.id,
+				"label": label,
+				"rect": rect,
+				"color": STOREFRONT_STATE_COLORS.get(diligence, Color.WHITE),
+			})
+			break
+	return layout
+
+
+func _label_rect_overlaps(candidate: Rect2, occupied_rects: Array[Rect2]) -> bool:
+	for occupied in occupied_rects:
+		if candidate.grow(2.0).intersects(occupied.grow(2.0)):
+			return true
+	return false

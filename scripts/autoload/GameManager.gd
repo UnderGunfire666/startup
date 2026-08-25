@@ -755,6 +755,33 @@ func get_missing_equipment_for_store(store: Store) -> Array[EquipmentData]:
 	return result
 
 
+func get_missing_placed_equipment_for_store(store: Store) -> Array[EquipmentData]:
+	var result: Array[EquipmentData] = []
+	if store == null:
+		return result
+	var seen: Dictionary = {}
+	for slot in store.category_slots:
+		var category := get_category(slot.category_id)
+		if category == null:
+			continue
+		var has_category_product := false
+		for config in slot.product_configs:
+			var product := get_product(config.product_id)
+			if product != null and not product.is_universal:
+				has_category_product = true
+				break
+		if not has_category_product:
+			continue
+		for equipment_id in category.required_equipment_ids:
+			if StoreLayoutEffects.has_placed_equipment(store, equipment_id) or seen.has(equipment_id):
+				continue
+			var item := get_equipment(equipment_id)
+			if item != null:
+				seen[equipment_id] = true
+				result.append(item)
+	return result
+
+
 func store_has_category_equipment(store: Store, category: CategoryData) -> bool:
 	if store == null or category == null:
 		return false
@@ -770,7 +797,7 @@ func store_has_category_equipment(store: Store, category: CategoryData) -> bool:
 	if not has_category_product:
 		return true
 	for equipment_id in category.required_equipment_ids:
-		if not store.has_equipment(equipment_id):
+		if not StoreLayoutEffects.has_placed_equipment(store, equipment_id):
 			return false
 	return true
 
@@ -779,11 +806,26 @@ func get_equipment_used_area(store: Store) -> float:
 	return store.get_equipment_used_area(all_equipment) if store != null else 0.0
 
 
+func _get_layout_footprint_sizes() -> Dictionary:
+	var footprints: Dictionary = {}
+	for equipment in all_equipment:
+		if equipment.area <= 1.3:
+			footprints[equipment.id] = Vector2i(1, 1)
+		elif equipment.area <= 2.5:
+			footprints[equipment.id] = Vector2i(2, 1)
+		else:
+			footprints[equipment.id] = Vector2i(2, 2)
+	return footprints
+
+
 func get_equipment_hourly_utility_cost(store: Store) -> float:
 	if store == null:
 		return 0.0
 	var total := 0.0
+	var placed_ids := StoreLayoutEffects.get_placed_instance_ids(store)
 	for owned in store.equipment:
+		if not placed_ids.has(owned.instance_id):
+			continue
 		var item := get_equipment(owned.equipment_id)
 		if item != null:
 			total += item.hourly_utility_cost
@@ -794,7 +836,10 @@ func get_storage_equipment_hourly_utility_cost(store: Store) -> float:
 	var total := 0.0
 	if store == null:
 		return total
+	var placed_ids := StoreLayoutEffects.get_placed_instance_ids(store)
 	for owned in store.equipment:
+		if not placed_ids.has(owned.instance_id):
+			continue
 		var item := get_equipment(owned.equipment_id)
 		if item != null and not item.storage_conditions.is_empty():
 			total += item.hourly_utility_cost
@@ -811,7 +856,10 @@ func get_ingredient_spoilage_ratios(store: Store) -> Dictionary:
 	for ingredient in all_ingredients:
 		var condition := ingredient.storage_condition
 		stock_by_condition[condition] = float(stock_by_condition.get(condition, 0.0)) + store.get_ingredient_stock(ingredient.id)
+	var placed_ids := StoreLayoutEffects.get_placed_instance_ids(store)
 	for owned in store.equipment:
+		if not placed_ids.has(owned.instance_id):
+			continue
 		var equipment := get_equipment(owned.equipment_id)
 		if equipment == null:
 			continue
@@ -1208,17 +1256,23 @@ func get_open_readiness() -> Dictionary:
 		"passed": has_category,
 	})
 
-	var missing_equipment := get_missing_equipment_for_store(store)
+	var missing_equipment := get_missing_placed_equipment_for_store(store)
 	var has_required_equipment := missing_equipment.is_empty()
 	var missing_names: Array[String] = []
 	for item in missing_equipment:
 		missing_names.append(item.name)
 	checks.append({
-		"label": "已配齐经营商品所需设备" + ("" if has_required_equipment else "（缺少：" + "、".join(missing_names) + "）"),
+		"label": "已摆放经营商品所需设备" + ("" if has_required_equipment else "（未摆放：" + "、".join(missing_names) + "）"),
 		"passed": has_required_equipment,
 	})
+	var storefront := get_storefront(store.signed_storefront_id) if store != null else null
+	var geometry := StorefrontLayoutGeometry.from_storefront(storefront) if storefront != null else null
+	var entrance_exists := StoreLayoutEffects.has_entrance(store, geometry)
+	var entrance_clear := StoreLayoutEffects.has_clear_entrance(store, geometry, _get_layout_footprint_sizes())
+	checks.append({"label": "已设置门面入口", "passed": entrance_exists})
+	checks.append({"label": "入口内侧保持净空", "passed": entrance_clear})
 
-	var can_open: bool = has_storefront and has_category and has_required_equipment
+	var can_open: bool = has_storefront and has_category and has_required_equipment and entrance_exists and entrance_clear
 
 	return {
 		"can_open": can_open,
@@ -1308,7 +1362,7 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 			scaled_storefront.flow_share = storefront.flow_share * product_share
 			var capture_modifier_add := EventManager.get_modifier_total(
 				GameEventDefinition.Scope.STOREFRONT, storefront.id, "capture_multiplier_add")
-			scaled_storefront.capture_modifier = maxf(0.0, storefront.capture_modifier * (1.0 + capture_modifier_add))
+			scaled_storefront.capture_modifier = maxf(0.0, storefront.capture_modifier * (1.0 + capture_modifier_add) * StoreLayoutEffects.get_capture_multiplier(store))
 
 			var product_instance: ProductData = product_template.duplicate()
 			product_instance.average_price = pc.get_effective_price(product_template)
@@ -1323,6 +1377,7 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 			var params: Dictionary = SettlementEngine.calculate_params_from_trade_area(
 				trade_area, scaled_storefront, category, product_instance,
 				store, player_state, hour, store.is_business_open, staffing_power)
+			params.layout_capture_multiplier = StoreLayoutEffects.get_capture_multiplier(store)
 			var visitor_multiplier_add := EventManager.get_modifier_total(
 				GameEventDefinition.Scope.STORE, store.id, "natural_visitors_multiplier_add")
 			if visitor_multiplier_add != 0.0:
@@ -1704,7 +1759,7 @@ func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, res
 	if store == null or storefront == null or _get_block_for_storefront(storefront) == null:
 		return
 	## 只要实际营业，门面所在道路带来的曝光就会累积；它不依赖本时段是否成交。
-	var awareness_gain_multiplier := _get_store_awareness_gain_multiplier(store, storefront)
+	var awareness_gain_multiplier := _get_store_awareness_gain_multiplier(store, storefront) * StoreLayoutEffects.get_awareness_multiplier(store)
 	var coverage_ratios := StorefrontInfluenceCalculator.get_covered_block_ratios(storefront, all_blocks)
 	var exposure_gain := get_storefront_road_exposure(storefront) * storefront.awareness_exposure_modifier * 0.05 * awareness_gain_multiplier
 	_apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, exposure_gain)

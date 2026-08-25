@@ -8,11 +8,12 @@ static func is_valid_placement(
 		grid_size: Vector2i,
 		placements: Array[StoreFurniturePlacement],
 		footprints: Dictionary,
-		available_cells: Dictionary = {}
+		available_cells: Dictionary = {},
+		reserved_cells: Array[Vector2i] = []
 	) -> bool:
 	var candidate_cells := _footprint_cells(candidate, proposed_cell, footprints)
 	for cell in candidate_cells:
-		if cell.x < 0 or cell.y < 0 or cell.x >= grid_size.x or cell.y >= grid_size.y or (not available_cells.is_empty() and not available_cells.has(cell)):
+		if cell.x < 0 or cell.y < 0 or cell.x >= grid_size.x or cell.y >= grid_size.y or (not available_cells.is_empty() and not available_cells.has(cell)) or cell in reserved_cells:
 			return false
 	for other in placements:
 		if other == candidate:

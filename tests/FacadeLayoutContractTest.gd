@@ -10,6 +10,7 @@ func _ready() -> void:
 	_test_drag_validation()
 	_test_3d_projection()
 	_test_3d_canvas_initialization()
+	_test_texture_decals()
 	_test_store_layout_round_trip()
 	_test_legacy_store_compatibility()
 	print("========== 门面布局测试：%d 通过 / %d 失败 ==========" % [_passed, _failed])
@@ -84,6 +85,39 @@ func _test_3d_canvas_initialization() -> void:
 	canvas.setup([_placement("signboard", Vector2i(4, 0))])
 	_expect(canvas.get_child_count() == 1 and canvas.get_child(0) is SubViewport, "3D 门面画布可创建独立 SubViewport")
 	_expect(canvas.is_using_orthographic_camera() and not canvas.allows_vertical_camera_rotation(), "门面 3D 使用正交相机且只允许水平旋转")
+	canvas.queue_free()
+
+
+func _test_texture_decals() -> void:
+	var source := LayoutSpriteCatalog.get_facade_region(Vector2(1869.0, 842.0), "window")
+	var fitted := LayoutSpriteCatalog.fit_source_in_rect(source.size, Rect2(Vector2.ZERO, Vector2(1.5, 1.5)), 0.04)
+	var atlas := load(LayoutSpriteCatalog.FACADE_ATLAS_PATH) as Texture2D
+	var cropped := LayoutSpriteCatalog.get_facade_3d_texture(atlas, "window")
+	_expect(source == Rect2(Vector2(1246.0, 0.0), Vector2(623.0, 842.0)), "门面图集可按组件类型裁切到正确单元")
+	_expect(LayoutSpriteCatalog.get_facade_region(Vector2(1869.0, 842.0), "unknown") == Rect2(), "未知门面组件不生成纹理区域并回退到色块")
+	_expect(cropped != null and cropped.get_size() == Vector2(623.0, 842.0) and cropped.get_size() != atlas.get_size() and LayoutSpriteCatalog.get_facade_3d_texture(atlas, "window") == cropped, "门面 3D 纹理是复用缓存的独立图集单元")
+	_expect(fitted.size.x <= 1.42 and fitted.size.y <= 1.42 and is_equal_approx(fitted.size.x / fitted.size.y, source.size.x / source.size.y), "门面贴花等比限制在组件正面安全范围内")
+	var canvas := Facade3DCanvas.new()
+	add_child(canvas)
+	var body := canvas._add_box(canvas._component_root, Vector3(1.5, 1.5, 0.18), Vector3.ZERO, Color.WHITE)
+	canvas._add_component_front_decal(body, Vector3(1.5, 1.5, 0.18), "window")
+	var body_material := body.material_override as StandardMaterial3D
+	var decal := body.get_node_or_null("FrontDecal") as MeshInstance3D
+	var decal_material := decal.material_override as StandardMaterial3D if decal != null else null
+	_expect(body_material != null and body_material.albedo_texture == null and decal_material != null and decal_material.albedo_texture is ImageTexture and not decal_material.texture_repeat, "门面盒体保持纯色，正面只使用独立且不重复的贴花")
+	var face_names := ["TopDecal", "FrontDecal", "BackSurface", "LeftSurface", "RightSurface"]
+	var all_faces_exist := true
+	for face_name in face_names:
+		all_faces_exist = all_faces_exist and body.get_node_or_null(face_name) is MeshInstance3D
+	_expect(all_faces_exist and body.get_node_or_null("BottomSurface") == null, "门面组件创建五个可见面且不创建底面")
+	var top_material := (body.get_node_or_null("TopDecal") as MeshInstance3D).material_override as StandardMaterial3D
+	var back_material := (body.get_node_or_null("BackSurface") as MeshInstance3D).material_override as StandardMaterial3D
+	var right := body.get_node_or_null("RightSurface") as MeshInstance3D
+	var right_mesh := right.mesh as PlaneMesh if right != null else null
+	_expect(top_material.albedo_texture is ImageTexture and back_material.albedo_texture == null and right_mesh.size == Vector2(0.18, 1.5), "门面顶/正面使用贴图，三侧保持主色并贴合盒体")
+	var unknown_body := canvas._add_box(canvas._component_root, Vector3.ONE, Vector3.ZERO, Color.WHITE)
+	canvas._add_component_front_decal(unknown_body, Vector3.ONE, "unknown")
+	_expect(unknown_body.get_child_count() == 0, "未知门面组件不创建五面贴图装饰")
 	canvas.queue_free()
 
 

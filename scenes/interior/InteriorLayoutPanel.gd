@@ -173,7 +173,7 @@ func _select_equipment(instance_id: String) -> void:
 
 
 func _refresh_canvas() -> void:
-	canvas.setup(grid_size, current_store.furniture_layout, layout_geometry.available_cells if layout_geometry != null else {})
+	canvas.setup(grid_size, current_store.furniture_layout, layout_geometry, _get_interior_entrance_cells(), _get_equipment_names())
 	canvas.set_selected(selected_placement_instance_id)
 	rotate_button.disabled = selected_placement_instance_id.is_empty()
 	delete_button.disabled = selected_placement_instance_id.is_empty()
@@ -185,6 +185,22 @@ func _refresh_interior_3d_canvas() -> void:
 	interior_3d_canvas.set_selected(selected_placement_instance_id)
 	interior_3d_rotate_button.disabled = selected_placement_instance_id.is_empty()
 	interior_3d_delete_button.disabled = selected_placement_instance_id.is_empty()
+
+
+func _get_interior_entrance_cells() -> Array[Vector2i]:
+	if layout_geometry == null:
+		return []
+	for placement in current_store.facade_layout:
+		if placement.type == "entrance":
+			return layout_geometry.get_interior_entrance_cells(placement)
+	return []
+
+
+func _get_equipment_names() -> Dictionary:
+	var names: Dictionary = {}
+	for definition in GameManager.all_equipment:
+		names[definition.id] = definition.name
+	return names
 
 
 func _on_canvas_cell_pressed(cell: Vector2i) -> void:
@@ -202,7 +218,7 @@ func _on_canvas_cell_pressed(cell: Vector2i) -> void:
 		var selected_placement := _find_placement(selected_placement_instance_id)
 		if selected_placement != null:
 			var old_cell := selected_placement.cell
-			selected_placement.cell = cell
+			selected_placement.cell = _display_to_physical_anchor(selected_placement, cell)
 			if not _is_valid_placement(selected_placement):
 				selected_placement.cell = old_cell
 				status_label.text = "位置越界或与其他设备重叠"
@@ -224,7 +240,7 @@ func _on_canvas_cell_pressed(cell: Vector2i) -> void:
 		placement.instance_id = selected_equipment_instance_id
 		placement.equipment_id = equipment.equipment_id
 		current_store.furniture_layout.append(placement)
-	placement.cell = cell
+	placement.cell = _display_to_physical_anchor(placement, cell)
 	if not _is_valid_placement(placement):
 		if created:
 			current_store.furniture_layout.erase(placement)
@@ -239,7 +255,8 @@ func _on_canvas_cell_pressed(cell: Vector2i) -> void:
 
 func _find_placement_at(cell: Vector2i) -> StoreFurniturePlacement:
 	for placement in current_store.furniture_layout:
-		if cell in placement.get_footprint_cells(canvas.get_footprint_size(placement.equipment_id)):
+		var display_rect := _get_display_rect(placement)
+		if Rect2i(display_rect.cell, display_rect.size).has_point(cell):
 			return placement
 	return null
 
@@ -263,7 +280,21 @@ func _is_valid_placement(candidate: StoreFurniturePlacement) -> bool:
 
 
 func _is_valid_placement_at(candidate: StoreFurniturePlacement, cell: Vector2i) -> bool:
-	return InteriorLayoutValidator.is_valid_placement(candidate, cell, grid_size, current_store.furniture_layout, _get_footprint_sizes(), layout_geometry.available_cells if layout_geometry != null else {})
+	return InteriorLayoutValidator.is_valid_placement(candidate, cell, grid_size, current_store.furniture_layout, _get_footprint_sizes(), layout_geometry.available_cells if layout_geometry != null else {}, _get_interior_entrance_cells())
+
+
+func _display_to_physical_anchor(placement: StoreFurniturePlacement, display_cell: Vector2i) -> Vector2i:
+	if layout_geometry == null:
+		return display_cell
+	return layout_geometry.display_to_physical_placement_cell(display_cell, canvas.get_footprint_size(placement.equipment_id), placement.rotation)
+
+
+func _get_display_rect(placement: StoreFurniturePlacement) -> Dictionary:
+	var footprint := canvas.get_footprint_size(placement.equipment_id)
+	if layout_geometry != null:
+		return layout_geometry.get_display_placement_rect(placement.cell, footprint, placement.rotation)
+	var size := footprint if placement.rotation % 2 == 0 else Vector2i(footprint.y, footprint.x)
+	return {"cell": placement.cell, "size": size}
 
 
 func _get_footprint_sizes() -> Dictionary:
@@ -283,7 +314,7 @@ func _on_placement_drag_started(instance_id: String) -> void:
 func _on_placement_drag_previewed(instance_id: String, cell: Vector2i) -> void:
 	var placement := _find_placement(instance_id)
 	if placement != null:
-		var is_valid := _is_valid_placement_at(placement, cell)
+		var is_valid := _is_valid_placement_at(placement, _display_to_physical_anchor(placement, cell))
 		canvas.set_drag_preview_valid(is_valid)
 		interior_3d_canvas.set_drag_preview_valid(is_valid)
 
@@ -292,11 +323,12 @@ func _on_placement_drop_requested(instance_id: String, cell: Vector2i) -> void:
 	var placement := _find_placement(instance_id)
 	if placement == null:
 		return
-	if not _is_valid_placement_at(placement, cell):
+	var physical_cell := _display_to_physical_anchor(placement, cell)
+	if not _is_valid_placement_at(placement, physical_cell):
 		status_label.text = "位置越界或与其他设备重叠"
 		_refresh_canvas()
 		return
-	placement.cell = cell
+	placement.cell = physical_cell
 	selected_placement_instance_id = instance_id
 	status_label.text = "已移动设备"
 	_commit_layout()
@@ -357,7 +389,7 @@ func _select_facade_type(type: String) -> void:
 func _refresh_facade_canvas() -> void:
 	facade_canvas.setup(current_store.facade_layout, facade_grid_size)
 	facade_canvas.set_selected(selected_facade_placement)
-	facade_3d_canvas.setup(current_store.facade_layout, facade_grid_size)
+	facade_3d_canvas.setup(current_store.facade_layout, facade_grid_size, layout_geometry)
 	facade_3d_canvas.set_selected(selected_facade_placement)
 	facade_delete_button.disabled = selected_facade_placement == null
 	facade_3d_delete_button.disabled = selected_facade_placement == null

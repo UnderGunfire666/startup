@@ -27,6 +27,7 @@ var drag_start_position := Vector2.ZERO
 var drag_preview_cell := Vector2i.ZERO
 var drag_preview_valid := false
 var drag_has_moved := false
+var facade_atlas: Texture2D = preload("res://assets/layout/facade_atlas.png")
 
 
 func setup(layout: Array[StoreFacadePlacement], size: Vector2i = FacadeLayoutValidator.GRID_SIZE) -> void:
@@ -115,9 +116,23 @@ func _draw_placement(placement: StoreFacadePlacement, cell: Vector2i, preview: b
 	var rect := Rect2(GRID_ORIGIN + Vector2(cell) * CELL_SIZE + Vector2(4.0, 4.0), Vector2(size) * CELL_SIZE - Vector2(8.0, 8.0))
 	var color: Color = Color("#63c6a6", 0.55) if preview and valid else Color("#e06c75", 0.55) if preview else TYPE_COLORS.get(placement.type, Color.WHITE)
 	draw_rect(rect, color, true)
+	if not preview:
+		_draw_component_sprite(rect, placement.type)
 	var border := Color("#ffffff", 0.8) if preview else Color("#f6e7b0") if placement == selected_placement else Color("#e8f1ed")
 	draw_rect(rect, border, false, 2.0)
 	var font := ThemeDB.fallback_font
 	var text := str(TYPE_LABELS.get(placement.type, placement.type))
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 18)
-	draw_string(font, rect.get_center() - text_size * 0.5 + Vector2(0.0, 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color.WHITE)
+	var label_rect := Rect2(rect.position.x + 2.0, rect.end.y - 26.0, rect.size.x - 4.0, 24.0)
+	draw_rect(label_rect, Color(0.04, 0.08, 0.1, 0.78), true)
+	draw_string(font, Vector2(label_rect.get_center().x - text_size.x * 0.5, label_rect.get_center().y + text_size.y * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color.WHITE)
+
+
+func _draw_component_sprite(rect: Rect2, type: String) -> void:
+	if facade_atlas == null:
+		return
+	var source := LayoutSpriteCatalog.get_facade_region(facade_atlas.get_size(), type)
+	if source.size == Vector2.ZERO:
+		return
+	var target := LayoutSpriteCatalog.fit_source_in_rect(source.size, rect, 5.0)
+	draw_texture_rect_region(facade_atlas, target, source)

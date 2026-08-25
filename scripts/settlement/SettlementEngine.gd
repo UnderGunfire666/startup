@@ -121,6 +121,10 @@ static func finalize_from_simulation(
 		{"label": "\u7279\u8d28", "value": r.trait_modifier},
 	]
 
+	var layout_capture_multiplier := float(params.get("layout_capture_multiplier", 1.0))
+	if not is_equal_approx(layout_capture_multiplier, 1.0):
+		r.modifiers.append({"label": "layout_signboard", "value": layout_capture_multiplier - 1.0})
+
 	if not r.is_open or sim == null:
 		r.rent_cost = params.get("rent_cost", 0.0)
 		r.utility_cost = params.get("utility_cost", 0.0)

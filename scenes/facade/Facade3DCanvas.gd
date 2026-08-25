@@ -15,6 +15,7 @@ const CAMERA_FIXED_HEIGHT := 2.5
 
 var placements: Array[StoreFacadePlacement] = []
 var grid_size := FacadeLayoutValidator.GRID_SIZE
+var layout_geometry: StorefrontLayoutGeometry = null
 var selected_placement: StoreFacadePlacement = null
 var dragging_placement: StoreFacadePlacement = null
 var drag_start_position := Vector2.ZERO
@@ -46,9 +47,10 @@ func _ready() -> void:
 	_rebuild_scene()
 
 
-func setup(layout: Array[StoreFacadePlacement], size: Vector2i = FacadeLayoutValidator.GRID_SIZE) -> void:
+func setup(layout: Array[StoreFacadePlacement], size: Vector2i = FacadeLayoutValidator.GRID_SIZE, geometry: StorefrontLayoutGeometry = null) -> void:
 	placements = layout
-	grid_size = size
+	layout_geometry = geometry
+	grid_size = geometry.get_facade_grid_size() if geometry != null else size
 	if is_instance_valid(_component_root):
 		_rebuild_scene()
 
@@ -110,7 +112,22 @@ func _create_world() -> void:
 
 func _create_static_geometry() -> void:
 	var wall_size := Vector3(float(grid_size.x) * FacadeProjection3D.CELL_WORLD_SIZE, float(grid_size.y) * FacadeProjection3D.CELL_WORLD_SIZE, FacadeProjection3D.WALL_DEPTH)
-	_add_box(_static_root, wall_size, Vector3(0.0, wall_size.y * 0.5, 0.0), Color("#344754"))
+	var entrance: StoreFacadePlacement = null
+	for placement in placements:
+		if placement.type == "entrance":
+			entrance = placement
+			break
+	if entrance == null:
+		_add_box(_static_root, wall_size, Vector3(0.0, wall_size.y * 0.5, 0.0), Color("#344754"))
+	else:
+		var opening_width := float(FacadeLayoutValidator.get_footprint_size("entrance").x) * FacadeProjection3D.CELL_WORLD_SIZE
+		var opening_center := (float(entrance.cell.x) + 1.0 - float(grid_size.x) * 0.5) * FacadeProjection3D.CELL_WORLD_SIZE
+		var left_width := maxf(0.0, opening_center - opening_width * 0.5 + wall_size.x * 0.5)
+		var right_width := maxf(0.0, wall_size.x * 0.5 - (opening_center + opening_width * 0.5))
+		if left_width > 0.0:
+			_add_box(_static_root, Vector3(left_width, wall_size.y, wall_size.z), Vector3(-wall_size.x * 0.5 + left_width * 0.5, wall_size.y * 0.5, 0.0), Color("#344754"))
+		if right_width > 0.0:
+			_add_box(_static_root, Vector3(right_width, wall_size.y, wall_size.z), Vector3(wall_size.x * 0.5 - right_width * 0.5, wall_size.y * 0.5, 0.0), Color("#344754"))
 	_add_box(_static_root, Vector3(float(grid_size.x) * FacadeProjection3D.CELL_WORLD_SIZE + 1.0, 0.18, 2.5), Vector3(0.0, -0.09, 1.2), Color("#25333b"))
 	var grid_color := Color(0.66, 0.78, 0.83, 0.34)
 	for x in range(grid_size.x + 1):
@@ -150,7 +167,9 @@ func _rebuild_scene() -> void:
 		var color := FacadeProjection3D.get_type_color(placement.type)
 		if placement == selected_placement:
 			color = color.lightened(0.22)
-		_add_box(_component_root, FacadeProjection3D.get_world_size(placement.type), FacadeProjection3D.get_world_position(placement.type, placement.cell, grid_size), color)
+		var box_size := FacadeProjection3D.get_world_size(placement.type)
+		var component := _add_box(_component_root, box_size, FacadeProjection3D.get_world_position(placement.type, placement.cell, grid_size), color)
+		_add_component_front_decal(component, box_size, placement.type, color)
 	_rebuild_preview()
 
 
@@ -160,6 +179,16 @@ func _rebuild_preview() -> void:
 	if dragging_placement != null and drag_has_moved:
 		var preview_color := Color("#63c6a6", 0.56) if drag_preview_valid else Color("#e06c75", 0.56)
 		_add_box(_preview_root, FacadeProjection3D.get_world_size(dragging_placement.type), FacadeProjection3D.get_world_position(dragging_placement.type, drag_preview_cell, grid_size), preview_color, true)
+
+
+func _add_component_front_decal(instance: MeshInstance3D, box_size: Vector3, type: String, side_color: Color = Color("#344754")) -> void:
+	var atlas := load(LayoutSpriteCatalog.FACADE_ATLAS_PATH) as Texture2D
+	if atlas == null:
+		return
+	var texture := LayoutSpriteCatalog.get_facade_3d_texture(atlas, type)
+	if texture == null:
+		return
+	LayoutBoxSurfaceDecor.add_five_faces(instance, box_size, texture, side_color)
 
 
 func _update_camera() -> void:

@@ -49,6 +49,121 @@ func get_available_cell_array() -> Array[Vector2i]:
 	return result
 
 
+func get_display_available_cells() -> Dictionary:
+	var result: Dictionary = {}
+	for cell in available_cells.keys():
+		result[physical_to_display_cell(cell)] = true
+	return result
+
+
+func get_display_available_cell_array() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for cell in get_display_available_cells().keys():
+		result.append(cell)
+	return result
+
+
+func get_outer_wall_segments() -> Array[Dictionary]:
+	var segments: Array[Dictionary] = []
+	for cell in get_available_cell_array():
+		for side in ["north", "east", "south", "west"]:
+			var adjacent := cell + _side_offset(side)
+			if not is_available(adjacent):
+				segments.append({"cell": cell, "side": side})
+	return segments
+
+
+func get_display_outer_wall_segments() -> Array[Dictionary]:
+	var segments: Array[Dictionary] = []
+	for segment in get_outer_wall_segments():
+		segments.append({
+			"cell": physical_to_display_cell(segment.cell),
+			"side": physical_to_display_side(str(segment.side)),
+		})
+	return segments
+
+
+func get_display_grid_size() -> Vector2i:
+	return Vector2i(grid_size.y, grid_size.x) if frontage_side == "east" or frontage_side == "west" else grid_size
+
+
+func physical_to_display_cell(cell: Vector2i) -> Vector2i:
+	match frontage_side:
+		"north":
+			return Vector2i(grid_size.x - 1 - cell.x, grid_size.y - 1 - cell.y)
+		"east":
+			return Vector2i(grid_size.y - 1 - cell.y, cell.x)
+		"west":
+			return Vector2i(cell.y, grid_size.x - 1 - cell.x)
+	return cell
+
+
+func display_to_physical_cell(cell: Vector2i) -> Vector2i:
+	match frontage_side:
+		"north":
+			return Vector2i(grid_size.x - 1 - cell.x, grid_size.y - 1 - cell.y)
+		"east":
+			return Vector2i(cell.y, grid_size.y - 1 - cell.x)
+		"west":
+			return Vector2i(grid_size.x - 1 - cell.y, cell.x)
+	return cell
+
+
+func physical_to_display_side(side: String) -> String:
+	match frontage_side:
+		"north":
+			match side:
+				"north": return "south"
+				"east": return "west"
+				"south": return "north"
+				"west": return "east"
+		"east":
+			match side:
+				"north": return "east"
+				"east": return "south"
+				"south": return "west"
+				"west": return "north"
+		"west":
+			match side:
+				"north": return "west"
+				"east": return "north"
+				"south": return "east"
+				"west": return "south"
+	return side
+
+
+func physical_to_display_rotation(rotation: int) -> int:
+	var offset := 0
+	match frontage_side:
+		"east": offset = 1
+		"north": offset = 2
+		"west": offset = 3
+	return posmod(rotation + offset, 4)
+
+
+func get_display_placement_rect(physical_cell: Vector2i, footprint: Vector2i, rotation: int) -> Dictionary:
+	var rotated_size := footprint if posmod(rotation, 2) == 0 else Vector2i(footprint.y, footprint.x)
+	var min_cell := Vector2i(999999, 999999)
+	var max_cell := Vector2i(-999999, -999999)
+	for y in range(rotated_size.y):
+		for x in range(rotated_size.x):
+			var display_cell := physical_to_display_cell(physical_cell + Vector2i(x, y))
+			min_cell = Vector2i(mini(min_cell.x, display_cell.x), mini(min_cell.y, display_cell.y))
+			max_cell = Vector2i(maxi(max_cell.x, display_cell.x), maxi(max_cell.y, display_cell.y))
+	return {"cell": min_cell, "size": max_cell - min_cell + Vector2i.ONE, "rotation": physical_to_display_rotation(rotation)}
+
+
+func display_to_physical_placement_cell(display_cell: Vector2i, footprint: Vector2i, rotation: int) -> Vector2i:
+	var display_rotation := physical_to_display_rotation(rotation)
+	var display_size := footprint if posmod(display_rotation, 2) == 0 else Vector2i(footprint.y, footprint.x)
+	var min_cell := Vector2i(999999, 999999)
+	for y in range(display_size.y):
+		for x in range(display_size.x):
+			var physical_cell := display_to_physical_cell(display_cell + Vector2i(x, y))
+			min_cell = Vector2i(mini(min_cell.x, physical_cell.x), mini(min_cell.y, physical_cell.y))
+	return min_cell
+
+
 func get_facade_grid_size() -> Vector2i:
 	return Vector2i(frontage_length, FACADE_HEIGHT_CELLS)
 
@@ -66,6 +181,13 @@ func get_interior_entrance_cells(facade_entrance: StoreFacadePlacement) -> Array
 	for index in range(ENTRANCE_WIDTH_CELLS):
 		var along := clampi(offset + index, 0, frontage_length - 1)
 		cells.append(_frontage_cell_at(frontage_start + along))
+	return cells
+
+
+func get_display_interior_entrance_cells(facade_entrance: StoreFacadePlacement) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for cell in get_interior_entrance_cells(facade_entrance):
+		cells.append(physical_to_display_cell(cell))
 	return cells
 
 
@@ -98,3 +220,14 @@ func _frontage_cell_at(along: int) -> Vector2i:
 		"west":
 			return Vector2i(0, along)
 	return Vector2i(along, grid_size.y - 1)
+
+
+func _side_offset(side: String) -> Vector2i:
+	match side:
+		"north":
+			return Vector2i(0, -1)
+		"east":
+			return Vector2i(1, 0)
+		"south":
+			return Vector2i(0, 1)
+	return Vector2i(-1, 0)

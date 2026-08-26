@@ -35,7 +35,7 @@ func _test_research_notice_effect_cooldown_and_save() -> void:
 		"difficulty_id": "normal", "preset_id": "", "trait_ids": [],
 	})
 	_assert_true(bool(created.get("success", false)), "character creation succeeds")
-	var block := GameManager.get_block("cc_primary_school_1")
+	var block := GameManager.get_block("block_w_school")
 	_assert_true(block != null, "research test block exists")
 	if block == null:
 		return
@@ -83,7 +83,7 @@ func _test_store_operating_event_modifier() -> void:
 
 func _test_player_block_event_definition_and_effect() -> void:
 	EventManager.reset_for_new_game()
-	var block := GameManager.get_block("cc_primary_school_1")
+	var block := GameManager.get_block("block_w_school")
 	_assert_true(block != null, "player block event test block exists")
 	if block == null:
 		return
@@ -112,8 +112,8 @@ func _test_store_disruption_event_modifiers() -> void:
 
 func _test_block_activity_modifier_and_trade_area() -> void:
 	EventManager.reset_for_new_game()
-	var block := GameManager.get_block("cc_primary_school_1")
-	var storefront := GameManager.get_storefront("S006")
+	var block := GameManager.get_block("block_w_school")
+	var storefront := GameManager.get_storefront("sf_school_stationery")
 	var category: CategoryData = GameManager.all_categories[0] if not GameManager.all_categories.is_empty() else null
 	_assert_true(block != null and storefront != null and category != null, "block activity trade-area test data exists")
 	if block == null or storefront == null or category == null:
@@ -134,7 +134,7 @@ func _test_block_activity_modifier_and_trade_area() -> void:
 
 func _test_city_region_activity_modifier_and_trade_area() -> void:
 	EventManager.reset_for_new_game()
-	var storefront := GameManager.get_storefront("S006")
+	var storefront := GameManager.get_storefront("sf_school_stationery")
 	var category: CategoryData = GameManager.all_categories[0] if not GameManager.all_categories.is_empty() else null
 	_assert_true(storefront != null and category != null, "city-region activity trade-area test data exists")
 	if storefront == null or category == null:
@@ -152,7 +152,7 @@ func _test_city_region_activity_modifier_and_trade_area() -> void:
 
 func _test_storefront_capture_event() -> void:
 	EventManager.reset_for_new_game()
-	var storefront := GameManager.get_storefront("S006")
+	var storefront := GameManager.get_storefront("sf_school_stationery")
 	_assert_true(storefront != null, "storefront capture event test data exists")
 	if storefront == null:
 		return
@@ -169,7 +169,7 @@ func _test_storefront_capture_event() -> void:
 
 func _test_player_scoped_event_context_and_effects() -> void:
 	EventManager.reset_for_new_game()
-	var block := GameManager.get_block("cc_primary_school_1")
+	var block := GameManager.get_block("block_w_school")
 	_assert_true(block != null, "player event context test data exists")
 	if block == null:
 		return
@@ -226,12 +226,14 @@ func _make_capture_test_trade_area() -> TradeAreaSnapshot:
 func _test_store_awareness_save() -> void:
 	var store := Store.new()
 	store.awareness_by_block["block_test"] = 4.5
+	store.last_awareness_update = {"day": 3, "coverage_ratios": {"block_test": 0.5}, "total_gain": 0.25}
 	var restored := Store.from_save_dict(store.to_save_dict())
 	_assert_true(is_equal_approx(float(restored.awareness_by_block.get("block_test", 0.0)), 4.5), "store awareness by block survives save round trip")
+	_assert_true(int(restored.last_awareness_update.get("day", 0)) == 3 and is_equal_approx(float(restored.last_awareness_update.get("total_gain", 0.0)), 0.25), "latest awareness update snapshot survives save round trip")
 
 
 func _test_awareness_growth_sources() -> void:
-	var storefront := GameManager.get_storefront("S006")
+	var storefront := GameManager.get_storefront("sf_school_stationery")
 	_assert_true(storefront != null, "awareness growth test storefront exists")
 	if storefront == null:
 		return
@@ -240,16 +242,18 @@ func _test_awareness_growth_sources() -> void:
 	if local_block == null:
 		return
 	var store := Store.new()
-	GameManager._apply_store_awareness_growth(store, storefront, [], 0)
+	var exposure_snapshot := GameManager._apply_store_awareness_growth(store, storefront, [], 0)
 	var exposure_awareness := float(store.awareness_by_block.get(local_block.id, 0.0))
 	_assert_true(exposure_awareness > 0.0, "road exposure grows local awareness even without orders")
+	_assert_true(float(exposure_snapshot.get("exposure_base_gain", 0.0)) > 0.0 and is_zero_approx(float(exposure_snapshot.get("word_of_mouth_base_gain", -1.0))), "awareness snapshot separates exposure from zero-order word of mouth")
 	var result := SettlementResult.new()
 	result.is_open = true
 	result.actual_orders = 10
 	result.average_queue_wait_seconds = 0.0
 	result.reputation_delta = 0.4
-	GameManager._apply_store_awareness_growth(store, storefront, [result], result.actual_orders)
+	var word_of_mouth_snapshot := GameManager._apply_store_awareness_growth(store, storefront, [result], result.actual_orders)
 	_assert_true(float(store.awareness_by_block.get(local_block.id, 0.0)) > exposure_awareness, "completed orders add word-of-mouth awareness")
+	_assert_true(float(word_of_mouth_snapshot.get("word_of_mouth_base_gain", 0.0)) > 0.0 and not word_of_mouth_snapshot.get("coverage_ratios", {}).is_empty(), "awareness snapshot records covered blocks and completed-order word of mouth")
 	var another_block_id := ""
 	for block in GameManager.all_blocks:
 		if block.id != local_block.id:
@@ -258,16 +262,32 @@ func _test_awareness_growth_sources() -> void:
 	_assert_true(float(store.awareness_by_block.get(another_block_id, 0.0)) > 0.0, "word of mouth spreads awareness beyond the storefront block")
 
 func _test_destination_visitors() -> void:
-	var block := GameManager.get_block("cc_primary_school_1")
+	var block := GameManager.get_block("block_w_school")
 	_assert_true(block != null, "destination visitor test block exists")
 	if block == null:
+		return
+	var outside_block: BlockData = null
+	for candidate in GameManager.all_blocks:
+		if candidate.city_region_id == block.city_region_id and candidate.id != block.id:
+			outside_block = candidate
+			break
+	_assert_true(outside_block != null, "destination visitor test has another block in the same city")
+	if outside_block == null:
 		return
 	var store := Store.new()
 	store.reputation = 80.0
 	store.awareness_by_block[block.id] = 100.0
+	store.awareness_by_block[outside_block.id] = 100.0
 	var storefront := StorefrontData.new()
 	storefront.map_position = block.center_position
+	storefront.city_region_id = block.city_region_id
 	_assert_true(GameManager.get_destination_visitors(store, storefront, 1.0) > 0, "awareness and reputation create destination visitors")
+	var sources := GameManager.get_destination_visitor_sources(store, storefront)
+	var excludes_local := true
+	for source in sources:
+		if str(source.get("block_id", "")) == block.id:
+			excludes_local = false
+	_assert_true(excludes_local, "destination visitors exclude the storefront's own block")
 	store.reputation = 0.0
 	_assert_true(GameManager.get_destination_visitors(store, storefront, 1.0) == 0, "zero reputation prevents destination visitors")
 
@@ -327,13 +347,15 @@ func _test_store_interrupt() -> void:
 	_assert_true(EventManager.pending_interrupts.is_empty() and EventManager.event_history.back().event_id == "store_equipment_failure", "acknowledged interrupt moves to event history")
 
 func _test_road_exposure_lookup() -> void:
-	var storefront := StorefrontData.new()
-	storefront.road_segment_id = "road_cc_main_1"
+	var storefront := GameManager.get_storefront("sf_school_stationery")
+	_assert_true(storefront != null, "road exposure test storefront exists")
+	if storefront == null:
+		return
 	_assert_true(GameManager.get_storefront_road_exposure(storefront) > 0.0, "storefront reads exposure from its road segment")
 
 func _test_destination_road_distance() -> void:
-	var block := GameManager.get_block("cc_primary_school_1")
-	var storefront := GameManager.get_storefront("S006")
+	var block := GameManager.get_block("block_w_school")
+	var storefront := GameManager.get_storefront("sf_school_stationery")
 	_assert_true(block != null and storefront != null, "road distance test data exists")
 	if block != null and storefront != null:
 		_assert_true(GameManager.get_block_to_storefront_road_distance(block, storefront) > 0.0, "destination distance resolves through the road graph")

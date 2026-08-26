@@ -67,6 +67,9 @@ static func get_blocks() -> Array[BlockData]:
 	var result: Array[BlockData] = []
 
 	for item in raw:
+		var market_profile: Dictionary = item.get("market_profile", {})
+		if not _is_valid_block_market_profile(item, market_profile):
+			continue
 		var block := BlockData.new()
 		block.id = str(item.get("id", ""))
 		block.name = str(item.get("name", ""))
@@ -86,32 +89,32 @@ static func get_blocks() -> Array[BlockData]:
 		block.development_factor = float(item.get("development_factor", 1.0))
 		block.accessibility = float(item.get("accessibility", 0.8))
 
-		var raw_time_profile: Dictionary = item.get("active_time_profile", {})
+		var raw_time_profile: Dictionary = market_profile.get("active_time_profile", item.get("active_time_profile", {}))
 		var time_profile := SpatialConfig.make_empty_time_profile()
 		for period in SpatialConfig.TIME_PERIODS:
 			time_profile[period] = float(raw_time_profile.get(period, 1.0))
 		block.active_time_profile = time_profile
 
-		var raw_weights: Dictionary = item.get("group_supply_weights", {})
+		var raw_weights: Dictionary = market_profile.get("group_supply_weights", item.get("group_supply_weights", {}))
 		var group_weights := SpatialConfig.make_empty_group_weights()
 		for group_id in SpatialConfig.POPULATION_GROUPS:
 			group_weights[group_id] = float(raw_weights.get(group_id, 0.0))
 		block.group_supply_weights = group_weights
 
-		var raw_spending: Dictionary = item.get("spending_profile", {})
+		var raw_spending: Dictionary = market_profile.get("spending_profile", item.get("spending_profile", {}))
 		block.spending_profile = {
 			"price_sensitivity": float(raw_spending.get("price_sensitivity", 0.5)),
 			"quality_preference": float(raw_spending.get("quality_preference", 0.5)),
 			"spend_potential_tier": str(raw_spending.get("spend_potential_tier", "medium")),
 		}
 
-		var raw_demand_tags: Array = item.get("business_demand_tags", [])
+		var raw_demand_tags: Array = market_profile.get("business_demand_tags", item.get("business_demand_tags", []))
 		var typed_demand_tags: Array[String] = []
 		for tag in raw_demand_tags:
 			typed_demand_tags.append(str(tag))
 		block.business_demand_tags = typed_demand_tags
 
-		var raw_competition: Dictionary = item.get("competition_profile", {})
+		var raw_competition: Dictionary = market_profile.get("competition_profile", item.get("competition_profile", {}))
 		block.competition_profile = {
 			"competition_level": str(raw_competition.get("competition_level", "medium")),
 			"rent_pressure": str(raw_competition.get("rent_pressure", "medium")),
@@ -130,6 +133,31 @@ static func get_blocks() -> Array[BlockData]:
 		result.append(block)
 
 	return result
+
+
+static func _is_valid_block_market_profile(item: Dictionary, profile: Dictionary) -> bool:
+	var block_id := str(item.get("id", "<missing>"))
+	var block_type := str(item.get("block_type", ""))
+	if not SpatialConfig.is_valid_block_type(block_type):
+		push_error("GameData: 区块[%s]的 block_type 无效：%s" % [block_id, block_type])
+		return false
+	var weights: Dictionary = profile.get("group_supply_weights", item.get("group_supply_weights", {}))
+	var total := 0.0
+	for group_id in SpatialConfig.POPULATION_GROUPS:
+		var weight := float(weights.get(group_id, -1.0))
+		if weight < 0.0:
+			push_error("GameData: 区块[%s]缺少或含有负的人群权重：%s" % [block_id, group_id])
+			return false
+		total += weight
+	if total <= 0.0001 or not is_equal_approx(total, 1.0):
+		push_error("GameData: 区块[%s]人群权重必须归一化为 1，当前为 %.3f" % [block_id, total])
+		return false
+	var time_profile: Dictionary = profile.get("active_time_profile", item.get("active_time_profile", {}))
+	for period in SpatialConfig.TIME_PERIODS:
+		if float(time_profile.get(period, -1.0)) < 0.0:
+			push_error("GameData: 区块[%s]缺少或含有负的时段配置：%s" % [block_id, period])
+			return false
+	return true
 
 static func get_storefronts() -> Array[StorefrontData]:
 	var raw: Array = _load_json_array(DATA_DIR + "storefronts.json")

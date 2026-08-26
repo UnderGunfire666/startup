@@ -26,6 +26,8 @@ extends Control
 	$DayEndPanel
 @onready var map_panel: Control = \
 	$MarginContainer/RootVBox/MainTabs/MapPanel
+@onready var discovery_panel: DiscoveryPanel = \
+	$MarginContainer/RootVBox/MainTabs/DiscoveryPanel
 @onready var store_list_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/StoreListPanel
 @onready var interior_layout_panel: Control = $InteriorLayoutPanel
@@ -48,12 +50,14 @@ func _ready() -> void:
 	save_load_bar.data_changed.connect(_on_data_changed)
 	GameManager.active_store_changed.connect(_on_active_store_changed)
 	GameManager.store_plan_updated.connect(_on_store_plan_updated)
+	BlockDiscoveryManager.discovery_recorded.connect(func(_record: Dictionary) -> void: discovery_panel.refresh())
 	_refresh_all_panels()
 
 func _setup_tab_titles() -> void:
 	main_tabs.set_tab_title(0, "个人")
 	main_tabs.set_tab_title(1, "店铺")
 	main_tabs.set_tab_title(2, "地图")
+	main_tabs.set_tab_title(3, "发现")
 	player_sub_tabs.set_tab_title(0, "创建角色")
 	store_sub_tabs.set_tab_title(0, "我的店铺")
 	store_sub_tabs.set_tab_title(1, "营业")
@@ -75,6 +79,7 @@ func _refresh_all_panels() -> void:
 	_refresh_history_panel()
 	_refresh_employee_panel()
 	_refresh_map_panel()
+	_refresh_discovery_panel()
 	store_list_panel.refresh()
 
 func _on_active_store_changed(_store_id: String) -> void:
@@ -130,6 +135,7 @@ func _on_settlement_done(results: Array) -> void:
 	_refresh_operation_panel()
 	report_panel.display(results)
 	_refresh_history_panel()
+	_refresh_map_panel()
 
 func _on_day_ended(day: int, summary: Dictionary) -> void:
 	day_end_panel.show_summary(day, summary)
@@ -146,6 +152,8 @@ func _refresh_character_panel() -> void:
 	character_creation_panel.refresh()
 func _refresh_map_panel() -> void:
 	map_panel.refresh()
+func _refresh_discovery_panel() -> void:
+	discovery_panel.refresh()
 func _refresh_category_panel() -> void:
 	category_manager_panel.refresh()
 func _refresh_procurement_panel() -> void:

@@ -31,6 +31,10 @@ var energy_debt: float = 0.0
 var region_intel_levels: Dictionary = {}
 var region_intel_progress: Dictionary = {}
 var block_understanding: Dictionary = {}
+## { block_id: { discovery_id: highest_tier } }. The timeline keeps every
+## first discovery and later upgrade, while this map drives current cards.
+var block_discovery_progress: Dictionary = {}
+var discovery_history: Array[Dictionary] = []
 var storefront_diligence: Dictionary = {}
 ## 完整尽调是可中断的连续行动；这里保存门面的累计勘验进度（0-100）。
 var storefront_diligence_progress: Dictionary = {}
@@ -292,6 +296,8 @@ func to_save_dict() -> Dictionary:
 		"region_intel_levels": region_intel_levels,
 		"region_intel_progress": region_intel_progress,
 		"block_understanding": block_understanding,
+		"block_discovery_progress": block_discovery_progress,
+		"discovery_history": discovery_history,
 		"storefront_diligence": storefront_diligence,
 		"storefront_diligence_progress": storefront_diligence_progress,
 		"survey_areas": _survey_areas_to_save_data(),
@@ -334,6 +340,10 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p.region_intel_levels = data.get("region_intel_levels", {})
 	p.region_intel_progress = data.get("region_intel_progress", {})
 	p.block_understanding = data.get("block_understanding", {})
+	p.block_discovery_progress = data.get("block_discovery_progress", {})
+	for raw_record in data.get("discovery_history", []):
+		if raw_record is Dictionary:
+			p.discovery_history.append(raw_record.duplicate(true))
 	p.storefront_diligence = data.get("storefront_diligence", {})
 	p.storefront_diligence_progress = data.get("storefront_diligence_progress", {})
 	p.focused_city_region_id = data.get("focused_city_region_id", "")

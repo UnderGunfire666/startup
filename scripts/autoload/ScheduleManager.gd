@@ -654,6 +654,7 @@ func _apply_region_research_effect(block_ids: Array[String], elapsed_hours: floa
 		if current >= 100.0:
 			continue
 		GameManager.advance_block_understanding(block_id, gain)
+		BlockDiscoveryManager.evaluate_research(block_id)
 		EventManager.try_research_discovery(block_id)
 		affected_city_regions[block.city_region_id] = true
 		applied = true
@@ -694,6 +695,7 @@ func _apply_region_research_effect_continuous(block_ids: Array[String], elapsed_
 		var gain := minf(share, smallest_remaining)
 		for block in active_blocks:
 			GameManager.advance_block_understanding(block.id, gain)
+			BlockDiscoveryManager.evaluate_research(block.id)
 			EventManager.try_research_discovery(block.id)
 			affected_city_regions[block.city_region_id] = true
 		remaining_work -= gain * float(active_blocks.size())

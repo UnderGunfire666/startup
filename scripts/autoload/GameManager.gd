@@ -1721,7 +1721,7 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 		results_by_store[open_store.id].append(spoilage_result)
 
 	for store_id in results_by_store.keys():
-		_apply_operating_understanding_gain(get_store(store_id), results_by_store[store_id])
+		_apply_operating_understanding_gain(get_store(store_id), results_by_store[store_id], hour, day)
 
 	active_simulations.clear()
 	return results
@@ -1729,7 +1729,7 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 
 ## backlog任务4：经营数据反哺区块了解度。现在按"这次结算属于哪家店"分别计算，
 ## 不再依赖current_storefront这个单一指针。
-func _apply_operating_understanding_gain(store: Store, results: Array) -> void:
+func _apply_operating_understanding_gain(store: Store, results: Array, settled_hour: int = -1, settled_day: int = -1) -> void:
 	if store == null:
 		return
 	var storefront := get_storefront(store.selected_storefront_id)
@@ -1745,7 +1745,7 @@ func _apply_operating_understanding_gain(store: Store, results: Array) -> void:
 		if result.is_open:
 			total_orders += result.actual_orders
 
-	_apply_store_awareness_growth(store, storefront, results, total_orders)
+	store.last_awareness_update = _apply_store_awareness_growth(store, storefront, results, total_orders, settled_hour, settled_day)
 
 	if total_orders <= 0:
 		return
@@ -1755,16 +1755,21 @@ func _apply_operating_understanding_gain(store: Store, results: Array) -> void:
 	recalculate_region_intel(block.city_region_id)
 
 
-func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, results: Array, total_orders: int) -> void:
-	if store == null or storefront == null or _get_block_for_storefront(storefront) == null:
-		return
+func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, results: Array, total_orders: int, settled_hour: int = -1, settled_day: int = -1) -> Dictionary:
+	if store == null or storefront == null:
+		return {}
+	var local_block := _get_block_for_storefront(storefront)
+	if local_block == null:
+		return {}
 	## 只要实际营业，门面所在道路带来的曝光就会累积；它不依赖本时段是否成交。
 	var awareness_gain_multiplier := _get_store_awareness_gain_multiplier(store, storefront) * StoreLayoutEffects.get_awareness_multiplier(store)
 	var coverage_ratios := StorefrontInfluenceCalculator.get_covered_block_ratios(storefront, all_blocks)
 	var exposure_gain := get_storefront_road_exposure(storefront) * storefront.awareness_exposure_modifier * 0.05 * awareness_gain_multiplier
-	_apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, exposure_gain)
+	var exposure_by_block := _apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, exposure_gain)
+	var word_of_mouth_gain := 0.0
+	var word_of_mouth_by_block: Dictionary = {}
 	if total_orders <= 0:
-		return
+		return _make_awareness_update_snapshot(store, storefront, local_block, coverage_ratios, exposure_gain, 0.0, exposure_by_block, word_of_mouth_by_block, awareness_gain_multiplier, settled_hour, settled_day)
 
 	var total_wait_seconds := 0.0
 	var total_reputation_delta := 0.0
@@ -1776,19 +1781,24 @@ func _apply_store_awareness_growth(store: Store, storefront: StorefrontData, res
 	var average_wait_seconds := total_wait_seconds / float(total_orders)
 	var memorable_service_multiplier := 1.0 + absf(total_reputation_delta) * 0.4 + minf(average_wait_seconds / 600.0, 0.35)
 	var reputation_memory_multiplier := 1.0 + absf(store.reputation - SettlementConfig.INITIAL_REPUTATION) / 50.0
-	var word_of_mouth_gain := float(total_orders) * 0.02 * memorable_service_multiplier * reputation_memory_multiplier * storefront.awareness_exposure_modifier * awareness_gain_multiplier
-	_apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, word_of_mouth_gain)
+	word_of_mouth_gain = float(total_orders) * 0.02 * memorable_service_multiplier * reputation_memory_multiplier * storefront.awareness_exposure_modifier * awareness_gain_multiplier
+	word_of_mouth_by_block = _apply_offline_awareness_to_covered_blocks(store, storefront, coverage_ratios, word_of_mouth_gain)
+	return _make_awareness_update_snapshot(store, storefront, local_block, coverage_ratios, exposure_gain, word_of_mouth_gain, exposure_by_block, word_of_mouth_by_block, awareness_gain_multiplier, settled_hour, settled_day)
 
 
-func _apply_offline_awareness_to_covered_blocks(store: Store, storefront: StorefrontData, coverage_ratios: Dictionary, base_gain: float) -> void:
+func _apply_offline_awareness_to_covered_blocks(store: Store, storefront: StorefrontData, coverage_ratios: Dictionary, base_gain: float) -> Dictionary:
+	var applied: Dictionary = {}
 	if base_gain <= 0.0:
-		return
+		return applied
 	for raw_block_id in coverage_ratios.keys():
 		var block_id := str(raw_block_id)
 		var block := get_block(block_id)
 		if block == null or block.city_region_id != storefront.city_region_id:
 			continue
-		_add_store_awareness(store, block_id, base_gain * float(coverage_ratios.get(raw_block_id, 0.0)))
+		var gain := _add_store_awareness(store, block_id, base_gain * float(coverage_ratios.get(raw_block_id, 0.0)))
+		if gain > 0.0:
+			applied[block_id] = gain
+	return applied
 
 
 func _get_store_awareness_gain_multiplier(store: Store, storefront: StorefrontData) -> float:
@@ -1804,11 +1814,37 @@ func _get_store_awareness_gain_multiplier(store: Store, storefront: StorefrontDa
 	return maxf(0.0, 1.0 + modifier_add)
 
 
-func _add_store_awareness(store: Store, block_id: String, gain: float) -> void:
+func _add_store_awareness(store: Store, block_id: String, gain: float) -> float:
 	if store == null or block_id.is_empty() or gain <= 0.0:
-		return
-	store.awareness_by_block[block_id] = clampf(
-		float(store.awareness_by_block.get(block_id, 0.0)) + gain, 0.0, 100.0)
+		return 0.0
+	var before := float(store.awareness_by_block.get(block_id, 0.0))
+	var after := clampf(before + gain, 0.0, 100.0)
+	store.awareness_by_block[block_id] = after
+	return after - before
+
+
+func _make_awareness_update_snapshot(store: Store, storefront: StorefrontData, local_block: BlockData, coverage_ratios: Dictionary, exposure_gain: float, word_of_mouth_gain: float, exposure_by_block: Dictionary, word_of_mouth_by_block: Dictionary, gain_multiplier: float, settled_hour: int, settled_day: int) -> Dictionary:
+	var current_awareness: Dictionary = {}
+	for raw_block_id in coverage_ratios.keys():
+		var block_id := str(raw_block_id)
+		current_awareness[block_id] = float(store.awareness_by_block.get(block_id, 0.0))
+	var total_gain := 0.0
+	for gain in exposure_by_block.values():
+		total_gain += float(gain)
+	for gain in word_of_mouth_by_block.values():
+		total_gain += float(gain)
+	return {
+		"day": settled_day if settled_day >= 1 else TimeManager.current_day,
+		"hour": settled_hour if settled_hour >= 0 else TimeManager.get_current_hour_int(),
+		"storefront_id": storefront.id, "local_block_id": local_block.id,
+		"coverage_ratios": coverage_ratios.duplicate(true), "current_awareness": current_awareness,
+		"exposure_base_gain": exposure_gain, "word_of_mouth_base_gain": word_of_mouth_gain,
+		"exposure_by_block": exposure_by_block.duplicate(true), "word_of_mouth_by_block": word_of_mouth_by_block.duplicate(true),
+		"total_gain": total_gain, "awareness_radius": storefront.awareness_radius,
+		"awareness_exposure_modifier": storefront.awareness_exposure_modifier,
+		"gain_multiplier": gain_multiplier,
+		"destination_sources": get_destination_visitor_sources(store, storefront),
+	}
 
 
 ## 供多店场景使用：按天汇总"所有营业中店铺"的结算数据。

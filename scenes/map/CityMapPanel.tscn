@@ -69,6 +69,11 @@ tooltip_text = "显示所有门面；仍需完成完整尽调才能选址。"
 [node name="ResearchModeOption" type="OptionButton" parent="HBoxContainer/SidePanel"]
 layout_mode = 2
 
+[node name="AwarenessOverlayToggle" type="CheckBox" parent="HBoxContainer/SidePanel"]
+layout_mode = 2
+text = "显示当前店铺影响范围"
+tooltip_text = "显示已签约门面的知名度覆盖半径、区块覆盖比例与当前线下知名度。"
+
 [node name="StartResearchButton" type="Button" parent="HBoxContainer/SidePanel" unique_id=1845210362]
 layout_mode = 2
 text = "开始调查所选区块"

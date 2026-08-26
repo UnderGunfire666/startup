@@ -5,6 +5,9 @@ enum Speed { PAUSED = 0, X1 = 1, X2 = 2, X5 = 5 }
 const GAME_SECONDS_PER_REAL_SECOND_AT_X1: float = 120.0
 const DAY_SECONDS: float = 86400.0
 const DAY_START_SECONDS: float = 8.0 * 3600.0
+const DAYS_PER_WEEK: int = 7
+const WEEKDAY_COUNT: int = 5
+const WEEKDAY_NAMES: Array[String] = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
 
 signal clock_updated(hour: int, minute: int, second: int, period_label: String)
@@ -53,6 +56,25 @@ func get_hour_of_day() -> float:
 
 func get_current_hour_int() -> int:
 	return int(get_hour_of_day())
+
+
+## current_day remains an absolute, save-compatible game day. Week rules are
+## derived from it instead of introducing another persisted calendar value.
+func get_day_of_week(day: int = -1) -> int:
+	var resolved_day := current_day if day < 1 else day
+	return posmod(resolved_day - 1, DAYS_PER_WEEK) + 1
+
+
+func is_weekday(day: int = -1) -> bool:
+	return get_day_of_week(day) <= WEEKDAY_COUNT
+
+
+func is_weekend(day: int = -1) -> bool:
+	return not is_weekday(day)
+
+
+func get_weekday_name(day: int = -1) -> String:
+	return WEEKDAY_NAMES[get_day_of_week(day) - 1]
 
 
 func is_store_actually_operating() -> bool:

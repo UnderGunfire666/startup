@@ -11,6 +11,7 @@ signal storefront_interior_requested(storefront_id: String)
 @onready var status_label: Label = $HBoxContainer/SidePanel/StatusLabel
 @onready var clear_selection_button: Button = $HBoxContainer/SidePanel/ClearSelectionButton
 @onready var show_all_storefronts_button: Button = $HBoxContainer/SidePanel/ShowAllStorefrontsButton
+@onready var awareness_overlay_toggle: CheckBox = $HBoxContainer/SidePanel/AwarenessOverlayToggle
 @onready var research_mode_option: OptionButton = $HBoxContainer/SidePanel/ResearchModeOption
 @onready var start_research_button: Button = $HBoxContainer/SidePanel/StartResearchButton
 
@@ -28,6 +29,7 @@ func _ready() -> void:
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
 	show_all_storefronts_button.pressed.connect(_on_show_all_storefronts_pressed)
+	awareness_overlay_toggle.toggled.connect(_on_awareness_overlay_toggled)
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
 	start_research_button.pressed.connect(_on_start_research_pressed)
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
@@ -52,6 +54,7 @@ func _ready() -> void:
 
 func refresh() -> void:
 	map_canvas.refresh_storefronts(GameManager.all_storefronts)
+	_refresh_awareness_overlay()
 	_refresh_report()
 	_refresh_storefront_list()
 	_refresh_research_controls()
@@ -76,6 +79,30 @@ func _on_show_all_storefronts_pressed() -> void:
 		status_label.text = "全部门面已显示；仍需完成完整尽调才能选址"
 	else:
 		status_label.text = "✅ 已显示 %d 个门面；仍需完成完整尽调才能选址" % newly_revealed.size()
+
+
+func _on_awareness_overlay_toggled(_enabled: bool) -> void:
+	_refresh_awareness_overlay()
+
+
+func _refresh_awareness_overlay() -> void:
+	var store := GameManager.get_active_store()
+	if store == null or store.signed_storefront_id.is_empty():
+		awareness_overlay_toggle.disabled = true
+		awareness_overlay_toggle.button_pressed = false
+		map_canvas.clear_awareness_overlay()
+		return
+	var storefront := GameManager.get_storefront(store.signed_storefront_id)
+	var is_revealed := storefront != null and GameManager.get_storefront_diligence(storefront.id) != "not_viewed"
+	awareness_overlay_toggle.disabled = not is_revealed
+	if not is_revealed:
+		awareness_overlay_toggle.button_pressed = false
+		map_canvas.clear_awareness_overlay()
+		return
+	if awareness_overlay_toggle.button_pressed:
+		map_canvas.set_awareness_overlay(storefront, store.awareness_by_block)
+	else:
+		map_canvas.clear_awareness_overlay()
 
 
 func _on_start_research_pressed() -> void:

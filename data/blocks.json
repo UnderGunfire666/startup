@@ -1,4 +1,4 @@
-[
+﻿[
 	{
 		"accessibility": 0.8,
 		"active_time_profile": {
@@ -230,6 +230,7 @@
 			"worker": 0.0
 		},
 		"id": "block_nw_residential",
+		"market_profile": {"group_supply_weights": {"student": 0.05, "office_worker": 0.08, "worker": 0.07, "family_household": 0.70, "high_spend_household": 0.10}, "active_time_profile": {"morning": 0.90, "noon": 0.65, "evening": 1.35, "night": 0.35}, "spending_profile": {"price_sensitivity": 0.75, "quality_preference": 0.40, "spend_potential_tier": "low"}, "business_demand_tags": ["convenience", "pharmacy"], "competition_profile": {"competition_level": "low", "rent_pressure": "low", "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.0}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 24.5,
@@ -478,6 +479,7 @@
 			"worker": 0.0
 		},
 		"id": "block_n_commercial",
+		"market_profile": {"group_supply_weights": {"student": 0.15, "office_worker": 0.30, "worker": 0.10, "family_household": 0.30, "high_spend_household": 0.15}, "active_time_profile": {"morning": 0.80, "noon": 1.20, "evening": 1.40, "night": 0.70}, "spending_profile": {"price_sensitivity": 0.50, "quality_preference": 0.60, "spend_potential_tier": "medium"}, "business_demand_tags": ["quick_meal", "cafe", "convenience"], "competition_profile": {"competition_level": "high", "rent_pressure": "medium", "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.25}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 24.5,
@@ -754,6 +756,7 @@
 			"worker": 0.0
 		},
 		"id": "block_ne_office",
+		"market_profile": {"group_supply_weights": {"student": 0.03, "office_worker": 0.72, "worker": 0.12, "family_household": 0.03, "high_spend_household": 0.10}, "active_time_profile": {"morning": 1.10, "noon": 1.35, "evening": 1.00, "night": 0.25}, "spending_profile": {"price_sensitivity": 0.35, "quality_preference": 0.80, "spend_potential_tier": "high"}, "business_demand_tags": ["quick_meal", "cafe", "printing"], "competition_profile": {"competition_level": "high", "rent_pressure": "high", "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.10}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 28.0,
@@ -1058,6 +1061,7 @@
 			"worker": 0.0
 		},
 		"id": "block_far_ne_mixed",
+		"market_profile": {"group_supply_weights": {"student": 0.15, "office_worker": 0.25, "worker": 0.10, "family_household": 0.35, "high_spend_household": 0.15}, "active_time_profile": {"morning": 0.90, "noon": 1.05, "evening": 1.30, "night": 0.55}, "spending_profile": {"price_sensitivity": 0.50, "quality_preference": 0.65, "spend_potential_tier": "medium"}, "business_demand_tags": ["cafe", "convenience", "family_dining"], "competition_profile": {"competition_level": "medium", "rent_pressure": "medium", "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.15}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 31.5,
@@ -1306,6 +1310,7 @@
 			"worker": 0.0
 		},
 		"id": "block_w_school",
+		"market_profile": {"group_supply_weights": {"student": 0.70, "office_worker": 0.12, "worker": 0.03, "family_household": 0.12, "high_spend_household": 0.03}, "active_time_profile": {"morning": 1.25, "noon": 0.85, "evening": 0.95, "night": 0.10}, "spending_profile": {"price_sensitivity": 0.75, "quality_preference": 0.45, "spend_potential_tier": "low"}, "business_demand_tags": ["stationery", "quick_meal", "convenience"], "competition_profile": {"competition_level": "low", "rent_pressure": "low", "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.0}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 24.5,
@@ -1510,6 +1515,7 @@
 			"worker": 0.0
 		},
 		"id": "block_c_commercial",
+		"market_profile": {"group_supply_weights": {"student": 0.10, "office_worker": 0.30, "worker": 0.08, "family_household": 0.25, "high_spend_household": 0.27}, "active_time_profile": {"morning": 0.75, "noon": 1.25, "evening": 1.50, "night": 0.85}, "spending_profile": {"price_sensitivity": 0.35, "quality_preference": 0.85, "spend_potential_tier": "high"}, "business_demand_tags": ["cafe", "bakery", "specialty_retail"], "competition_profile": {"competition_level": "high", "rent_pressure": "high", "rent_trend": "up", "business_risk": "high", "external_attraction": 0.45}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 24.5,
@@ -1786,6 +1792,7 @@
 			"worker": 0.0
 		},
 		"id": "block_e_tourism",
+		"market_profile": {"group_supply_weights": {"student": 0.18, "office_worker": 0.18, "worker": 0.08, "family_household": 0.25, "high_spend_household": 0.31}, "active_time_profile": {"morning": 0.80, "noon": 1.15, "evening": 1.55, "night": 1.00}, "spending_profile": {"price_sensitivity": 0.30, "quality_preference": 0.90, "spend_potential_tier": "high"}, "business_demand_tags": ["cafe", "gift", "local_food"], "competition_profile": {"competition_level": "high", "rent_pressure": "high", "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.50}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 28.0,
@@ -2090,6 +2097,7 @@
 			"worker": 0.0
 		},
 		"id": "block_e_public_green",
+		"market_profile": {"group_supply_weights": {"student": 0.22, "office_worker": 0.13, "worker": 0.05, "family_household": 0.45, "high_spend_household": 0.15}, "active_time_profile": {"morning": 0.90, "noon": 1.05, "evening": 1.45, "night": 0.55}, "spending_profile": {"price_sensitivity": 0.55, "quality_preference": 0.65, "spend_potential_tier": "medium"}, "business_demand_tags": ["drinks", "snack", "convenience"], "competition_profile": {"competition_level": "low", "rent_pressure": "low", "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.10}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 31.5,
@@ -2338,6 +2346,7 @@
 			"worker": 0.0
 		},
 		"id": "block_sw_residential",
+		"market_profile": {"group_supply_weights": {"student": 0.08, "office_worker": 0.12, "worker": 0.05, "family_household": 0.68, "high_spend_household": 0.07}, "active_time_profile": {"morning": 0.90, "noon": 0.65, "evening": 1.40, "night": 0.35}, "spending_profile": {"price_sensitivity": 0.70, "quality_preference": 0.45, "spend_potential_tier": "low"}, "business_demand_tags": ["convenience", "pharmacy"], "competition_profile": {"competition_level": "low", "rent_pressure": "low", "rent_trend": "stable", "business_risk": "low", "external_attraction": 0.0}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 24.5,
@@ -2586,6 +2595,7 @@
 			"worker": 0.0
 		},
 		"id": "block_s_mixed",
+		"market_profile": {"group_supply_weights": {"student": 0.12, "office_worker": 0.22, "worker": 0.08, "family_household": 0.42, "high_spend_household": 0.16}, "active_time_profile": {"morning": 0.90, "noon": 1.10, "evening": 1.35, "night": 0.65}, "spending_profile": {"price_sensitivity": 0.50, "quality_preference": 0.65, "spend_potential_tier": "medium"}, "business_demand_tags": ["family_dining", "cafe", "convenience"], "competition_profile": {"competition_level": "medium", "rent_pressure": "medium", "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.15}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 24.5,
@@ -2862,6 +2872,7 @@
 			"worker": 0.0
 		},
 		"id": "block_se_office",
+		"market_profile": {"group_supply_weights": {"student": 0.02, "office_worker": 0.68, "worker": 0.16, "family_household": 0.05, "high_spend_household": 0.09}, "active_time_profile": {"morning": 1.15, "noon": 1.30, "evening": 1.05, "night": 0.35}, "spending_profile": {"price_sensitivity": 0.40, "quality_preference": 0.80, "spend_potential_tier": "high"}, "business_demand_tags": ["quick_meal", "cafe", "printing"], "competition_profile": {"competition_level": "high", "rent_pressure": "high", "rent_trend": "up", "business_risk": "medium", "external_attraction": 0.12}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 28.0,
@@ -3166,6 +3177,7 @@
 			"worker": 0.0
 		},
 		"id": "block_far_se_industrial",
+		"market_profile": {"group_supply_weights": {"student": 0.02, "office_worker": 0.15, "worker": 0.73, "family_household": 0.07, "high_spend_household": 0.03}, "active_time_profile": {"morning": 1.20, "noon": 1.25, "evening": 0.90, "night": 0.45}, "spending_profile": {"price_sensitivity": 0.70, "quality_preference": 0.40, "spend_potential_tier": "low"}, "business_demand_tags": ["quick_meal", "convenience", "workwear"], "competition_profile": {"competition_level": "low", "rent_pressure": "low", "rent_trend": "stable", "business_risk": "medium", "external_attraction": 0.05}},
 		"map_bounds": {
 			"h": 24.5,
 			"w": 31.5,

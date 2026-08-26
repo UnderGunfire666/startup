@@ -38,6 +38,9 @@ var road_graph: RoadGraph = null
 var survey_areas: Array[SurveyAreaState] = []
 var storefronts: Array[StorefrontData] = []
 var selected_block_ids: Array[String] = []
+var awareness_overlay_storefront: StorefrontData = null
+var awareness_overlay_coverage: Dictionary = {}
+var awareness_overlay_values: Dictionary = {}
 var map_scale := MIN_MAP_SCALE
 var content_bounds := Rect2(Vector2.ZERO, Vector2.ONE)
 
@@ -62,6 +65,22 @@ func refresh_survey_areas(new_survey_areas: Array[SurveyAreaState]) -> void:
 func refresh_storefronts(new_storefronts: Array[StorefrontData]) -> void:
 	storefronts = new_storefronts
 	_update_canvas_size()
+	queue_redraw()
+
+
+## The overlay is intentionally display-only: its coverage uses the same circular
+## calculation as settlement, while awareness values remain owned by Store.
+func set_awareness_overlay(storefront: StorefrontData, awareness_by_block: Dictionary) -> void:
+	awareness_overlay_storefront = storefront
+	awareness_overlay_values = awareness_by_block.duplicate(true)
+	awareness_overlay_coverage = StorefrontInfluenceCalculator.get_covered_block_ratios(storefront, blocks) if storefront != null else {}
+	queue_redraw()
+
+
+func clear_awareness_overlay() -> void:
+	awareness_overlay_storefront = null
+	awareness_overlay_coverage.clear()
+	awareness_overlay_values.clear()
 	queue_redraw()
 
 
@@ -215,6 +234,7 @@ func _draw() -> void:
 	_draw_city_regions()
 	_draw_roads()
 	_draw_blocks()
+	_draw_awareness_overlay()
 	_draw_survey_areas()
 	_draw_storefronts()
 
@@ -269,6 +289,26 @@ func _draw_blocks() -> void:
 			"%s(%d级)" % [block.name, block.tier],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 10
 		)
+
+
+func _draw_awareness_overlay() -> void:
+	if awareness_overlay_storefront == null or awareness_overlay_coverage.is_empty():
+		return
+	var center := _map_to_screen(awareness_overlay_storefront.map_position)
+	var radius := awareness_overlay_storefront.awareness_radius * map_scale
+	if radius > 0.0:
+		draw_circle(center, radius, Color(1.0, 0.78, 0.18, 0.055), true)
+		draw_arc(center, radius, 0.0, TAU, 96, Color(1.0, 0.8, 0.22, 0.9), 2.0, true)
+	for block in blocks:
+		var coverage := float(awareness_overlay_coverage.get(block.id, 0.0))
+		if coverage <= 0.0:
+			continue
+		var rect := Rect2(_map_to_screen(block.map_bounds.position), block.map_bounds.size * map_scale)
+		var awareness := clampf(float(awareness_overlay_values.get(block.id, 0.0)) / 100.0, 0.0, 1.0)
+		draw_rect(rect, Color(1.0, 0.5 + awareness * 0.35, 0.1, 0.08 + awareness * 0.20), true)
+		draw_rect(rect, Color(1.0, 0.84, 0.28, 0.5 + coverage * 0.45), false, 1.5 + coverage * 2.0)
+		var info := "覆盖 %.0f%%  |  知名 %.1f" % [coverage * 100.0, awareness * 100.0]
+		draw_string(ThemeDB.fallback_font, rect.position + Vector2(4.0, rect.size.y - 5.0), info, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.93, 0.65, 0.98))
 
 
 func _draw_survey_areas() -> void:

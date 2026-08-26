@@ -34,6 +34,9 @@ var business_hour_ranges: Array[Vector2i] = [Vector2i(9, 21)]
 
 var reputation: float = SettlementConfig.INITIAL_REPUTATION
 var awareness_by_block: Dictionary = {}
+## Latest completed operating-slot breakdown. It is intentionally a snapshot,
+## not a historical series; daily trends belong to a later reporting stage.
+var last_awareness_update: Dictionary = {}
 
 var category_slots: Array[StoreCategorySlot] = []
 var equipment: Array[StoreEquipment] = []
@@ -245,6 +248,8 @@ func apply_ingredient_spoilage(ratios_by_ingredient: Dictionary) -> Dictionary:
 
 func reset_to_defaults() -> void:
 	reputation = SettlementConfig.INITIAL_REPUTATION
+	awareness_by_block.clear()
+	last_awareness_update.clear()
 	category_slots.clear()
 	equipment.clear()
 	furniture_layout.clear()
@@ -356,6 +361,7 @@ func to_save_dict() -> Dictionary:
 		"business_hour_ranges": business_ranges_data,
 		"reputation": reputation,
 		"awareness_by_block": awareness_by_block,
+		"last_awareness_update": last_awareness_update,
 		"category_slots": slots_data,
 		"equipment": equipment_data,
 		"furniture_layout": furniture_data,
@@ -395,6 +401,7 @@ static func from_save_dict(data: Dictionary) -> Store:
 		s.business_hour_ranges.append(Vector2i(9, 21))
 	s.reputation = data.get("reputation", SettlementConfig.INITIAL_REPUTATION)
 	s.awareness_by_block = data.get("awareness_by_block", {})
+	s.last_awareness_update = data.get("last_awareness_update", {}).duplicate(true)
 
 	var slots_raw: Array = data.get("category_slots", [])
 	for sd in slots_raw:

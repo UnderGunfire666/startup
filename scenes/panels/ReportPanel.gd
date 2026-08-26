@@ -22,12 +22,66 @@ func display(results: Array) -> void:
 		return
 
 	var blocks: Array[String] = []
+	var awareness_summary := _format_awareness_summary()
+	if not awareness_summary.is_empty():
+		blocks.append(awareness_summary)
 	for result in product_results:
 		blocks.append(_format_product(result))
 	for result in overhead_results:
 		blocks.append(_format_overhead(result))
 	label.text = "\n[color=gray]------------------------------------------------[/color]\n\n".join(blocks)
 	label.scroll_to_line(0)
+
+
+func _format_awareness_summary() -> String:
+	var store := GameManager.get_active_store()
+	if store == null or store.last_awareness_update.is_empty():
+		return ""
+	var snapshot := store.last_awareness_update
+	var storefront := GameManager.get_storefront(str(snapshot.get("storefront_id", "")))
+	var storefront_name := storefront.name if storefront != null else str(snapshot.get("storefront_id", "unknown storefront"))
+	var lines: Array[String] = []
+	lines.append("[b]线下知名度 | 第 %d 日 %02d:00[/b]" % [int(snapshot.get("day", 0)), int(snapshot.get("hour", 0))])
+	lines.append("门面：%s  |  半径：%.1f  |  道路曝光修正：x%.2f" % [storefront_name, float(snapshot.get("awareness_radius", 0.0)), float(snapshot.get("awareness_exposure_modifier", 1.0))])
+	var coverage: Dictionary = snapshot.get("coverage_ratios", {})
+	var awareness: Dictionary = snapshot.get("current_awareness", {})
+	var exposure_by_block: Dictionary = snapshot.get("exposure_by_block", {})
+	var word_of_mouth_by_block: Dictionary = snapshot.get("word_of_mouth_by_block", {})
+	if coverage.is_empty():
+		lines.append("[color=gray]本时段没有覆盖到有效区块，因此没有获得线下知名度。[/color]")
+	else:
+		lines.append("[b]当前覆盖与知名度[/b]")
+		for raw_block_id in coverage.keys():
+			var block_id := str(raw_block_id)
+			var block := GameManager.get_block(block_id)
+			var block_name := block.name if block != null else block_id
+			lines.append("- %s：覆盖 %.0f%%，知名度 %.2f" % [block_name, float(coverage[raw_block_id]) * 100.0, float(awareness.get(block_id, 0.0))])
+	var exposure_gain := float(snapshot.get("exposure_base_gain", 0.0))
+	var word_of_mouth_gain := float(snapshot.get("word_of_mouth_base_gain", 0.0))
+	var total_gain := float(snapshot.get("total_gain", 0.0))
+	lines.append("[b]刚完成时段增长[/b]  道路曝光 +%.3f  |  成交口碑 +%.3f  |  实际新增 +%.3f" % [exposure_gain, word_of_mouth_gain, total_gain])
+	if total_gain <= 0.0:
+		lines.append("[color=gray]没有增长：没有有效覆盖或道路曝光，或覆盖区块已到上限。成交口碑还需要本时段实际成交。[/color]")
+	else:
+		for raw_block_id in coverage.keys():
+			var block_id := str(raw_block_id)
+			var block := GameManager.get_block(block_id)
+			var block_name := block.name if block != null else block_id
+			var exposure_delta := float(exposure_by_block.get(block_id, 0.0))
+			var word_of_mouth_delta := float(word_of_mouth_by_block.get(block_id, 0.0))
+			if exposure_delta > 0.0 or word_of_mouth_delta > 0.0:
+				lines.append("- %s：曝光 +%.3f，口碑 +%.3f" % [block_name, exposure_delta, word_of_mouth_delta])
+	var sources: Array = snapshot.get("destination_sources", [])
+	if sources.is_empty():
+		lines.append("跨区目的性客流：当前没有满足口碑、知名度与距离条件的来源区块。")
+	else:
+		var source_names: Array[String] = []
+		for source in sources:
+			var source_block := GameManager.get_block(str(source.get("block_id", "")))
+			var source_name := source_block.name if source_block != null else str(source.get("block_id", "unknown"))
+			source_names.append("%s %.1f" % [source_name, float(source.get("estimated_visitors", 0.0))])
+		lines.append("跨区目的性客流来源：%s" % "、".join(source_names))
+	return "\n".join(lines)
 
 
 func _show_empty_message(message: String) -> void:

@@ -41,6 +41,21 @@ func reset_for_new_game() -> void:
 	temporary_modifiers.clear()
 	pending_decisions.clear()
 	pending_interrupts.clear()
+	BlockDiscoveryManager.reset_for_new_game()
+
+
+## Discoveries own their permanent history in PlayerState. This only forwards a
+## lightweight notice through the existing UI notification channel.
+func raise_discovery_notice(title: String, message: String, block_id: String) -> ActiveGameEvent:
+	var event := ActiveGameEvent.new()
+	event.event_id = "block_discovery"
+	event.target_id = block_id
+	event.title = title
+	event.message = message
+	event.started_game_seconds = TimeManager.total_game_seconds
+	_append_history(event)
+	notice_raised.emit(event)
+	return event
 
 func try_research_discovery(block_id: String) -> ActiveGameEvent:
 	var block := GameManager.get_block(block_id)

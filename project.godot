@@ -22,6 +22,7 @@ SaveManager="*uid://8udx8knlavdf"
 TimeManager="*uid://dp6n1a0m2opiy"
 ScheduleManager="*uid://7p8aova2tlpi"
 EventManager="*res://scripts/autoload/EventManager.gd"
+BlockDiscoveryManager="*res://scripts/autoload/BlockDiscoveryManager.gd"
 
 [display]
 

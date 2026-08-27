@@ -175,6 +175,8 @@ static func get_storefronts() -> Array[StorefrontData]:
 		s.supported_categories = _to_string_array(entry.get("supported_categories", []))
 		s.equipment_condition = entry.get("equipment_condition", "normal")
 		s.notes = entry.get("notes", "")
+		s.is_occupied = bool(entry.get("is_occupied", false))
+		s.occupant_name = str(entry.get("occupant_name", ""))
 
 		## 空间系统新增字段：city_region_id留空时，
 		## GameManager.begin_slot_simulation()会自动回退旧的calculate_params()路径。

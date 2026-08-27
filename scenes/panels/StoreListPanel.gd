@@ -73,8 +73,13 @@ func refresh() -> void:
 
 		if store.id == GameManager.active_store_id and not store.is_open:
 			if not store.selected_storefront_id.is_empty() and store.signed_storefront_id != store.selected_storefront_id:
+				var offer_label := Label.new()
+				offer_label.text = _get_lease_offer_summary(store)
+				offer_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				card.add_child(offer_label)
 				var sign_button := Button.new()
-				sign_button.text = "确认签约门面"
+				sign_button.text = "确认签约门面" if not store.pending_lease_offer.is_empty() else "需先完成房东谈判"
+				sign_button.disabled = store.pending_lease_offer.is_empty()
 				sign_button.pressed.connect(func() -> void:
 					var result := GameManager.sign_selected_storefront()
 					status_label.text = str(result.get("reason", ""))
@@ -107,12 +112,26 @@ func _get_plan_summary(store: Store) -> String:
 			var storefront := GameManager.get_storefront(store.selected_storefront_id)
 			if storefront == null:
 				return "开店企划：门面信息缺失，待重新选择"
-			var signing_text := "已签约" if store.signed_storefront_id == storefront.id else "已选定，待签约"
+			var signing_text := "已签约｜月租 ×%.2f｜押金已付 %.0f 元｜免租剩余 %d 小时" % [store.lease_rent_multiplier, store.lease_deposit_paid, int(store.lease_free_rent_hours_remaining)] if store.signed_storefront_id == storefront.id else ("谈判处理中" if EventManager.has_pending_landlord_terms_for_store(store.id) else ("已获报价，待签约" if not store.pending_lease_offer.is_empty() else "已选定，待完成房东谈判"))
 			return "开店企划：门面「%s」｜%s｜%s｜员工为可选筹备项" % [storefront.name, signing_text, category_text]
 		Store.PreOpenStage.OPEN_FOR_BUSINESS:
 			return "开店企划：已开业"
 		_:
 			return "开店企划：待开始"
+
+
+func _get_lease_offer_summary(store: Store) -> String:
+	if store.pending_lease_offer.is_empty():
+		return "租约状态：谈判处理中，等待你作出选择。" if EventManager.has_pending_landlord_terms_for_store(store.id) else "租约状态：尚无有效报价。完成「与房东谈判」后才能签约。"
+	var storefront := GameManager.get_storefront(store.selected_storefront_id)
+	if storefront == null:
+		return "租约状态：报价对应的门面信息缺失。"
+	var offer := store.pending_lease_offer
+	var rent_multiplier := float(offer.get("rent_multiplier", 1.0))
+	var deposit_months := int(offer.get("deposit_months", 0))
+	var deposit := storefront.get_monthly_rent_yuan() * rent_multiplier * deposit_months
+	var free_hours := int(offer.get("free_rent_hours", 0.0))
+	return "租约报价：月租 ×%.2f｜押金 %d 个月（%.0f 元）｜开业免租 %d 小时" % [rent_multiplier, deposit_months, deposit, free_hours]
 
 
 func _on_create_pressed() -> void:

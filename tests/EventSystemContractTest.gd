@@ -7,6 +7,9 @@ var failed: int = 0
 func _ready() -> void:
 	print("========== Event System Contract Test ==========")
 	_test_research_notice_effect_cooldown_and_save()
+	_test_research_chain_journal_and_skip()
+	_test_landlord_terms_chain_and_contract()
+	_test_npc_store_transfer_chain()
 	_test_player_block_event_definition_and_effect()
 	_test_store_operating_event_modifier()
 	_test_store_disruption_event_modifiers()
@@ -19,6 +22,7 @@ func _ready() -> void:
 	_test_awareness_growth_sources()
 	_test_destination_visitors()
 	_test_decision_queue()
+	_test_event_time_policy_and_dismissal()
 	_test_automatic_store_decision_trigger()
 	_test_store_interrupt()
 	_test_road_exposure_lookup()
@@ -53,12 +57,14 @@ func _test_research_notice_effect_cooldown_and_save() -> void:
 	_assert_true(event != null and not event.instance_id.is_empty() and event.scope == GameEventDefinition.Scope.BLOCK, "research discovery creates a uniquely identified block event")
 	_assert_true(_event_options_include_descriptions(event), "research choices retain their narrative descriptions when activated")
 	_assert_true(EventManager.pending_decisions.size() == 1 and EventManager.resolve_decision(event.instance_id, "record"), "research event requires and resolves a player choice")
+	_assert_true(_has_research_journal_entry(block.id, "record"), "recording a research event writes the selected path to discovery history")
 	_assert_true(int(received.get("count", 0)) == 1 and str(received.get("event_id", "")) == "research_local_tip", "interactive event is emitted to the global event UI")
 	_assert_true(EventManager.try_research_discovery(block.id) == null, "event cooldown prevents an immediate repeat roll")
 	var save_data := EventManager.to_save_dict()
 	EventManager.reset_for_new_game()
 	EventManager.apply_save_dict(save_data)
 	_assert_true(EventManager.event_history.size() == 1, "resolved event history survives save round trip")
+	_assert_true(EventManager.event_history[0].resolution == "selected", "event resolution state survives save round trip")
 	_assert_true(not EventManager.cooldown_until.is_empty(), "event cooldown survives save round trip")
 
 
@@ -69,6 +75,102 @@ func _test_temporary_modifier_expiry() -> void:
 	_assert_true(is_equal_approx(EventManager.get_modifier_total(GameEventDefinition.Scope.BLOCK, "test_block", "visitor_multiplier_add"), 0.25), "active temporary modifier contributes its configured value")
 	TimeManager.total_game_seconds += 3601.0
 	_assert_true(is_zero_approx(EventManager.get_modifier_total(GameEventDefinition.Scope.BLOCK, "test_block", "visitor_multiplier_add")), "expired temporary modifier no longer contributes")
+
+
+func _test_research_chain_journal_and_skip() -> void:
+	GameManager.start_new_game()
+	var created := GameManager.create_character({
+		"player_name": "Journal Tester", "gender": "male", "age": 28,
+		"difficulty_id": "normal", "preset_id": "", "trait_ids": ["market_instinct"],
+	})
+	_assert_true(bool(created.get("success", false)), "research journal character creation succeeds")
+	var block := GameManager.get_block("block_w_school")
+	if block == null:
+		_assert_true(false, "research journal test block exists")
+		return
+	GameManager.player_state.discovery_history.clear()
+	EventManager.reset_for_new_game()
+	var definition: GameEventDefinition = EventManager.definitions.get("research_local_tip", null)
+	var trace_event := EventManager._activate(definition, block.id) if definition != null else null
+	_assert_true(trace_event != null and EventManager.resolve_decision(trace_event.instance_id, "trace"), "trait research route can be resolved")
+	_assert_true(_has_research_journal_entry(block.id, "trace") and _has_discovery_id("research_result:research_trace_result"), "research chain records both the selected route and its result")
+
+	GameManager.player_state.discovery_history.clear()
+	var dismissed_event := EventManager._activate(definition, block.id) if definition != null else null
+	_assert_true(dismissed_event != null and EventManager.dismiss_decision(dismissed_event.instance_id), "research event can be skipped directly")
+	_assert_true(GameManager.player_state.discovery_history.is_empty(), "skipping research writes no discovery journal entry")
+
+
+func _test_npc_store_transfer_chain() -> void:
+	GameManager.start_new_game()
+	var created := GameManager.create_character({
+		"player_name": "NPC Transfer Tester", "gender": "female", "age": 47,
+		"difficulty_id": "normal", "preset_id": "", "trait_ids": ["negotiator"],
+	})
+	_assert_true(bool(created.get("success", false)), "NPC-transfer character creation succeeds")
+	_assert_true(not GameManager.npc_stores.is_empty(), "occupied storefronts create full NPC stores")
+	if GameManager.npc_stores.is_empty():
+		return
+	var npc_store: Store = GameManager.npc_stores[0]
+	_assert_true(npc_store.is_open and not npc_store.category_slots.is_empty() and not npc_store.employees.is_empty() and not npc_store.equipment.is_empty(), "seeded NPC store has an operable menu, staff, and equipment")
+	var restored := Store.from_save_dict(npc_store.to_save_dict())
+	_assert_true(restored.owner_kind == "npc" and restored.selected_storefront_id == npc_store.selected_storefront_id and not restored.facade_layout.is_empty(), "NPC store state survives a store save round trip")
+	npc_store.transfer_state = "offered"
+	npc_store.transfer_record = {"asking_price": 100.0}
+	GameManager.player_state.cash = 1000.0
+	var opening := EventManager.start_npc_transfer_chain(npc_store.id)
+	_assert_true(opening != null and opening.event_id == "npc_transfer_opening", "transfer notice opens a two-step chain")
+	_assert_true(opening != null and EventManager.resolve_decision(opening.instance_id, "press"), "negotiator route enters the transfer terms")
+	var terms: ActiveGameEvent = EventManager.pending_decisions[0] if not EventManager.pending_decisions.is_empty() else null
+	_assert_true(terms != null and terms.event_id == "npc_transfer_press", "transfer chain reaches its second decision")
+	_assert_true(terms != null and EventManager.resolve_decision(terms.instance_id, "take"), "transfer can convert the NPC store to a player store")
+	_assert_true(GameManager.get_store(npc_store.id) != null and GameManager.get_npc_store(npc_store.id) == null, "taken-over NPC store joins the player's store list")
+
+
+func _test_landlord_terms_chain_and_contract() -> void:
+	GameManager.start_new_game()
+	var created := GameManager.create_character({
+		"player_name": "Lease Tester", "gender": "female", "age": 47,
+		"difficulty_id": "normal", "preset_id": "", "trait_ids": ["negotiator"],
+	})
+	_assert_true(bool(created.get("success", false)), "lease-chain character creation succeeds")
+	var store_result := GameManager.create_new_store("Lease Test Store")
+	_assert_true(bool(store_result.get("success", false)), "lease-chain store creation succeeds")
+	if GameManager.all_storefronts.is_empty():
+		_assert_true(false, "lease-chain storefront exists")
+		return
+	var storefront: StorefrontData = null
+	for candidate in GameManager.all_storefronts:
+		if not candidate.is_occupied:
+			storefront = candidate
+			break
+	if storefront == null:
+		_assert_true(false, "lease-chain empty storefront exists")
+		return
+	var occupied_storefront: StorefrontData = null
+	for candidate in GameManager.all_storefronts:
+		if candidate.is_occupied:
+			occupied_storefront = candidate
+			break
+	_assert_true(occupied_storefront != null and not bool(GameManager.select_storefront(occupied_storefront.id).get("success", false)), "occupied storefront cannot be selected as a lease candidate")
+	GameManager.advance_storefront_diligence(storefront.id, "initial_viewing")
+	_assert_true(bool(GameManager.select_storefront(storefront.id).get("success", false)), "discovered empty storefront can be selected before deep inspection")
+	EventManager.reset_for_new_game()
+	var root := EventManager.start_landlord_terms_chain(GameManager.active_store_id)
+	_assert_true(root != null and root.event_id == "landlord_terms_opening", "landlord negotiation starts the opening node")
+	_assert_true(root != null and EventManager.resolve_decision(root.instance_id, "exchange"), "negotiator trait unlocks the exchange route")
+	var terms: ActiveGameEvent = EventManager.pending_decisions[0] if not EventManager.pending_decisions.is_empty() else null
+	_assert_true(terms != null and terms.event_id == "landlord_terms_exchange", "trait route reaches a second decision node")
+	_assert_true(terms != null and EventManager.resolve_decision(terms.instance_id, "low_rent"), "second decision records a lease offer")
+	var store := GameManager.store_state
+	_assert_true(is_equal_approx(float(store.pending_lease_offer.get("rent_multiplier", 0.0)), 0.9) and int(store.pending_lease_offer.get("deposit_months", 0)) == 3, "low-rent offer stores its contract terms")
+	var saved_store := Store.from_save_dict(store.to_save_dict())
+	_assert_true(is_equal_approx(float(saved_store.pending_lease_offer.get("rent_multiplier", 0.0)), 0.9), "pending lease offer survives store save round trip")
+	var cash_before := GameManager.player_state.cash
+	var sign_result := GameManager.sign_selected_storefront()
+	var expected_deposit := storefront.get_monthly_rent_yuan() * 0.9 * 3.0
+	_assert_true(bool(sign_result.get("success", false)) and is_equal_approx(cash_before - GameManager.player_state.cash, expected_deposit), "signing deducts the negotiated deposit")
+	_assert_true(is_equal_approx(store.lease_rent_multiplier, 0.9) and is_zero_approx(store.lease_free_rent_hours_remaining), "signing locks the rent multiplier and free-rent term")
 
 
 func _test_store_operating_event_modifier() -> void:
@@ -96,7 +198,7 @@ func _test_player_block_event_definition_and_effect() -> void:
 		return
 	var event := EventManager._activate(definition, block.id)
 	_assert_true(event != null and event.target_id == block.id, "player block event explicitly targets the current block")
-	_assert_true(is_equal_approx(GameManager.get_block_understanding(block.id), 21.0), "player block event grants only its configured small insight bonus")
+	_assert_true(is_equal_approx(GameManager.get_block_research_progress(block.id, "competition"), 1.0), "player block event grants only its configured small competition insight")
 	_assert_true(EventManager.try_player_block_event() == null, "player block event cooldown prevents immediate repetition")
 
 
@@ -307,6 +409,27 @@ func _test_decision_queue() -> void:
 	_assert_true(EventManager.get_modifier_total(GameEventDefinition.Scope.STORE, "store_decision_test", "natural_visitors_multiplier_add") > 0.0, "accepted partnership applies its store modifier")
 
 
+func _test_event_time_policy_and_dismissal() -> void:
+	EventManager.reset_for_new_game()
+	TimeManager.set_speed(TimeManager.Speed.X5)
+	var decision: GameEventDefinition = EventManager.definitions.get("store_activity_partnership", null)
+	_assert_true(decision != null, "dismissal test decision is registered")
+	if decision == null:
+		return
+	var event := EventManager._activate(decision, "store_dismiss_test", "store_dismiss_test")
+	_assert_true(TimeManager.speed == TimeManager.Speed.PAUSED, "decision activation pauses time")
+	_assert_true(EventManager.dismiss_decision(event.instance_id), "pending decision can be dismissed")
+	_assert_true(event.resolution == "dismissed" and EventManager.pending_decisions.is_empty(), "dismissed decision records its distinct resolution")
+	_assert_true(TimeManager.speed == TimeManager.Speed.X5 and is_zero_approx(EventManager.get_modifier_total(GameEventDefinition.Scope.STORE, "store_dismiss_test", "natural_visitors_multiplier_add")), "dismissing a decision restores speed without applying option effects")
+
+	TimeManager.set_speed(TimeManager.Speed.PAUSED)
+	var notice: GameEventDefinition = EventManager.definitions.get("store_neighborhood_activity", null)
+	_assert_true(notice != null, "time policy notice is registered")
+	if notice != null:
+		EventManager._activate(notice, "store_notice_test", "store_notice_test")
+		_assert_true(TimeManager.speed == TimeManager.Speed.X1, "non-interactive notice switches time to one-times speed")
+
+
 func _test_automatic_store_decision_trigger() -> void:
 	EventManager.reset_for_new_game()
 	TimeManager.reset()
@@ -386,6 +509,20 @@ func _event_uses_registered_message(event: ActiveGameEvent, definition: GameEven
 	if event == null or event.message.is_empty():
 		return false
 	return event.message == definition.message or definition.message_variants.has(event.message)
+
+
+func _has_research_journal_entry(block_id: String, option_id: String) -> bool:
+	for record in GameManager.player_state.discovery_history:
+		if str(record.get("block_id", "")) == block_id and str(record.get("discovery_id", "")) == "research_event:research_local_tip" and str(record.get("option_id", "")) == option_id:
+			return true
+	return false
+
+
+func _has_discovery_id(discovery_id: String) -> bool:
+	for record in GameManager.player_state.discovery_history:
+		if str(record.get("discovery_id", "")) == discovery_id:
+			return true
+	return false
 
 
 func _assert_true(condition: bool, message: String) -> void:

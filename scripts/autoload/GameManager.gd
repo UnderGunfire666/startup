@@ -27,6 +27,9 @@ var road_graph: RoadGraph = RoadGraph.new()
 
 ## ── 多店重构阶段1 ────────────────────────────────────────────
 var stores: Array[Store] = []
+## NPC businesses use the exact same Store data model, but never share the
+## player's wallet, research, or character state.
+var npc_stores: Array[Store] = []
 var active_store_id: String = ""
 
 var _next_store_sequence: int = 0
@@ -165,14 +168,17 @@ func create_character(data: Dictionary) -> Dictionary:
 		"starting_cash": float(difficulty.starting_cash),
 		"trait_ids": trait_ids,
 	})
+	player_state.storefront_intel_seed = abs(hash("storefront-intel:%s:%d" % [player_name, age]))
 
 	## 创建角色不再自动开店。"有角色"和"有开店企划"是两件事：
 	## 角色创建完成后玩家名下没有任何店铺，必须去"我的店铺"主动新建一个
 	## 企划（create_new_store()），才能开始选区域/门面/品类这些准备工作。
 	stores = []
+	npc_stores = []
 	active_store_id = ""
 
 	TimeManager.reset()
+	_seed_npc_stores_if_needed()
 
 	ScheduleManager.reset_for_new_game()
 
@@ -232,6 +238,36 @@ func get_store(id: String) -> Store:
 	for s in stores:
 		if s.id == id: return s
 	return null
+
+
+func get_npc_store(id: String) -> Store:
+	for store in npc_stores:
+		if store.id == id:
+			return store
+	return null
+
+
+func get_any_store(id: String) -> Store:
+	var player_store := get_store(id)
+	return player_store if player_store != null else get_npc_store(id)
+
+
+func get_npc_store_for_storefront(storefront_id: String) -> Store:
+	for store in npc_stores:
+		if store.selected_storefront_id == storefront_id and store.transfer_state != "closed":
+			return store
+	return null
+
+
+func get_all_open_stores() -> Array[Store]:
+	var result: Array[Store] = []
+	for store in stores:
+		if store.is_open:
+			result.append(store)
+	for store in npc_stores:
+		if store.is_open and store.transfer_state != "closed":
+			result.append(store)
+	return result
 
 
 func get_open_stores() -> Array[Store]:
@@ -297,7 +333,126 @@ func _generate_unique_id(prefix: String) -> String:
 	_next_store_sequence += 1
 	return "%s_%d_%d" % [prefix, Time.get_ticks_msec(), _next_store_sequence]
 
+
+func _seed_npc_stores_if_needed() -> void:
+	if not npc_stores.is_empty():
+		return
+	for storefront in all_storefronts:
+		if storefront.is_occupied:
+			npc_stores.append(_make_seeded_npc_store(storefront))
+
+
+func _make_seeded_npc_store(storefront: StorefrontData) -> Store:
+	var rng := RandomNumberGenerator.new()
+	## Storefront id is intentionally the seed: starting/reloading a campaign
+	## never rerolls a neighbourhood's competitors.
+	rng.seed = int(hash("npc-store:" + storefront.id))
+	var store := Store.new()
+	store.id = "npc_" + storefront.id
+	store.owner_kind = "npc"
+	var names := ["陈", "林", "周", "许", "方", "杜", "叶", "宋"]
+	var given_names := ["安", "宁", "遥", "澄", "川", "月", "岚", "禾"]
+	store.owner_name = str(names[rng.randi_range(0, names.size() - 1)]) + str(given_names[rng.randi_range(0, given_names.size() - 1)])
+	store.name = storefront.occupant_name if not storefront.occupant_name.is_empty() else "%s的小店" % store.owner_name
+	store.selected_storefront_id = storefront.id
+	store.signed_storefront_id = storefront.id
+	store.is_open = true
+	store.is_business_open = true
+	store.pre_open_stage = Store.PreOpenStage.OPEN_FOR_BUSINESS
+	store.operating_cash = rng.randf_range(18000.0, 48000.0)
+	store.owner_stress = rng.randf_range(18.0, 52.0)
+	store.lease_rent_multiplier = rng.randf_range(0.92, 1.12)
+	store.lease_deposit_paid = storefront.get_monthly_rent_yuan() * float(rng.randi_range(1, 3))
+	store.lease_end_day = TimeManager.current_day + rng.randi_range(365, 1095)
+	store.business_hour_ranges = [Vector2i(rng.randi_range(7, 10), rng.randi_range(18, 23))]
+	_seed_npc_traits(store, rng)
+	var eligible_categories: Array[CategoryData] = []
+	for candidate_category in all_categories:
+		for product in all_products:
+			if product.category_id == candidate_category.id:
+				eligible_categories.append(candidate_category)
+				break
+	var category := eligible_categories[rng.randi_range(0, eligible_categories.size() - 1)] if not eligible_categories.is_empty() else null
+	if category != null:
+		var slot := StoreCategorySlot.new()
+		slot.category_id = category.id
+		for product in all_products:
+			if product.category_id == category.id or product.is_universal:
+				var config := StoreProductConfig.new()
+				config.product_id = product.id
+				config.custom_price = product.average_price * rng.randf_range(0.92, 1.12)
+				config.inventory_units = 120
+				slot.product_configs.append(config)
+				for recipe_item in product.recipe:
+					store.add_ingredient_stock(str(recipe_item.get("ingredient_id", "")), 240.0, 2.0)
+				if slot.product_configs.size() >= 3:
+					break
+		store.category_slots.append(slot)
+		for equipment_id in category.required_equipment_ids:
+			var equipment := StoreEquipment.new()
+			equipment.instance_id = "%s_eq_%d" % [store.id, store.equipment.size()]
+			equipment.equipment_id = equipment_id
+			store.equipment.append(equipment)
+	if store.equipment.is_empty() and not all_equipment.is_empty():
+		var fallback_equipment := StoreEquipment.new()
+		fallback_equipment.instance_id = "%s_eq_0" % store.id
+		fallback_equipment.equipment_id = all_equipment[0].id
+		store.equipment.append(fallback_equipment)
+	if not all_employee_candidates.is_empty():
+		var employee_count := maxi(1, category.required_staff_count) if category != null else 1
+		for employee_index in employee_count:
+			var candidate := all_employee_candidates[rng.randi_range(0, all_employee_candidates.size() - 1)]
+			var employee := StoreEmployee.new()
+			employee.candidate_id = "%s_npc_%d" % [candidate.id, employee_index]
+			employee.name = candidate.name
+			employee.skills = candidate.skills.duplicate()
+			if category != null and not category.required_staff.is_empty() and not employee.has_skill(category.required_staff):
+				employee.skills.append(category.required_staff)
+			employee.hourly_wage = candidate.hourly_wage
+			employee.skill_level = candidate.skill_level
+			employee.work_hour_ranges = store.business_hour_ranges.duplicate()
+			store.employees.append(employee)
+	_seed_npc_layout(store, storefront)
+	return store
+
+
+func _seed_npc_traits(store: Store, rng: RandomNumberGenerator) -> void:
+	var used_types: Dictionary = {}
+	var traits := CharacterCreationData.get_traits()
+	for index in range(traits.size()):
+		var swap_index := rng.randi_range(index, traits.size() - 1)
+		var swap = traits[index]
+		traits[index] = traits[swap_index]
+		traits[swap_index] = swap
+	for trait_data in traits:
+		if used_types.has(trait_data.trait_type) or rng.randf() > 0.48:
+			continue
+		used_types[trait_data.trait_type] = true
+		store.owner_trait_ids.append(trait_data.id)
+		if store.owner_trait_ids.size() >= 3:
+			break
+
+
+func _seed_npc_layout(store: Store, storefront: StorefrontData) -> void:
+	var geometry := StorefrontLayoutGeometry.from_storefront(storefront)
+	var cell_index := 0
+	for equipment in store.equipment:
+		var placement := StoreFurniturePlacement.new()
+		placement.instance_id = equipment.instance_id
+		placement.equipment_id = equipment.equipment_id
+		placement.cell = Vector2i(cell_index % geometry.grid_size.x, cell_index / geometry.grid_size.x)
+		store.furniture_layout.append(placement)
+		cell_index += 1
+	var entrance := StoreFacadePlacement.new()
+	entrance.type = "entrance"
+	entrance.cell = geometry.get_default_entrance_cell(storefront.default_entrance_offset)
+	store.facade_layout.append(entrance)
+	store.facade_layout_initialized = true
+
 func _discover_storefronts_in_block(block_id: String) -> void:
+	## All storefronts are visible from the beginning. Research now improves the
+	## account of a block rather than revealing map objects.
+	return
 	var block := get_block(block_id)
 	if block == null:
 		return
@@ -317,15 +472,136 @@ func _discover_storefronts_in_block(block_id: String) -> void:
 
 
 func reveal_all_storefronts() -> Array[String]:
-	var newly_revealed: Array[String] = []
-	for storefront in all_storefronts:
-		if get_storefront_diligence(storefront.id) != "not_viewed":
-			continue
-		player_state.storefront_diligence[storefront.id] = "initial_viewing"
-		newly_revealed.append(storefront.id)
-	if not newly_revealed.is_empty():
-		storefronts_discovered.emit(newly_revealed)
-	return newly_revealed
+	return []
+
+
+func get_storefront_intel(storefront_id: String) -> Dictionary:
+	return player_state.get_storefront_intel(storefront_id)
+
+
+func visit_storefront(storefront_id: String) -> Dictionary:
+	var storefront := get_storefront(storefront_id)
+	if storefront == null:
+		return {"success": false, "reason": "门面不存在"}
+	if player_state.current_block_id != storefront.block_id:
+		return {"success": false, "reason": "请先前往门面所在区块"}
+	var intel := player_state.get_storefront_intel(storefront_id)
+	if bool(intel.get("visited", false)):
+		return {"success": true, "reason": "你已经到访过这间门面"}
+	var previous_belief := StorefrontIntelPresenter.describe_storefront(storefront, player_state)
+	intel["visited"] = true
+	intel["menu_reviewed"] = bool(intel.get("menu_reviewed", false))
+	intel["order_records"] = intel.get("order_records", [])
+	intel["traffic_observations"] = intel.get("traffic_observations", [])
+	var beliefs: Array = intel.get("belief_history", [])
+	beliefs.append({"day": TimeManager.current_day, "hour": TimeManager.get_current_hour_int(), "before": previous_belief, "after": {"occupancy": "已开店" if storefront.is_occupied else "空门面", "area": storefront.area}, "message": "现场到访将先前的街面判断替换为核验记录。"})
+	intel["belief_history"] = beliefs
+	player_state.set_storefront_intel(storefront_id, intel)
+	player_state.add_storefront_intel_history({"kind": "visit", "storefront_id": storefront_id, "day": TimeManager.current_day, "hour": TimeManager.get_current_hour_int(), "message": "现场到访核验了门面外观与占用状态。"})
+	return {"success": true, "reason": "已记录现场所见"}
+
+
+func review_storefront_menu(storefront_id: String) -> Dictionary:
+	var storefront := get_storefront(storefront_id)
+	var npc_store := get_npc_store_for_storefront(storefront_id)
+	var intel := player_state.get_storefront_intel(storefront_id)
+	if storefront == null or not bool(intel.get("visited", false)) or npc_store == null or not npc_store.is_business_open:
+		return {"success": false, "reason": "到访营业中的店铺后才能查看菜单"}
+	var menu: Array[Dictionary] = []
+	for slot in npc_store.category_slots:
+		for config in slot.product_configs:
+			var product := get_product(config.product_id)
+			if product != null:
+				menu.append({"product_id": product.id, "name": product.name, "price": config.get_effective_price(product)})
+	intel["menu_reviewed"] = true
+	intel["menu"] = menu
+	player_state.set_storefront_intel(storefront_id, intel)
+	player_state.add_storefront_intel_history({"kind": "menu", "storefront_id": storefront_id, "day": TimeManager.current_day, "menu": menu, "message": "你抄下了店里的菜单和标价。"})
+	return {"success": true, "reason": "菜单已记录", "menu": menu}
+
+
+func record_storefront_observation(storefront_id: String) -> Dictionary:
+	var npc_store := get_npc_store_for_storefront(storefront_id)
+	if npc_store == null:
+		return {"success": false, "reason": "这里只有空门面，没有可观察的营业客流"}
+	var summary := npc_store.get_day_summary(TimeManager.current_day)
+	var metrics := get_store_operating_metrics(npc_store)
+	var observation := {"day": TimeManager.current_day, "hour": TimeManager.get_current_hour_int(), "visitors": int(summary.get("actual_orders", 0)) + int(summary.get("lost_capacity", 0)), "orders": int(summary.get("actual_orders", 0)), "queue_left": int(summary.get("lost_capacity", 0)), "message": "这一小时的客流与排队情况已记入观察笔记。"}
+	var intel := player_state.get_storefront_intel(storefront_id)
+	observation["visitors"] = int(metrics.get("visitors", observation.get("visitors", 0)))
+	observation["orders"] = int(metrics.get("orders", observation.get("orders", 0)))
+	observation["queue_left"] = int(metrics.get("queue_left", observation.get("queue_left", 0)))
+	observation["left"] = int(metrics.get("inventory_left", 0)) + int(metrics.get("queue_left", 0))
+	var observations: Array = intel.get("traffic_observations", [])
+	observations.append(observation)
+	intel["traffic_observations"] = observations
+	player_state.set_storefront_intel(storefront_id, intel)
+	player_state.add_storefront_intel_history(observation.merged({"kind": "traffic", "storefront_id": storefront_id}))
+	return {"success": true, "reason": observation.message}
+
+
+## A player purchase is deliberately an external customer order: it never joins
+## the natural market pool, but it does consume the NPC's stock and creates an
+## ordinary settlement record for that store.
+func order_storefront_product(storefront_id: String, product_id: String) -> Dictionary:
+	var npc_store := get_npc_store_for_storefront(storefront_id)
+	var intel := player_state.get_storefront_intel(storefront_id)
+	if npc_store == null or not bool(intel.get("visited", false)) or not bool(intel.get("menu_reviewed", false)):
+		return {"success": false, "reason": "请先到访并查看这间店的菜单"}
+	if not npc_store.is_business_open:
+		return {"success": false, "reason": "店铺此刻没有营业"}
+	var selected_product: ProductData = null
+	var selected_category: CategoryData = null
+	var unit_price := 0.0
+	for slot in npc_store.category_slots:
+		for product_config in slot.product_configs:
+			if product_config.product_id != product_id:
+				continue
+			selected_product = get_product(product_id)
+			selected_category = get_category(slot.category_id)
+			if selected_product != null:
+				unit_price = product_config.get_effective_price(selected_product)
+			break
+		if selected_product != null:
+			break
+	if selected_product == null or selected_category == null:
+		return {"success": false, "reason": "这份菜单已经换了，无法按原选项点单"}
+	if player_state.cash + 0.001 < unit_price:
+		return {"success": false, "reason": "现金不足，无法支付这份点单"}
+	if not npc_store.try_reserve_product_ingredients(selected_product, 1, 1.0):
+		return {"success": false, "reason": "店里刚好缺货，这次没有成交"}
+	var hour := TimeManager.get_current_hour_int()
+	var staffing_power := get_category_staffing_power(npc_store, selected_category, hour)
+	var service_seconds := get_product_service_seconds(selected_category, selected_product, staffing_power)
+	var ingredient_cost := get_product_unit_ingredient_cost_for_store(npc_store, selected_product)
+	var utility_cost := get_product_unit_utility_cost(selected_product)
+	var result := SettlementResult.new()
+	result.day = TimeManager.current_day
+	result.slot = "external_visit"
+	result.category_id = selected_category.id
+	result.category_name = selected_category.name
+	result.product_id = selected_product.id
+	result.product_name = selected_product.name
+	result.actual_orders = 1
+	result.visitors = 1
+	result.business_open = true
+	result.unit_price = unit_price
+	result.service_time_seconds = service_seconds
+	result.staffing_power = staffing_power
+	result.revenue = unit_price
+	result.ingredient_cost = ingredient_cost
+	result.utility_cost = utility_cost
+	result.profit = unit_price - ingredient_cost - utility_cost
+	npc_store.apply_settlement(result)
+	npc_store.apply_npc_financial_result(result)
+	player_state.cash -= unit_price
+	var record := {"day": TimeManager.current_day, "hour": hour, "product_id": selected_product.id, "product_name": selected_product.name, "price": unit_price, "service_seconds": service_seconds, "message": "你点了一份%s；价格与服务过程已记入到访记录。" % selected_product.name}
+	var records: Array = intel.get("order_records", [])
+	records.append(record)
+	intel["order_records"] = records
+	player_state.set_storefront_intel(storefront_id, intel)
+	player_state.add_storefront_intel_history(record.merged({"kind": "order", "storefront_id": storefront_id}))
+	return {"success": true, "reason": str(record.message), "record": record}
 
 
 # ── 门面尽调 (玩家层) ────────────────────────────────────────
@@ -578,6 +854,8 @@ func select_storefront(storefront_id: String) -> Dictionary:
 	var sf := get_storefront(storefront_id)
 	if sf == null:
 		return {"success": false, "reason": "门面不存在"}
+	if sf.is_occupied:
+		return {"success": false, "reason": "该门面正在营业，只能联系店主了解经营情况"}
 
 	## 决定②：门面占用校验。
 	if is_storefront_occupied(storefront_id, store.id):
@@ -585,6 +863,7 @@ func select_storefront(storefront_id: String) -> Dictionary:
 
 	store.selected_storefront_id = storefront_id
 	store.signed_storefront_id = ""
+	store.pending_lease_offer.clear()
 	store.pre_open_stage = Store.PreOpenStage.STORE_SETUP
 	_sync_data_objects()
 	store_plan_updated.emit(store.id)
@@ -603,10 +882,39 @@ func sign_selected_storefront() -> Dictionary:
 	var storefront := get_storefront(store.selected_storefront_id)
 	if storefront == null:
 		return {"success": false, "reason": "选定门面不存在"}
+	var offer := store.pending_lease_offer
+	if str(offer.get("storefront_id", "")) != storefront.id:
+		return {"success": false, "reason": "请先完成与房东的谈判，取得该门面的有效报价"}
+	var rent_multiplier := float(offer.get("rent_multiplier", 1.0))
+	var deposit_months := int(offer.get("deposit_months", 0))
+	var deposit := storefront.get_monthly_rent_yuan() * rent_multiplier * deposit_months
+	if player_state.cash + 0.001 < deposit:
+		return {"success": false, "reason": "现金不足，支付押金还差 %.0f 元" % (deposit - player_state.cash)}
+	player_state.cash -= deposit
 	store.signed_storefront_id = storefront.id
+	store.lease_rent_multiplier = rent_multiplier
+	store.lease_deposit_paid = deposit
+	store.lease_free_rent_hours_remaining = float(offer.get("free_rent_hours", 0.0))
+	store.pending_lease_offer.clear()
 	_sync_data_objects()
 	store_plan_updated.emit(store.id)
-	return {"success": true, "reason": "已签约门面：「%s」" % storefront.name}
+	return {"success": true, "reason": "已签约门面：「%s」，已支付押金 %.0f 元" % [storefront.name, deposit]}
+
+
+func set_pending_lease_offer(store_id: String, storefront_id: String, rent_multiplier: float, deposit_months: int, free_rent_hours: float, source_option_id: String) -> bool:
+	var store := get_store(store_id)
+	if store == null or store.is_open or store.selected_storefront_id != storefront_id or storefront_id.is_empty():
+		return false
+	store.pending_lease_offer = {
+		"storefront_id": storefront_id,
+		"rent_multiplier": rent_multiplier,
+		"deposit_months": deposit_months,
+		"free_rent_hours": free_rent_hours,
+		"source_option_id": source_option_id,
+	}
+	_sync_data_objects()
+	store_plan_updated.emit(store.id)
+	return true
 
 
 func calculate_purchase_total(cart: Dictionary) -> float:
@@ -1323,19 +1631,30 @@ func open_store() -> Dictionary:
 ## 开始全新一局：完全重建门店与玩家状态，不保留任何选择/进度/存档影响。
 func start_new_game() -> void:
 	stores = []
+	npc_stores = []
+	TimeManager.reset()
+	var source_storefronts := GameData.get_storefronts()
+	for storefront in all_storefronts:
+		## Data files are the canonical new-game occupancy state. Closed stores in
+		## an old session must not leak into a fresh campaign.
+		for source_storefront in source_storefronts:
+			if source_storefront.id == storefront.id:
+				storefront.is_occupied = source_storefront.is_occupied
+				storefront.occupant_name = source_storefront.occupant_name
+				break
+	_seed_npc_stores_if_needed()
 	active_store_id = ""
 	player_state = PlayerState.new()
 	current_storefront = null
 	last_settlement_error = ""
 	active_simulations.clear()
-	TimeManager.reset()
 	ScheduleManager.reset_for_new_game()
 	EventManager.reset_for_new_game()
 
 
 func begin_slot_simulation() -> void:
 	active_simulations.clear()
-	_begin_slot_simulation_for_stores(get_open_stores())
+	_begin_slot_simulation_for_stores(get_all_open_stores())
 
 
 ## Slot setup is intentionally global: natural demand is finite per
@@ -1492,7 +1811,7 @@ func _create_category_service_simulation(participant: Dictionary) -> void:
 		products.append({"product": product, "product_template": template, "inventory_limit": limit, "ingredient_consumption_multiplier": consumption})
 	var service := CategoryServiceSimulator.new(category.id)
 	service.setup(category.id, visitors, group_profiles, options, SettlementConfig.CUSTOMER_MAX_QUEUE_WAIT_SECONDS)
-	active_simulations.append({"store_id": store.id, "service": service, "params": params, "category": category, "products": products})
+	active_simulations.append({"store_id": store.id, "store": store, "service": service, "params": params, "category": category, "products": products})
 
 
 func _begin_slot_simulation_for_store(store: Store) -> void:
@@ -1950,7 +2269,7 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 	var day := finished_day if finished_day >= 1 else TimeManager.current_day
 
 	for entry in active_simulations:
-		var store := get_store(entry.store_id)
+		var store: Store = entry.get("store", get_any_store(entry.store_id))
 		if store == null:
 			continue
 		var category_service: CategoryServiceSimulator = entry.get("service", null)
@@ -1974,7 +2293,8 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 				result.ingredient_consumption_multiplier = float(product_entry.get("ingredient_consumption_multiplier", 1.0))
 				result.preparation_waste_ingredients = store.get_preparation_waste_for_orders(template, result.actual_orders, result.ingredient_consumption_multiplier)
 				store.apply_settlement(result)
-				player_state.apply_settlement(result)
+				if store.owner_kind == "npc": store.apply_npc_financial_result(result)
+				else: player_state.apply_settlement(result)
 				results.append(result)
 				if not results_by_store.has(store.id): results_by_store[store.id] = []
 				results_by_store[store.id].append(result)
@@ -1995,7 +2315,8 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 				entry.params, hour, day, entry.category, entry.product, 0, null)
 
 		store.apply_settlement(result)
-		player_state.apply_settlement(result)
+		if store.owner_kind == "npc": store.apply_npc_financial_result(result)
+		else: player_state.apply_settlement(result)
 		results.append(result)
 
 		if not results_by_store.has(store.id):
@@ -2005,16 +2326,20 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 			operating_store_ids[store.id] = true
 
 	var spoilage_by_store: Dictionary = {}
-	for open_store in get_open_stores():
+	for open_store in get_all_open_stores():
 		spoilage_by_store[open_store.id] = open_store.apply_ingredient_spoilage(
 			get_ingredient_spoilage_ratios(open_store))
 
 	## Fixed costs are accrued once for every opened store, independent of the
 	## number of products, active staff, or completed orders in this hour.
-	for open_store in get_open_stores():
+	for open_store in get_all_open_stores():
 		var fixed_store_id := open_store.id
 		var fixed_storefront := get_storefront(open_store.selected_storefront_id)
-		var lease_cost := fixed_storefront.get_monthly_rent_yuan() / 30.0 / 24.0 if fixed_storefront != null else 0.0
+		var base_lease_cost := fixed_storefront.get_monthly_rent_yuan() / 30.0 / 24.0 if fixed_storefront != null else 0.0
+		var lease_cost := base_lease_cost * open_store.lease_rent_multiplier
+		if open_store.is_business_open and open_store.lease_free_rent_hours_remaining > 0.0:
+			lease_cost = 0.0
+			open_store.lease_free_rent_hours_remaining = maxf(0.0, open_store.lease_free_rent_hours_remaining - 1.0)
 		var category_cost := _get_store_category_hourly_occupancy_cost(open_store)
 		var is_operating := operating_store_ids.has(fixed_store_id)
 		var fixed_utility := get_equipment_hourly_utility_cost(open_store) if is_operating else get_storage_equipment_hourly_utility_cost(open_store)
@@ -2036,14 +2361,20 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 		fixed_overhead.spoilage_ingredients = spoilage_by_store.get(fixed_store_id, {})
 		fixed_overhead.profit = -(fixed_overhead.rent_cost + fixed_utility + fixed_wages)
 		open_store.apply_settlement(fixed_overhead)
-		player_state.apply_settlement(fixed_overhead)
+		if open_store.owner_kind == "npc": open_store.apply_npc_financial_result(fixed_overhead)
+		else: player_state.apply_settlement(fixed_overhead)
 		results.append(fixed_overhead)
 		if not results_by_store.has(fixed_store_id):
 			results_by_store[fixed_store_id] = []
 		results_by_store[fixed_store_id].append(fixed_overhead)
 
 	for store_id in results_by_store.keys():
-		_apply_operating_understanding_gain(get_store(store_id), results_by_store[store_id], hour, day)
+		var settled_store := get_any_store(store_id)
+		if settled_store != null and settled_store.owner_kind == "player":
+			_apply_operating_understanding_gain(settled_store, results_by_store[store_id], hour, day)
+
+	if hour == 23:
+		_run_npc_daily_operations(day)
 
 	active_simulations.clear()
 	return results
@@ -2058,6 +2389,119 @@ func _get_store_category_hourly_occupancy_cost(store: Store) -> float:
 		if category != null:
 			total += category.extra_rent_wan * 10000.0 / 30.0 / 24.0
 	return total
+
+
+func _run_npc_daily_operations(day: int) -> void:
+	for store in npc_stores:
+		if store.owner_kind != "npc" or store.transfer_state == "closed":
+			continue
+		var summary := store.get_day_summary(day)
+		var profit := float(summary.get("profit", 0.0))
+		store.consecutive_loss_days = store.consecutive_loss_days + 1 if profit < 0.0 else 0
+		store.owner_stress = clampf(store.owner_stress + (-profit / 350.0), 0.0, 100.0)
+		_npc_restock_and_adjust(store, day, profit)
+		if store.lease_end_day >= 0 and day >= store.lease_end_day:
+			_close_npc_store(store, "lease_expired")
+			continue
+		if store.transfer_state == "none" and store.consecutive_loss_days >= 3 and _should_offer_npc_transfer(store, day, profit):
+			store.transfer_state = "offered"
+			store.transfer_record = {"offered_day": day, "asking_price": _get_npc_transfer_price(store), "reason": "sustained_loss"}
+			continue
+		if store.operating_cash <= 0.0 and profit < 0.0:
+			_close_npc_store(store, "insolvent")
+
+
+func _npc_restock_and_adjust(store: Store, day: int, profit: float) -> void:
+	if store.operating_cash <= 0.0:
+		store.is_business_open = false
+		return
+	var restock_budget := minf(store.operating_cash * 0.18, 5000.0)
+	if store.has_owner_trait("anxious"):
+		restock_budget *= 0.75
+	if store.has_owner_trait("negotiator"):
+		restock_budget *= 1.08
+	for slot in store.category_slots:
+		for config in slot.product_configs:
+			var product := get_product(config.product_id)
+			if product == null:
+				continue
+			for recipe_item in product.recipe:
+				var ingredient_id := str(recipe_item.get("ingredient_id", ""))
+				if ingredient_id.is_empty() or restock_budget <= 0.0:
+					continue
+				var amount := minf(120.0, restock_budget / 2.0)
+				store.add_ingredient_stock(ingredient_id, amount, 2.0)
+				restock_budget -= amount * 2.0
+				store.operating_cash -= amount * 2.0
+	if profit < 0.0:
+		for slot in store.category_slots:
+			for config in slot.product_configs:
+				if config.custom_price > 0.0:
+					config.custom_price *= 1.02 if store.has_owner_trait("negotiator") else 0.99
+		if not store.business_hour_ranges.is_empty() and store.consecutive_loss_days >= 2:
+			var current_range := store.business_hour_ranges[0]
+			if current_range.y - current_range.x > 6:
+				store.business_hour_ranges[0] = Vector2i(current_range.x + 1, current_range.y)
+				for employee in store.employees:
+					employee.work_hour_ranges = store.business_hour_ranges.duplicate()
+	store.is_business_open = store.operating_cash > 0.0
+
+
+func _should_offer_npc_transfer(store: Store, day: int, profit: float) -> bool:
+	var chance := 0.08 + float(store.consecutive_loss_days) * 0.035
+	chance += maxf(0.0, store.owner_stress - 50.0) / 250.0
+	chance += maxf(0.0, -profit) / 12000.0
+	chance += 0.07 if store.has_owner_trait("anxious") else 0.0
+	chance -= 0.05 if store.has_owner_trait("stress_resistant") else 0.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(hash("transfer:%s:%d" % [store.id, day]))
+	return rng.randf() < clampf(chance, 0.0, 0.75)
+
+
+func _get_npc_transfer_price(store: Store) -> float:
+	var assets := 0.0
+	for equipment in store.equipment:
+		var definition := get_equipment(equipment.equipment_id)
+		assets += definition.price * 0.45 if definition != null else 0.0
+	return maxf(2000.0, assets + store.operating_cash * 0.15 + store.reputation * 35.0)
+
+
+func _close_npc_store(store: Store, reason: String) -> void:
+	store.is_open = false
+	store.is_business_open = false
+	store.transfer_state = "closed"
+	store.transfer_record["closed_reason"] = reason
+	store.transfer_record["closed_day"] = TimeManager.current_day
+	store.owner_kind = "archived_npc"
+	var storefront := get_storefront(store.selected_storefront_id)
+	if storefront != null:
+		storefront.is_occupied = false
+		storefront.occupant_name = ""
+
+
+func take_over_npc_store(npc_store_id: String, price_multiplier: float = 1.0) -> Dictionary:
+	var store := get_npc_store(npc_store_id)
+	if store == null or store.transfer_state != "offered":
+		return {"success": false, "reason": "这间店目前没有可接手的转让报价"}
+	var price := float(store.transfer_record.get("asking_price", 0.0)) * maxf(0.1, price_multiplier)
+	if player_state.cash < price:
+		return {"success": false, "reason": "现金不足以接手这间店"}
+	player_state.cash -= price
+	store.owner_kind = "player"
+	store.owner_name = player_state.player_name
+	store.owner_trait_ids = []
+	store.transfer_state = "none"
+	store.transfer_record["taken_over_day"] = TimeManager.current_day
+	var storefront := get_storefront(store.selected_storefront_id)
+	if storefront != null:
+		storefront.is_occupied = true
+		storefront.occupant_name = player_state.player_name
+	npc_stores.erase(store)
+	stores.append(store)
+	active_store_id = store.id
+	_sync_data_objects()
+	active_store_changed.emit(active_store_id)
+	return {"success": true, "reason": "已接手 %s" % store.name, "store_id": store.id}
 
 
 ## backlog任务4：经营数据反哺区块了解度。现在按"这次结算属于哪家店"分别计算，

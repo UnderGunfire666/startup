@@ -41,6 +41,11 @@ var discovery_history: Array[Dictionary] = []
 var storefront_diligence: Dictionary = {}
 ## 完整尽调是可中断的连续行动；这里保存门面的累计勘验进度（0-100）。
 var storefront_diligence_progress: Dictionary = {}
+## Per-storefront field notes.  The old diligence fields are read only during
+## migration; new games use this record for visits, menus, orders and traffic.
+var storefront_intel: Dictionary = {}
+var storefront_intel_history: Array[Dictionary] = []
+var storefront_intel_seed: int = 0
 var survey_areas: Array[SurveyAreaState] = []
 var focused_city_region_id: String = ""
 
@@ -80,6 +85,9 @@ func reset_to_defaults() -> void:
 	work_skills.clear()
 	work_skill_level = 1.0
 	brand_awareness_by_block.clear()
+	storefront_intel.clear()
+	storefront_intel_history.clear()
+	storefront_intel_seed = 0
 
 
 func get_used_trait_points() -> int:
@@ -141,6 +149,18 @@ func get_block_research_progress(block_id: String, focus_id: String) -> float:
 
 func get_storefront_diligence(storefront_id: String) -> String:
 	return str(storefront_diligence.get(storefront_id, "not_viewed"))
+
+
+func get_storefront_intel(storefront_id: String) -> Dictionary:
+	return (storefront_intel.get(storefront_id, {}) as Dictionary).duplicate(true)
+
+
+func set_storefront_intel(storefront_id: String, intel: Dictionary) -> void:
+	storefront_intel[storefront_id] = intel.duplicate(true)
+
+
+func add_storefront_intel_history(record: Dictionary) -> void:
+	storefront_intel_history.append(record.duplicate(true))
 
 
 func get_storefront_diligence_progress(storefront_id: String) -> float:
@@ -291,7 +311,7 @@ func _survey_areas_to_save_data() -> Array:
 
 func to_save_dict() -> Dictionary:
 	return {
-		"version": 3,
+		"version": 4,
 		"is_character_created": is_character_created,
 		"player_name": player_name,
 		"gender": gender,
@@ -314,8 +334,9 @@ func to_save_dict() -> Dictionary:
 		"block_research_progress": block_research_progress,
 		"block_discovery_progress": block_discovery_progress,
 		"discovery_history": discovery_history,
-		"storefront_diligence": storefront_diligence,
-		"storefront_diligence_progress": storefront_diligence_progress,
+		"storefront_intel": storefront_intel,
+		"storefront_intel_history": storefront_intel_history,
+		"storefront_intel_seed": storefront_intel_seed,
 		"survey_areas": _survey_areas_to_save_data(),
 		"focused_city_region_id": focused_city_region_id,
 		"current_block_id": current_block_id,
@@ -365,6 +386,12 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p._migrate_legacy_research_progress()
 	p.storefront_diligence = data.get("storefront_diligence", {})
 	p.storefront_diligence_progress = data.get("storefront_diligence_progress", {})
+	p.storefront_intel = data.get("storefront_intel", {}).duplicate(true)
+	for raw_record in data.get("storefront_intel_history", []):
+		if raw_record is Dictionary:
+			p.storefront_intel_history.append(raw_record.duplicate(true))
+	p.storefront_intel_seed = int(data.get("storefront_intel_seed", 0))
+	p._migrate_legacy_storefront_intel()
 	p.focused_city_region_id = data.get("focused_city_region_id", "")
 	p.current_block_id = str(data.get("current_block_id", ""))
 	p.supervising_store_id = data.get("supervising_store_id", "")
@@ -381,6 +408,16 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 			survey_area_typed.append(SurveyAreaState.from_save_dict(raw_area))
 	p.survey_areas = survey_area_typed
 	return p
+
+
+func _migrate_legacy_storefront_intel() -> void:
+	if storefront_intel_seed == 0:
+		storefront_intel_seed = abs(hash("storefront-intel:" + player_name))
+	if not storefront_intel.is_empty():
+		return
+	for storefront_id in storefront_diligence.keys():
+		if str(storefront_diligence.get(storefront_id, "not_viewed")) != "not_viewed":
+			storefront_intel[str(storefront_id)] = {"visited": true, "menu_reviewed": false, "order_records": [], "traffic_observations": []}
 
 
 func _migrate_legacy_research_progress() -> void:

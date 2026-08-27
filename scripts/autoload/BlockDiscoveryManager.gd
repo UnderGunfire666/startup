@@ -15,6 +15,45 @@ func reset_for_new_game() -> void:
 	_evaluation_time_override = -1.0
 
 
+## Interactive research events are journal entries only. They intentionally do
+## not touch discovery tiers or research progress, which remain simulation data.
+func record_interactive_research_choice(event: ActiveGameEvent, option: Dictionary) -> void:
+	if event == null or event.event_id != "research_local_tip" or event.scope != GameEventDefinition.Scope.BLOCK:
+		return
+	var label := str(option.get("label", option.get("id", "处理")))
+	var description := str(option.get("description", "")).strip_edges()
+	var message := event.message + "\n\n你的处理：" + label
+	if not description.is_empty():
+		message += "——" + description
+	_append_interactive_research_record(event, "research_event:" + event.event_id, "交互调研", message, str(option.get("id", "")))
+
+
+func record_interactive_research_result(event: ActiveGameEvent) -> void:
+	if event == null or event.parent_instance_id.is_empty() or event.chain_id != "research_local_tip" or event.scope != GameEventDefinition.Scope.BLOCK:
+		return
+	_append_interactive_research_record(event, "research_result:" + event.node_id, "调研结果", event.message)
+
+
+func _append_interactive_research_record(event: ActiveGameEvent, discovery_id: String, category: String, message: String, option_id: String = "") -> void:
+	var block := GameManager.get_block(event.target_id)
+	if block == null:
+		return
+	var record_time := TimeManager.total_game_seconds
+	var record := {
+		"block_id": block.id, "block_name": block.name, "discovery_id": discovery_id,
+		"category": category, "tier": 0, "message": message, "occasional": false,
+		"day": 1 + int(record_time / TimeManager.DAY_SECONDS),
+		"weekday": TimeManager.get_weekday_name(1 + int(record_time / TimeManager.DAY_SECONDS)),
+		"hour": _hour_at(record_time), "minute": int(fposmod(record_time, 3600.0) / 60.0),
+		"game_seconds": record_time, "event_instance_id": event.instance_id,
+		"parent_instance_id": event.parent_instance_id, "option_id": option_id,
+	}
+	GameManager.player_state.discovery_history.append(record)
+	while GameManager.player_state.discovery_history.size() > MAX_HISTORY:
+		GameManager.player_state.discovery_history.pop_front()
+	discovery_recorded.emit(record)
+
+
 func get_focus_for_discovery(discovery_id: String) -> String:
 	for prefix in FOCUS_BY_DISCOVERY_PREFIX:
 		if discovery_id.begins_with(prefix):
@@ -168,7 +207,7 @@ func _evaluate_time(block: BlockData, progress: float, result: Array[Dictionary]
 			_try_progressive(block, "student_after_school", "时段", progress, result, _four("放学铃声过去不久，背着书包的学生便开始从几条小路汇到这里。", "过了 17 点，原本松散的脚步突然有了方向，学生们把街面推热了一截。", "你确认了这不是巧合：工作日 17–19 点，放学人流会把这里短暂地改写。", "这段窗口里大约会涌过 %d 名学生；他们来得快，也不会无缘无故停留。" % roundi(students)))
 			return
 	if capacity > 0.0 and activity / capacity >= 0.75:
-		_try_progressive(block, "active_" + period, "时段", progress, result, _four("到了%s，店门前的空隙开始被脚步填满，街区像刚被唤醒。" % period, "%s的变化不只在人数：等人、停步和绕路的行为都明显多了。" % period, "你连续观察后确认，%s的活跃度确实高于平常，值得专门安排。" % period, "这一时段的活动供给约为基础规模的 %.0f%%；知道它何时出现，比只知道它存在更有用。" % [period, activity / capacity * 100.0]))
+		_try_progressive(block, "active_" + period, "时段", progress, result, _four("到了%s，店门前的空隙开始被脚步填满，街区像刚被唤醒。" % period, "%s的变化不只在人数：等人、停步和绕路的行为都明显多了。" % period, "你连续观察后确认，%s的活跃度确实高于平常，值得专门安排。" % period, "这一时段的活动供给约为基础规模的 %.0f%%；知道它何时出现，比只知道它存在更有用。" % (activity / capacity * 100.0)))
 
 
 func _evaluate_occasional(block: BlockData, result: Array[Dictionary], forced_roll: float, interval_seconds: float) -> void:

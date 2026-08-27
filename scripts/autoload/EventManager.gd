@@ -3,6 +3,7 @@ extends Node
 signal notice_raised(event: ActiveGameEvent)
 signal decision_raised(event: ActiveGameEvent)
 signal interrupt_raised(event: ActiveGameEvent)
+signal event_finalized(event: ActiveGameEvent)
 
 const RESEARCH_DISCOVERY_CHANCE_PER_HOUR: float = 0.25
 const PLAYER_BLOCK_EVENT_CHANCE_PER_HOUR: float = 0.15
@@ -33,6 +34,8 @@ func _ready() -> void:
 	_register_city_region_activity_events()
 	_register_storefront_events()
 	_register_store_operating_events()
+	_register_landlord_terms_chain()
+	_register_npc_transfer_chain()
 	TimeManager.hour_advanced.connect(_on_hour_advanced)
 
 func reset_for_new_game() -> void:
@@ -51,11 +54,14 @@ func reset_for_new_game() -> void:
 func raise_discovery_notice(title: String, message: String, block_id: String) -> ActiveGameEvent:
 	var event := ActiveGameEvent.new()
 	event.event_id = "block_discovery"
+	_next_instance_sequence += 1
+	event.instance_id = "%s:%d" % [event.event_id, _next_instance_sequence]
 	event.target_id = block_id
 	event.title = title
 	event.message = message
 	event.started_game_seconds = TimeManager.total_game_seconds
 	_append_history(event)
+	TimeManager.set_speed(TimeManager.Speed.X1)
 	notice_raised.emit(event)
 	return event
 
@@ -74,6 +80,33 @@ func try_research_discovery(block_id: String, focus_id: String = "population") -
 	if float(cooldown_until.get(roll_key, 0.0)) > TimeManager.total_game_seconds or randf() > RESEARCH_DISCOVERY_CHANCE_PER_HOUR:
 		return null
 	return _activate(definition, block_id)
+
+
+func start_landlord_terms_chain(store_id: String) -> ActiveGameEvent:
+	var store := GameManager.get_store(store_id)
+	if store == null or store.selected_storefront_id.is_empty() or not store.pending_lease_offer.is_empty():
+		return null
+	var definition: GameEventDefinition = definitions.get("landlord_terms_opening", null)
+	if definition == null:
+		return null
+	return _activate(definition, store.id, store.id, "", "", {"storefront_id": store.selected_storefront_id})
+
+
+func start_npc_transfer_chain(npc_store_id: String) -> ActiveGameEvent:
+	var store := GameManager.get_npc_store(npc_store_id)
+	if store == null or store.transfer_state != "offered":
+		return null
+	var definition: GameEventDefinition = definitions.get("npc_transfer_opening", null)
+	if definition == null:
+		return null
+	return _activate(definition, store.selected_storefront_id, "", "", "npc_transfer", {"npc_store_id": store.id, "storefront_id": store.selected_storefront_id})
+
+
+func has_pending_landlord_terms_for_store(store_id: String) -> bool:
+	for event in pending_decisions:
+		if event.store_id == store_id and event.chain_id == "landlord_terms":
+			return true
+	return false
 
 
 func try_player_block_event() -> ActiveGameEvent:
@@ -227,7 +260,7 @@ func _has_pending_interrupt_for_store(store_id: String) -> bool:
 			return true
 	return false
 
-func _activate(definition: GameEventDefinition, target_id: String, store_id: String = "", parent_instance_id: String = "", chain_id: String = "") -> ActiveGameEvent:
+func _activate(definition: GameEventDefinition, target_id: String, store_id: String = "", parent_instance_id: String = "", chain_id: String = "", context: Dictionary = {}) -> ActiveGameEvent:
 	var event := ActiveGameEvent.new()
 	event.event_id = definition.id
 	_next_instance_sequence += 1
@@ -239,11 +272,12 @@ func _activate(definition: GameEventDefinition, target_id: String, store_id: Str
 	event.interaction = definition.interaction
 	event.target_id = target_id
 	event.store_id = store_id
+	event.context = context.duplicate(true)
 	event.title = definition.title
 	event.message = _select_event_message(definition)
 	event.started_game_seconds = TimeManager.total_game_seconds
 	event.effects = definition.effects.duplicate(true)
-	event.options = _snapshot_options(definition.options)
+	event.options = _snapshot_options(definition.options, event.context)
 	event.resume_speed = TimeManager.speed if TimeManager.speed != TimeManager.Speed.PAUSED else TimeManager.Speed.X1
 	if event.interaction == GameEventDefinition.Interaction.DECISION:
 		pending_decisions.append(event)
@@ -257,6 +291,9 @@ func _activate(definition: GameEventDefinition, target_id: String, store_id: Str
 	else:
 		EventEffectResolver.apply(event)
 		_append_history(event)
+		TimeManager.set_speed(TimeManager.Speed.X1)
+		if not event.parent_instance_id.is_empty():
+			BlockDiscoveryManager.record_interactive_research_result(event)
 	var cooldown_key := definition.id + ":" + target_id
 	cooldown_until[cooldown_key] = TimeManager.total_game_seconds + definition.cooldown_hours * 3600.0
 	notice_raised.emit(event)
@@ -270,7 +307,7 @@ func _select_event_message(definition: GameEventDefinition) -> String:
 	return str(variants.pick_random()) if not variants.is_empty() else ""
 
 
-func _snapshot_options(options: Array[Dictionary]) -> Array[Dictionary]:
+func _snapshot_options(options: Array[Dictionary], context: Dictionary = {}) -> Array[Dictionary]:
 	var snapshot: Array[Dictionary] = []
 	for raw_option in options:
 		var option := raw_option.duplicate(true)
@@ -289,6 +326,12 @@ func _snapshot_options(options: Array[Dictionary]) -> Array[Dictionary]:
 		for trait_id in excluded_traits:
 			if GameManager.player_state.has_trait(str(trait_id)):
 				available = false
+		if option.has("transfer_price_multiplier"):
+			var npc_store := GameManager.get_npc_store(str(context.get("npc_store_id", "")))
+			var required_cash := float(npc_store.transfer_record.get("asking_price", 0.0)) * float(option.get("transfer_price_multiplier", 1.0)) if npc_store != null else INF
+			if GameManager.player_state.cash < required_cash:
+				available = false
+				option["locked_reason"] = "现金不足以接手这间店"
 		option["available"] = available
 		if not available and str(option.get("locked_reason", "")).is_empty():
 			option["locked_reason"] = "需要特定角色特性"
@@ -307,20 +350,37 @@ func resolve_decision(instance_id: String, option_id: String) -> bool:
 				if not bool(option.get("available", true)):
 					return false
 				event.selected_option_id = option_id
+				event.resolution = "selected"
 				event.effects.clear()
 				for effect in option.get("effects", []):
 					if effect is Dictionary:
 						event.effects.append(effect)
 				EventEffectResolver.apply(event)
 				pending_decisions.remove_at(index)
+				BlockDiscoveryManager.record_interactive_research_choice(event, option)
 				_append_history(event)
 				var next_node_id := str(option.get("next_node_id", ""))
 				if not next_node_id.is_empty():
 					var next_definition: GameEventDefinition = definitions.get(next_node_id, null)
 					if next_definition != null:
-						_activate(next_definition, event.target_id, event.store_id, event.instance_id, event.chain_id)
+						_activate(next_definition, event.target_id, event.store_id, event.instance_id, event.chain_id, event.context)
 				_resume_after_event(event)
+				event_finalized.emit(event)
 				return true
+	return false
+
+
+func dismiss_decision(instance_id: String) -> bool:
+	for index in range(pending_decisions.size()):
+		var event := pending_decisions[index]
+		if event.instance_id != instance_id and event.event_id != instance_id:
+			continue
+		event.resolution = "dismissed"
+		pending_decisions.remove_at(index)
+		_append_history(event)
+		_resume_after_event(event)
+		event_finalized.emit(event)
+		return true
 	return false
 
 
@@ -329,10 +389,21 @@ func resolve_interrupt(instance_id: String) -> bool:
 		var event := pending_interrupts[index]
 		if event.instance_id != instance_id and event.event_id != instance_id:
 			continue
+		event.resolution = "acknowledged"
 		pending_interrupts.remove_at(index)
 		_append_history(event)
 		_resume_after_event(event)
+		event_finalized.emit(event)
 		return true
+	return false
+
+
+func acknowledge_notice(instance_id: String) -> bool:
+	for event in event_history:
+		if event.instance_id == instance_id:
+			event.resolution = "acknowledged"
+			event_finalized.emit(event)
+			return true
 	return false
 
 
@@ -476,7 +547,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	while event_history.size() > MAX_EVENT_HISTORY:
 		event_history.pop_front()
 	_prune_expired_modifiers()
-	if not pending_interrupts.is_empty():
+	if not pending_interrupts.is_empty() or not pending_decisions.is_empty():
 		TimeManager.set_speed(TimeManager.Speed.PAUSED)
 
 func _register_research_discoveries() -> void:
@@ -659,6 +730,103 @@ func _register_chain_result(id: String, title: String, message: String, effects:
 	definition.title = title
 	definition.message = message
 	definition.effects = effects
+	definitions[id] = definition
+
+
+func _register_landlord_terms_chain() -> void:
+	_register_landlord_decision("landlord_terms_opening", "房东临时改口", "房东把原先的报价单压在茶杯下面，说刚才有人也问过这个门面。她的语气很轻，像是在等你先替这句话找理由。桌上的钥匙就在手边，但每一把都还没有真正交到你手里。", [
+		{"id": "review", "label": "请她把每一项费用写清楚", "description": "把模糊的压力还原成能逐条判断的条件。", "next_node_id": "landlord_terms_review", "effects": []},
+		{"id": "exchange", "label": "不先还价，先问她最在乎什么", "description": "不急着碰数字，试着找出可以交换的风险。", "required_all_traits": ["negotiator"], "locked_reason": "需要特性：谈判老手", "next_node_id": "landlord_terms_exchange", "effects": []},
+		{"id": "written", "label": "请她把报价发成书面文本", "description": "把当场的压力留在门外，让每一项让步都写清楚。", "required_all_traits": ["socially_awkward"], "locked_reason": "需要特性：不善交际", "next_node_id": "landlord_terms_written", "effects": []},
+		{"id": "leave", "label": "合上本子，今天不作承诺", "description": "暂时放下这扇门，也放下现在就必须决定的压力。", "next_node_id": "landlord_terms_walkaway", "effects": []},
+	])
+	_register_landlord_decision("landlord_terms_review", "逐项报价", "她把租金、押金和交付日期逐行圈出来，没有再加一句“这是最低价”。纸面上的条件不讨喜，却没有藏着第二层意思。", [
+		_lease_option("standard", "按原方案签下，把变量留给经营", "接受稳定、清楚的基准条件。", "landlord_terms_standard_result", 1.0, 2, 0.0),
+		{"id": "leave", "label": "把报价还给她，继续找别的门面", "description": "不让一份平稳的合同替你做最后决定。", "next_node_id": "landlord_terms_walkaway", "effects": []},
+	])
+	_register_landlord_decision("landlord_terms_exchange", "交换条件", "你没有立刻碰她报出的数字，只问她最怕的是什么。房东看着空置门面承认，她更在意租客能否稳定落脚。谈判终于从“能不能便宜”变成了“谁替谁承担风险”。", [
+		_lease_option("low_rent", "多交一笔押金，换更低的长期月租", "把更多现金压在今天，换往后每个月轻一点。", "landlord_terms_low_rent_result", 0.9, 3, 0.0),
+		_lease_option("buffer", "多交一笔押金，换两周开业免租", "把缓冲留给开业最混乱的日子。", "landlord_terms_buffer_result", 1.0, 3, 336.0),
+		{"id": "leave", "label": "表示条件不合适，今天到此为止", "description": "不为一扇门承诺自己承受不起的风险。", "next_node_id": "landlord_terms_walkaway", "effects": []},
+	])
+	_register_landlord_decision("landlord_terms_written", "纸面往来", "邮件里没有催促的眼神，只有逐条列出的数字和一个等待回复的光标。少出的前期现金，终究会在别处被标上价。", [
+		_lease_option("low_deposit", "接受略高月租，换更低的押金", "保留启动资金，但把压力挪到每个月的账单上。", "landlord_terms_low_deposit_result", 1.05, 1, 0.0),
+		_lease_option("free_month", "接受更高月租，换首月营业免租", "让开业有喘息时间，代价是之后每月更重。", "landlord_terms_free_month_result", 1.1, 1, 720.0),
+		{"id": "leave", "label": "不回复这份报价，继续寻找", "description": "不让纸面上的清楚掩盖条件本身的重量。", "next_node_id": "landlord_terms_walkaway", "effects": []},
+	])
+	_register_landlord_result("landlord_terms_standard_result", "基准报价已记录", "房东收起笔，把两份相同的条款推到你面前。没有额外的让步，也没有藏起来的附页。这份报价已经记录下来；确认签约时，再决定是否把钥匙拿走。")
+	_register_landlord_result("landlord_terms_low_rent_result", "低租约报价已记录", "她点头收下更高的押金承诺，终于把月租那一行划低。你替未来的每个月争来一点空间，也把更多现金留在了今天。报价已经记录下来。")
+	_register_landlord_result("landlord_terms_buffer_result", "开业缓冲报价已记录", "房东把免租期写在补充条款最上方，提醒你它只会从真正营业时开始计算。你买下的不是便宜，而是一段能把开业节奏理顺的时间。报价已经记录下来。")
+	_register_landlord_result("landlord_terms_low_deposit_result", "低押金报价已记录", "回复邮件很快到了：她愿意少收一笔押金，但月租不会替你忘记这份让步。前期资金能留在手里，往后的账本会记得这次选择。报价已经记录下来。")
+	_register_landlord_result("landlord_terms_free_month_result", "首月免租报价已记录", "她同意把首月营业免租写进条款，随后把月租数字抬高了一格。最难的开业阶段会有一段喘息，但它并没有消失，只是被安排到了以后。报价已经记录下来。")
+	_register_landlord_result("landlord_terms_walkaway", "谈判暂时结束", "房东没有挽留，只把钥匙重新收进抽屉。你没有失去一间店，只是没有把自己绑在今天的条件上。这个门面仍可更换，但尚未形成可签约的报价。")
+
+
+func _lease_option(id: String, label: String, description: String, result_node_id: String, rent_multiplier: float, deposit_months: int, free_rent_hours: float) -> Dictionary:
+	return {"id": id, "label": label, "description": description, "next_node_id": result_node_id, "effects": [{"type": "store_lease_offer", "rent_multiplier": rent_multiplier, "deposit_months": deposit_months, "free_rent_hours": free_rent_hours}]}
+
+
+func _register_npc_transfer_chain() -> void:
+	_register_transfer_decision("npc_transfer_opening", "门头上的转让告示", "褪色的告示被胶带贴在玻璃内侧。店主没有急着介绍生意，只说自己已经撑得太久；桌上的账本、钥匙和还没到期的租约，都在等一个新的去处。", [
+		{"id": "review", "label": "先翻看账本和租约", "description": "把店里的热闹与亏损都摆到同一张桌上，再决定是否接手。", "next_node_id": "npc_transfer_review", "effects": []},
+		{"id": "press", "label": "先问他真正急着摆脱什么", "description": "不急着谈价格，试着找出对方最难继续承担的风险。", "required_all_traits": ["negotiator"], "locked_reason": "需要特性：谈判老手", "next_node_id": "npc_transfer_press", "effects": []},
+		{"id": "leave", "label": "把告示留在原处", "description": "不让一间疲惫的店替你做出承诺。", "next_node_id": "npc_transfer_leave", "effects": []},
+	])
+	_register_transfer_decision("npc_transfer_review", "把旧账摊开", "账本边缘沾着油渍，近几周的亏损被一笔笔圈了出来。设备和员工还在，租约也没有立刻到期；问题不是这家店有没有价值，而是你愿不愿意接下它没走完的路。", [
+		{"id": "take", "label": "按账面条件接手整间店", "description": "连同现有资产、员工、库存和剩余租约一起承担。", "transfer_price_multiplier": 1.0, "next_node_id": "npc_transfer_success", "effects": [{"type": "npc_transfer_takeover", "price_multiplier": 1.0}]},
+		{"id": "leave", "label": "合上账本，暂不接手", "description": "把风险留回原来的经营者手中。", "next_node_id": "npc_transfer_leave", "effects": []},
+	])
+	_register_transfer_decision("npc_transfer_press", "把压力换成条件", "对方沉默了很久，承认最怕的不是少拿一点钱，而是下个月的租金和员工的去处。你争到了一点价格空间，也必须接下更完整、更难回头的承诺。", [
+		{"id": "take", "label": "以较低价格接手，保留原班人马", "description": "省下一笔收购款，但接下员工与租约的全部延续。", "transfer_price_multiplier": 0.86, "next_node_id": "npc_transfer_success", "effects": [{"type": "npc_transfer_takeover", "price_multiplier": 0.86}]},
+		{"id": "leave", "label": "承认条件仍不合适", "description": "不把谈出来的让步误认为风险已经消失。", "next_node_id": "npc_transfer_leave", "effects": []},
+	])
+	_register_transfer_result("npc_transfer_success", "钥匙换了主人", "对方把钥匙推到你这边，像终于允许自己离开一段拖得太久的日子。门头、账本、库存和还在等排班的员工现在都归你处理；这不是一间新店，而是一段正在继续的经营。")
+	_register_transfer_result("npc_transfer_leave", "转让没有成交", "店主把告示重新抚平在玻璃上。你没有替他解决问题，也没有把它变成自己的问题；这间店仍会按它自己的账本继续走下去。")
+
+
+func _register_transfer_decision(id: String, title: String, message: String, options: Array[Dictionary]) -> void:
+	var definition := GameEventDefinition.new()
+	definition.id = id
+	definition.title = title
+	definition.message = message
+	definition.interaction = GameEventDefinition.Interaction.DECISION
+	definition.chain_id = "npc_transfer"
+	definition.options = options
+	definitions[id] = definition
+
+
+func _register_transfer_result(id: String, title: String, message: String) -> void:
+	var definition := GameEventDefinition.new()
+	definition.id = id
+	definition.title = title
+	definition.message = message
+	definition.interaction = GameEventDefinition.Interaction.NOTICE
+	definition.chain_id = "npc_transfer"
+	definitions[id] = definition
+
+
+func _register_landlord_decision(id: String, title: String, message: String, options: Array[Dictionary]) -> void:
+	var definition := GameEventDefinition.new()
+	definition.id = id
+	definition.chain_id = "landlord_terms"
+	definition.node_id = id
+	definition.scope = GameEventDefinition.Scope.STORE
+	definition.interaction = GameEventDefinition.Interaction.DECISION
+	definition.title = title
+	definition.message = message
+	definition.options = options
+	definitions[id] = definition
+
+
+func _register_landlord_result(id: String, title: String, message: String) -> void:
+	var definition := GameEventDefinition.new()
+	definition.id = id
+	definition.chain_id = "landlord_terms"
+	definition.node_id = id
+	definition.scope = GameEventDefinition.Scope.STORE
+	definition.interaction = GameEventDefinition.Interaction.NOTICE
+	definition.title = title
+	definition.message = message
 	definitions[id] = definition
 
 

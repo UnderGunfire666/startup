@@ -16,6 +16,7 @@ func _ready() -> void:
 	_test_progressive_and_persistent_discovery()
 	_test_weighted_group_event_pool()
 	_test_observed_after_school_window()
+	_test_active_period_discovery_formatting()
 	_test_non_hourly_observation_timestamp()
 	_test_narrative_focus_messages()
 	_test_occasional_discovery()
@@ -137,6 +138,30 @@ func _test_observed_after_school_window() -> void:
 	BlockDiscoveryManager.evaluate_research(block_id, 1.0, -1.0, 3600.0, "time")
 	var weekend: Dictionary = GameManager.player_state.block_discovery_progress.get(block_id, {})
 	_expect(not weekend.has("student_after_school"), "周末同一时段不会触发工作日放学规律")
+
+
+func _test_active_period_discovery_formatting() -> void:
+	var found_active_period := false
+	for block in GameManager.all_blocks:
+		var city_region := GameManager.get_city_region(block.city_region_id)
+		var capacity := PopulationSupplyCalculator.calculate_capacity_base(block)
+		for hour in range(24):
+			if hour >= 17 and hour < 19:
+				continue
+			var period := SpatialConfig.get_period_for_hour(hour)
+			var activity := PopulationSupplyCalculator.calculate_total_activity_supply(block, period, city_region, false)
+			if capacity <= 0.0 or activity / capacity < 0.75:
+				continue
+			GameManager.player_state.block_discovery_progress.erase(block.id)
+			GameManager.player_state.discovery_history.clear()
+			var observed_at := float(hour) * 3600.0
+			var results: Array[Dictionary] = []
+			BlockDiscoveryManager._evaluate_time(block, 100.0, results, observed_at)
+			found_active_period = not results.is_empty() and str(results[0].get("message", "")).contains("活动供给")
+			break
+		if found_active_period:
+			break
+	_expect(found_active_period, "高活跃时段发现可正确格式化比例叙事文本")
 
 
 func _test_occasional_discovery() -> void:

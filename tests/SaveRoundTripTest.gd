@@ -55,7 +55,7 @@ func _test_build_state() -> void:
 		"groups": 62.5,
 	}
 	GameManager.player_state.brand_awareness_by_block["block_w_school"] = 14.75
-	GameManager.player_state.storefront_diligence["S004"] = "full_diligence"
+	GameManager.player_state.set_storefront_intel("S004", {"visited": true, "menu_reviewed": false, "order_records": [], "traffic_observations": []})
 	GameManager.player_state.focused_city_region_id = "CR001"
 	GameManager.player_state.supervising_store_id = ""
 
@@ -145,7 +145,7 @@ func _test_save_and_load() -> void:
 		"Independent group research progress restores")
 	_check(is_equal_approx(float(GameManager.player_state.brand_awareness_by_block.get("block_w_school", 0.0)), 14.75),
 		"Brand awareness restores")
-	_check(GameManager.player_state.storefront_diligence.get("S004", "") == "full_diligence",
+	_check(bool(GameManager.player_state.get_storefront_intel("S004").get("visited", false)),
 		"加载后门面尽调状态应恢复")
 	_check(GameManager.player_state.region_intel_levels.get("CR001", 0) == 3,
 		"加载后区域知识等级应恢复")

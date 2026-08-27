@@ -8,6 +8,10 @@ extends PopupPanel
 var _queue: Array[ActiveGameEvent] = []
 var _current: ActiveGameEvent = null
 
+func _ready() -> void:
+	exclusive = true
+	close_requested.connect(_on_close_requested)
+
 func enqueue(event: ActiveGameEvent) -> void:
 	if event == null:
 		return
@@ -39,12 +43,18 @@ func _show_next() -> void:
 				description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				description_label.modulate = Color(0.76, 0.76, 0.76) if not button.disabled else Color(0.52, 0.52, 0.52)
 				options_box.add_child(description_label)
+		var dismiss := Button.new()
+		dismiss.text = "关闭并跳过本次事件"
+		dismiss.pressed.connect(_dismiss_decision)
+		options_box.add_child(dismiss)
 	else:
 		var acknowledge := Button.new()
 		acknowledge.text = "知道了"
 		acknowledge.pressed.connect(_acknowledge)
 		options_box.add_child(acknowledge)
 	popup_centered()
+	move_to_foreground()
+	grab_focus()
 
 func _resolve_option(option_id: String) -> void:
 	if _current != null:
@@ -52,8 +62,30 @@ func _resolve_option(option_id: String) -> void:
 	_finish_current()
 
 func _acknowledge() -> void:
-	if _current != null and _current.interaction == GameEventDefinition.Interaction.INTERRUPT:
+	if _current == null:
+		return
+	if _current.interaction == GameEventDefinition.Interaction.INTERRUPT:
 		EventManager.resolve_interrupt(_current.instance_id)
+	else:
+		EventManager.acknowledge_notice(_current.instance_id)
+	_finish_current()
+
+
+func _dismiss_decision() -> void:
+	if _current != null and _current.interaction == GameEventDefinition.Interaction.DECISION:
+		EventManager.dismiss_decision(_current.instance_id)
+		_finish_current()
+
+
+func _on_close_requested() -> void:
+	if _current == null:
+		return
+	if _current.interaction == GameEventDefinition.Interaction.DECISION:
+		EventManager.dismiss_decision(_current.instance_id)
+	elif _current.interaction == GameEventDefinition.Interaction.INTERRUPT:
+		EventManager.resolve_interrupt(_current.instance_id)
+	else:
+		EventManager.acknowledge_notice(_current.instance_id)
 	_finish_current()
 
 func _finish_current() -> void:

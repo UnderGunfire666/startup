@@ -9,6 +9,7 @@ var _fail_count: int = 0
 var _operation_panel: PanelContainer
 var _procurement_panel: PanelContainer
 var _save_load_bar: HBoxContainer
+var _event_popup: EventPopup
 
 
 func _ready() -> void:
@@ -16,6 +17,7 @@ func _ready() -> void:
 	_mount_panels()
 	await get_tree().process_frame
 	_test_no_character()
+	_test_event_popup_exclusivity()
 	_test_character_without_store()
 	_test_store_created()
 	_test_decision_box()
@@ -32,9 +34,11 @@ func _mount_panels() -> void:
 	_operation_panel = preload("res://scenes/panels/OperationPanel.tscn").instantiate()
 	_procurement_panel = preload("res://scenes/panels/ProcurementPanel.tscn").instantiate()
 	_save_load_bar = preload("res://scenes/panels/SaveLoadBar.tscn").instantiate()
+	_event_popup = preload("res://scenes/panels/EventPopup.tscn").instantiate()
 	add_child(_operation_panel)
 	add_child(_procurement_panel)
 	add_child(_save_load_bar)
+	add_child(_event_popup)
 
 
 func _check(condition: bool, label: String) -> void:
@@ -58,6 +62,11 @@ func _test_no_character() -> void:
 	_check(pause_button.disabled, "无角色时顶栏时间控制应禁用")
 	_check(operation_status.text == "⚠ 请先创建角色", "OperationPanel应提示先创建角色")
 	_check(procurement_status.text == "请先创建角色。", "ProcurementPanel应提示先创建角色")
+
+
+func _test_event_popup_exclusivity() -> void:
+	print("\n── 事件弹窗层级 ──")
+	_check(_event_popup.exclusive, "全局事件弹窗应为独占窗口，不能被底层时间控件覆盖")
 
 
 func _test_character_without_store() -> void:

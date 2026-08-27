@@ -64,7 +64,7 @@ text = "清空区块选择"
 [node name="ShowAllStorefrontsButton" type="Button" parent="HBoxContainer/SidePanel"]
 layout_mode = 2
 text = "显示全部门面"
-tooltip_text = "显示所有门面；仍需完成完整尽调才能选址。"
+tooltip_text = "显示所有可查看门面。"
 
 [node name="ResearchModeOption" type="OptionButton" parent="HBoxContainer/SidePanel"]
 layout_mode = 2

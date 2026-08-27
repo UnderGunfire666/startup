@@ -3,39 +3,27 @@ extends Node
 var passed := 0
 var failed := 0
 
-
 func _ready() -> void:
 	GameManager.start_new_game()
-	var storefronts := GameManager.all_storefronts
-	_expect(not storefronts.is_empty(), "运行时地图包含门面")
-	if storefronts.is_empty():
-		_finish()
-		return
-	var fully_reviewed: StorefrontData = storefronts[0]
-	GameManager.advance_storefront_diligence(fully_reviewed.id, "initial_viewing")
-	GameManager.advance_storefront_diligence(fully_reviewed.id, "full_diligence")
-	var revealed := GameManager.reveal_all_storefronts()
-	_expect(revealed.size() == storefronts.size() - 1, "显示全部门面只显示此前未发现的门面")
-	_expect(GameManager.get_storefront_diligence(fully_reviewed.id) == "full_diligence", "显示全部门面不会降级完整尽调状态")
-	var all_visible := true
-	for storefront in storefronts:
-		all_visible = all_visible and GameManager.get_storefront_diligence(storefront.id) != "not_viewed"
-	_expect(all_visible, "显示全部门面后不保留未发现状态")
-	_expect(GameManager.reveal_all_storefronts().is_empty(), "重复显示全部门面不产生重复变更")
+	_expect(not GameManager.all_storefronts.is_empty(), "运行时地图包含门面")
+	_expect(GameManager.reveal_all_storefronts().is_empty(), "全门面不再需要揭示操作")
+	var storefront: StorefrontData = GameManager.all_storefronts[0]
+	var before := StorefrontIntelPresenter.describe_storefront(storefront, GameManager.player_state)
+	var again := StorefrontIntelPresenter.describe_storefront(storefront, GameManager.player_state)
+	_expect(before == again and not bool(before.get("visited", false)), "未到访的表面信息在同局内稳定")
+	GameManager.player_state.set_current_block(storefront.block_id)
+	var visit := GameManager.visit_storefront(storefront.id)
+	_expect(bool(visit.get("success", false)), "到访可核验单间门面")
+	var after := StorefrontIntelPresenter.describe_storefront(storefront, GameManager.player_state)
+	_expect(bool(after.get("visited", false)), "到访后的展示切换为真实物理信息")
 	var restored := PlayerState.from_save_dict(GameManager.player_state.to_save_dict())
-	_expect(restored.get_storefront_diligence(fully_reviewed.id) == "full_diligence", "显示全部门面后的尽调状态可存档恢复")
+	_expect(bool(restored.get_storefront_intel(storefront.id).get("visited", false)), "到访情报可存档恢复")
 	_finish()
 
-
 func _expect(condition: bool, message: String) -> void:
-	if condition:
-		passed += 1
-		print("PASS: " + message)
-	else:
-		failed += 1
-		print("FAIL: " + message)
-
+	if condition: passed += 1; print("PASS: " + message)
+	else: failed += 1; print("FAIL: " + message)
 
 func _finish() -> void:
-	print("========== Map Storefront Reveal Test: %d passed / %d failed ==========" % [passed, failed])
+	print("========== Storefront Intel Test: %d passed / %d failed ==========" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)

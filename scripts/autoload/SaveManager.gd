@@ -9,10 +9,18 @@ func save_game() -> bool:
 	var store_data: Array = []
 	for store in GameManager.stores:
 		store_data.append(store.to_save_dict())
+	var npc_store_data: Array = []
+	for store in GameManager.npc_stores:
+		npc_store_data.append(store.to_save_dict())
+	var storefront_states: Array = []
+	for storefront in GameManager.all_storefronts:
+		storefront_states.append({"id": storefront.id, "is_occupied": storefront.is_occupied, "occupant_name": storefront.occupant_name})
 
 	var data := {
 		"player_state": GameManager.player_state.to_save_dict(),
 		"stores": store_data,
+		"npc_stores": npc_store_data,
+		"storefront_states": storefront_states,
 		"active_store_id": GameManager.active_store_id,
 		"time_manager": TimeManager.to_save_dict(),
 		"event_manager": EventManager.to_save_dict(),
@@ -38,6 +46,7 @@ func load_game() -> bool:
 
 	var player_data: Dictionary = parsed.get("player_state", {})
 	var stores_raw: Array = parsed.get("stores", [])
+	var npc_stores_raw: Array = parsed.get("npc_stores", [])
 	var time_data: Dictionary = parsed.get("time_manager", {})
 	var event_data: Dictionary = parsed.get("event_manager", {})
 
@@ -48,6 +57,18 @@ func load_game() -> bool:
 		if raw_store is Dictionary:
 			loaded_stores.append(Store.from_save_dict(raw_store))
 	GameManager.stores = loaded_stores
+	var loaded_npc_stores: Array[Store] = []
+	for raw_store in npc_stores_raw:
+		if raw_store is Dictionary:
+			loaded_npc_stores.append(Store.from_save_dict(raw_store))
+	GameManager.npc_stores = loaded_npc_stores
+	for raw_state in parsed.get("storefront_states", []):
+		if raw_state is Dictionary:
+			var storefront := GameManager.get_storefront(str(raw_state.get("id", "")))
+			if storefront != null:
+				storefront.is_occupied = bool(raw_state.get("is_occupied", storefront.is_occupied))
+				storefront.occupant_name = str(raw_state.get("occupant_name", storefront.occupant_name))
+	GameManager._seed_npc_stores_if_needed()
 	GameManager.active_store_id = str(parsed.get("active_store_id", ""))
 	## 容错旧存档或异常存档：激活店铺ID无效时，自动选择第一家已载入店铺。
 	if GameManager.get_active_store() == null and not GameManager.stores.is_empty():

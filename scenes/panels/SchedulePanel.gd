@@ -14,7 +14,7 @@ extends PanelContainer
 var _last_displayed_hour: int = -1
 
 const EXCLUDED_FROM_LIST: Array[String] = [
-	"region_research", "deep_inspection",
+	"region_research",
 ]
 
 func _ready() -> void:

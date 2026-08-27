@@ -31,3 +31,15 @@ static func apply(event: ActiveGameEvent) -> void:
 					int(effect.get("scope", event.scope)), event.target_id,
 					str(effect.get("key", "")), float(effect.get("value", 0.0)),
 					float(effect.get("duration_hours", 0.0)))
+			"store_lease_offer":
+				GameManager.set_pending_lease_offer(
+					event.store_id,
+					str(event.context.get("storefront_id", "")),
+					float(effect.get("rent_multiplier", 1.0)),
+					int(effect.get("deposit_months", 0)),
+					float(effect.get("free_rent_hours", 0.0)),
+					event.selected_option_id)
+			"npc_transfer_takeover":
+				GameManager.take_over_npc_store(
+					str(event.context.get("npc_store_id", "")),
+					float(effect.get("price_multiplier", 1.0)))

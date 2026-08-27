@@ -39,6 +39,10 @@ func _ready() -> void:
 	root_box.move_child(decision_box, customer_feed.get_parent().get_index())
 	EventManager.decision_raised.connect(func(_event: ActiveGameEvent) -> void: _refresh_decisions())
 	EventManager.interrupt_raised.connect(func(_event: ActiveGameEvent) -> void: _refresh_interrupts())
+	EventManager.event_finalized.connect(func(_event: ActiveGameEvent) -> void:
+		_refresh_decisions()
+		_refresh_interrupts()
+	)
 	for hour in range(25):
 		business_start_option.add_item("%02d:00" % hour)
 		business_end_option.add_item("%02d:00" % hour)

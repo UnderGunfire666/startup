@@ -158,10 +158,6 @@ func _get_effective_duration_hours(
 
 	if action.action_effect_type == "move_to_block":
 		return _get_move_to_block_duration_hours(target_id)
-	if action.action_effect_type == "deep_inspection":
-		var remaining_ratio := 1.0 - GameManager.get_storefront_diligence_progress(target_id) / 100.0
-		return maxf(0.0, action.duration_hours * remaining_ratio)
-
 	if target_ids.is_empty():
 		return float(action.duration_hours)
 
@@ -259,6 +255,24 @@ func _check_preconditions(
 		if diligence_state == "full_diligence":
 			return {"can": false, "reason_code": "storefront_already_diligent", "reason": "该门面已经完成完整尽调"}
 
+	if action.action_effect_type in ["visit_storefront", "observe_storefront", "order_storefront"]:
+		var storefront := GameManager.get_storefront(target_id)
+		if storefront == null:
+			return {"can": false, "reason_code": "storefront_not_found", "reason": "目标门面不存在"}
+		if GameManager.player_state.current_block_id != storefront.block_id:
+			return {"can": false, "reason_code": "player_not_at_target_block", "reason": "请先前往门面所在区块"}
+		var intel := GameManager.get_storefront_intel(target_id)
+		if action.action_effect_type == "visit_storefront" and bool(intel.get("visited", false)):
+			return {"can": false, "reason_code": "already_visited", "reason": "这间门面已经到访过"}
+		if action.action_effect_type != "visit_storefront":
+			if not bool(intel.get("visited", false)):
+				return {"can": false, "reason_code": "storefront_not_visited", "reason": "请先到访这间门面"}
+			var npc_store := GameManager.get_npc_store_for_storefront(target_id)
+			if npc_store == null or not npc_store.is_business_open:
+				return {"can": false, "reason_code": "storefront_not_operating", "reason": "这间门面当前没有可观察的营业店铺"}
+			if action.action_effect_type == "order_storefront" and not bool(intel.get("menu_reviewed", false)):
+				return {"can": false, "reason_code": "menu_not_reviewed", "reason": "请先查看菜单"}
+
 	if action.requires_open_store and not state.is_open:
 		return {"can": false, "reason_code": "store_not_open", "reason": "尚未开业，无法安排「%s」" % action.name}
 	## requires_region_selected语义已从"已选定区域"(旧RegionData体系)改为
@@ -322,7 +336,8 @@ func add_action_to_schedule(action_id: String, start_hour: int, target_id: Strin
 func start_action_now(
 		action_id: String,
 		target_id: String = "",
-		target_ids: Array[String] = []
+		target_ids: Array[String] = [],
+		context: Dictionary = {}
 ) -> Dictionary:
 	if current_action != null and current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已经有一个行动正在进行，请先结束它"}
@@ -335,7 +350,7 @@ func start_action_now(
 	var check := can_schedule_action(action_id, current_hour, target_id, target_ids)
 	if not check.can:
 		return check
-	_begin_current_action(action_id, target_id, target_ids, null, current_hour)
+	_begin_current_action(action_id, target_id, target_ids, null, current_hour, context)
 	if action.action_effect_type == "move_to_block" and float(check.duration_hours) <= 0.0:
 		_finalize_current_action(0.0)
 		return {"can": true, "reason_code": "", "reason": "已位于目标区块，无需移动", "duration_hours": 0.0}
@@ -411,7 +426,8 @@ func _begin_current_action(
 		target_id: String,
 		target_ids: Array[String],
 		source_entry: ScheduledActionEntry,
-		start_hour: int = -1
+	start_hour: int = -1,
+	context: Dictionary = {}
 ) -> void:
 	current_action = CurrentActionState.new()
 	current_action.action_id = action_id
@@ -422,6 +438,7 @@ func _begin_current_action(
 	current_action.source_entry = source_entry
 	current_action.is_active = true
 	current_action.research_focus = selected_research_focus
+	current_action.context = context.duplicate(true)
 
 	var action := ScheduleActionData.get_action(action_id)
 	if action.action_effect_type == "region_research" and GameManager.player_state.current_block_id.is_empty() and not target_ids.is_empty():
@@ -761,6 +778,22 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	record.status = final_status
 	record.failure_reason = failure_reason
 	completed_entries_today.append(record)
+	if final_status == "completed" and not current_action.stopped_by_player and current_action.action_id == "landlord_negotiation":
+		EventManager.start_landlord_terms_chain(GameManager.active_store_id)
+	elif final_status == "completed" and not current_action.stopped_by_player:
+		var storefront_result: Dictionary = {}
+		match current_action.action_id:
+			"visit_storefront":
+				storefront_result = GameManager.visit_storefront(current_action.target_id)
+			"observe_storefront":
+				storefront_result = GameManager.record_storefront_observation(current_action.target_id)
+			"order_storefront":
+				storefront_result = GameManager.order_storefront_product(current_action.target_id, str(current_action.context.get("product_id", "")))
+		if not storefront_result.is_empty() and not bool(storefront_result.get("success", false)):
+			final_status = "failed"
+			failure_reason = str(storefront_result.get("reason", "行动未能完成"))
+		record.status = final_status
+		record.failure_reason = failure_reason
 	current_action = null
 
 	if player.energy <= 0.0 and player.energy_debt > 0.0:

@@ -1,6 +1,6 @@
 # 短期开发计划（已完成）
 
-本计划六项均已完成并通过既有契约验证。本文档是实现状态、涉及文件与方法的独立交接记录；后续开发须由新的、明确排序的计划定义。
+本计划六项均已完成并通过既有契约验证。其后完成的事件文本叙事化模块记录于“后续完成模块”；本文档是实现状态、涉及文件与方法的独立交接记录。后续功能开发须由新的、明确排序的计划定义。
 
 ## 1. 门店固定成本与商品变动成本 — 已完成
 
@@ -32,7 +32,17 @@
 - **涉及文件：** `scripts/autoload/GameManager.gd`、`scripts/spatial/MarketAllocator.gd`、`scripts/spatial/TradeAreaCalculator.gd`
 - **实现方法：** `GameManager.begin_slot_simulation()` 先全局收集参与者，再按区块×客群×品类共享市场池分配自然客流；`MarketAllocator` 负责外部竞争扣减与确定性整数分配。
 
+## 后续完成模块
+
+### 事件文本叙事化 — 已完成
+
+- **涉及文件：** `scripts/autoload/EventManager.gd`、`scripts/events/GameEventDefinition.gd`、`scenes/panels/EventPopup.gd`、`scripts/autoload/BlockDiscoveryManager.gd`、`scripts/settlement/CustomerSimulator.gd`、`scripts/settlement/CategoryServiceSimulator.gd`、`scenes/map/CityMapPanel.gd`、`scenes/panels/OperationPanel.gd`、`scripts/autoload/ScheduleManager.gd`。
+- **实现方法：** 全局事件、调研链、特性限定选项、区块发现、行动中断、地图反馈、营业日志与顾客反馈均改为紧凑叙事文本；高频事件和顾客反馈使用文本变体。事件实例快照所选文案，因此历史与存档仍保持一致；事件效果、进度、结算与失败代码均未改变。
+- **验证：** `tests/EventSystemContractTest.gd` 覆盖选项说明与事件文本变体；`tests/BlockDiscoveryContractTest.gd` 覆盖消费、需求、竞争发现文本及兼容调研路径复用。已执行 `git diff --check` 与 Godot 无头脚本扫描，未报告脚本解析错误。
+
 ## 验证依据
+
+- **Godot 控制台可执行文件：** `D:\Programs\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.exe`。后续无头契约测试与脚本扫描直接使用此路径。
 
 - `tests/StoreOperationsEvolutionContractTest.gd` 覆盖固定成本拆分、客群订单摘要、菜单选择、共享队列与市场池分配。
 - 已执行脚本扫描与现有契约测试；用户已确认全部通过。

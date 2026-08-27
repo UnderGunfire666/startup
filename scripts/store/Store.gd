@@ -24,10 +24,27 @@ enum PreOpenStage {
 var id: String = ""
 var name: String = ""
 
+## Both player and NPC businesses share this object.  Player-owned stores keep
+## their money and character state in PlayerState; NPC-owned stores own theirs.
+var owner_kind: String = "player" # player | npc | archived_npc
+var owner_name: String = ""
+var owner_trait_ids: Array[String] = []
+var operating_cash: float = 0.0
+var owner_stress: float = 0.0
+var lease_end_day: int = -1
+var consecutive_loss_days: int = 0
+var transfer_state: String = "none" # none | offered | closed
+var transfer_record: Dictionary = {}
+
 var pre_open_stage: PreOpenStage = PreOpenStage.CHARACTER_CREATION
 
 var selected_storefront_id: String = ""
 var signed_storefront_id: String = ""
+## A quote exists before signing; the remaining fields are the signed contract.
+var pending_lease_offer: Dictionary = {}
+var lease_rent_multiplier: float = 1.0
+var lease_deposit_paid: float = 0.0
+var lease_free_rent_hours_remaining: float = 0.0
 var is_open: bool = false
 var is_business_open: bool = false
 var business_hour_ranges: Array[Vector2i] = [Vector2i(9, 21)]
@@ -318,6 +335,17 @@ func apply_settlement(result: SettlementResult) -> void:
 	})
 
 
+func apply_npc_financial_result(result: SettlementResult) -> void:
+	if owner_kind != "npc":
+		return
+	operating_cash += result.profit
+	owner_stress = clampf(owner_stress + result.stress_delta, 0.0, 100.0)
+
+
+func has_owner_trait(trait_id: String) -> bool:
+	return trait_id in owner_trait_ids
+
+
 func get_day_summary(day: int) -> Dictionary:
 	var s := {
 		"revenue": 0.0, "ingredient_cost": 0.0, "staff_cost": 0.0,
@@ -367,9 +395,22 @@ func to_save_dict() -> Dictionary:
 		"version": 1,
 		"id": id,
 		"name": name,
+		"owner_kind": owner_kind,
+		"owner_name": owner_name,
+		"owner_trait_ids": owner_trait_ids,
+		"operating_cash": operating_cash,
+		"owner_stress": owner_stress,
+		"lease_end_day": lease_end_day,
+		"consecutive_loss_days": consecutive_loss_days,
+		"transfer_state": transfer_state,
+		"transfer_record": transfer_record,
 		"pre_open_stage": pre_open_stage,
 		"selected_storefront_id": selected_storefront_id,
 		"signed_storefront_id": signed_storefront_id,
+		"pending_lease_offer": pending_lease_offer,
+		"lease_rent_multiplier": lease_rent_multiplier,
+		"lease_deposit_paid": lease_deposit_paid,
+		"lease_free_rent_hours_remaining": lease_free_rent_hours_remaining,
 		"is_open": is_open,
 		"is_business_open": is_business_open,
 		"business_hour_ranges": business_ranges_data,
@@ -398,6 +439,16 @@ static func from_save_dict(data: Dictionary) -> Store:
 	var s := Store.new()
 	s.id = data.get("id", "")
 	s.name = data.get("name", "")
+	s.owner_kind = str(data.get("owner_kind", "player"))
+	s.owner_name = str(data.get("owner_name", ""))
+	for raw_trait_id in data.get("owner_trait_ids", []):
+		s.owner_trait_ids.append(str(raw_trait_id))
+	s.operating_cash = float(data.get("operating_cash", 0.0))
+	s.owner_stress = float(data.get("owner_stress", 0.0))
+	s.lease_end_day = int(data.get("lease_end_day", -1))
+	s.consecutive_loss_days = int(data.get("consecutive_loss_days", 0))
+	s.transfer_state = str(data.get("transfer_state", "none"))
+	s.transfer_record = data.get("transfer_record", {}).duplicate(true) if data.get("transfer_record", {}) is Dictionary else {}
 	s.pre_open_stage = data.get(
 		"pre_open_stage",
 		PreOpenStage.CHARACTER_CREATION
@@ -405,6 +456,10 @@ static func from_save_dict(data: Dictionary) -> Store:
 
 	s.selected_storefront_id = data.get("selected_storefront_id", "")
 	s.signed_storefront_id = data.get("signed_storefront_id", "")
+	s.pending_lease_offer = data.get("pending_lease_offer", {}).duplicate(true) if data.get("pending_lease_offer", {}) is Dictionary else {}
+	s.lease_rent_multiplier = float(data.get("lease_rent_multiplier", 1.0))
+	s.lease_deposit_paid = float(data.get("lease_deposit_paid", 0.0))
+	s.lease_free_rent_hours_remaining = float(data.get("lease_free_rent_hours_remaining", 0.0))
 	s.is_open = data.get("is_open", false)
 	s.is_business_open = data.get("is_business_open", false)
 	var business_ranges_raw: Array = data.get("business_hour_ranges", [[9, 21]])

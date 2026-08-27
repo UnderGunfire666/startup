@@ -19,7 +19,7 @@ var _last_hour: int = 0
 var _last_minute: int = 0
 var _last_second: int = 0
 var _last_period_label: String = ""
-const EXCLUDED_FROM_LIST: Array[String] = ["region_research", "deep_inspection"]
+const EXCLUDED_FROM_LIST: Array[String] = ["region_research"]
 
 func _ready() -> void:
 	_seed_clock_cache()
@@ -91,11 +91,6 @@ func _describe_target(action: ActionDefinition, target_id: String, target_ids: A
 		return "（目标区块：%s）" % (block.name if block != null else target_id)
 	if target_id == "":
 		return ""
-	match action.action_effect_type:
-		"deep_inspection":
-			var sf := GameManager.get_storefront(target_id)
-			if sf != null:
-				return "（目标：%s）" % sf.name
 	return ""
 
 func _build_action_list() -> void:
@@ -120,6 +115,9 @@ func _build_action_list() -> void:
 				action_name += " → %s" % selected_target.name
 			else:
 				action_name += "（请先在地图选择区块）"
+		elif action.action_effect_type == "landlord_negotiation":
+			var selected_storefront := GameManager.get_storefront(GameManager.store_state.selected_storefront_id) if GameManager.store_state != null else null
+			action_name += " → %s" % selected_storefront.name if selected_storefront != null else "（请先选定空门面）"
 		title.text = "%s（%d小时）" % [action_name, action.duration_hours]
 		title.add_theme_font_size_override("font_size", 15)
 		info.add_child(title)

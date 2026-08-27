@@ -23,4 +23,6 @@ var next_discovery_check_game_seconds: float = -1.0
 var research_focus: String = "all"
 var is_active: bool = false
 var stopped_by_player: bool = false
+## Immutable details retained by a time-consuming field action.
+var context: Dictionary = {}
 var source_entry: ScheduledActionEntry = null   # 若是从"日程"计划队列自动接续的，记录来源；纯单步触发则为null

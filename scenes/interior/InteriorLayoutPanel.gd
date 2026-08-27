@@ -30,6 +30,7 @@ const FACADE_TYPE_NAMES := {
 
 var current_storefront_id := ""
 var current_store: Store = null
+var is_read_only := false
 var selected_equipment_instance_id := ""
 var selected_placement_instance_id := ""
 var selected_facade_type := ""
@@ -71,8 +72,9 @@ func _ready() -> void:
 	facade_3d_canvas.placement_drop_requested.connect(_on_facade_drop_requested)
 
 
-func open_for_storefront(storefront_id: String) -> void:
-	current_store = GameManager.store_state
+func open_for_storefront(storefront_id: String, store: Store = null, read_only: bool = false) -> void:
+	current_store = store if store != null else GameManager.store_state
+	is_read_only = read_only
 	var storefront := GameManager.get_storefront(storefront_id)
 	if current_store == null or storefront == null:
 		return
@@ -80,9 +82,10 @@ func open_for_storefront(storefront_id: String) -> void:
 	layout_geometry = StorefrontLayoutGeometry.from_storefront(storefront)
 	grid_size = layout_geometry.grid_size
 	facade_grid_size = layout_geometry.get_facade_grid_size()
-	_migrate_legacy_layout_grid(storefront)
-	_initialize_default_facade_entrance(storefront)
-	title_label.text = "%s · 店铺编辑" % storefront.name
+	if not is_read_only:
+		_migrate_legacy_layout_grid(storefront)
+		_initialize_default_facade_entrance(storefront)
+	title_label.text = "%s · %s" % [storefront.name, "店铺布局预览" if is_read_only else "店铺编辑"]
 	selected_equipment_instance_id = ""
 	selected_placement_instance_id = ""
 	selected_facade_type = ""
@@ -92,7 +95,7 @@ func open_for_storefront(storefront_id: String) -> void:
 	_refresh_canvas()
 	_refresh_facade_components()
 	_refresh_facade_canvas()
-	status_label.text = "选择设备后点击网格放置"
+	status_label.text = "这是正在营业店铺的只读布局。" if is_read_only else "选择设备后点击网格放置"
 	visible = true
 	move_to_front()
 
@@ -160,6 +163,7 @@ func _add_equipment_button(list: VBoxContainer, instance_id: String, equipment_n
 	var button := Button.new()
 	button.text = ("✓ " if is_placed else "○ ") + equipment_name
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.disabled = is_read_only
 	button.tooltip_text = "选择后点击室内网格放置"
 	button.pressed.connect(func(): _select_equipment(instance_id))
 	list.add_child(button)
@@ -175,16 +179,16 @@ func _select_equipment(instance_id: String) -> void:
 func _refresh_canvas() -> void:
 	canvas.setup(grid_size, current_store.furniture_layout, layout_geometry, _get_interior_entrance_cells(), _get_equipment_names())
 	canvas.set_selected(selected_placement_instance_id)
-	rotate_button.disabled = selected_placement_instance_id.is_empty()
-	delete_button.disabled = selected_placement_instance_id.is_empty()
+	rotate_button.disabled = is_read_only or selected_placement_instance_id.is_empty()
+	delete_button.disabled = is_read_only or selected_placement_instance_id.is_empty()
 	_refresh_interior_3d_canvas()
 
 
 func _refresh_interior_3d_canvas() -> void:
 	interior_3d_canvas.setup(grid_size, current_store.furniture_layout, _get_footprint_sizes(), current_store.facade_layout, layout_geometry)
 	interior_3d_canvas.set_selected(selected_placement_instance_id)
-	interior_3d_rotate_button.disabled = selected_placement_instance_id.is_empty()
-	interior_3d_delete_button.disabled = selected_placement_instance_id.is_empty()
+	interior_3d_rotate_button.disabled = is_read_only or selected_placement_instance_id.is_empty()
+	interior_3d_delete_button.disabled = is_read_only or selected_placement_instance_id.is_empty()
 
 
 func _get_interior_entrance_cells() -> Array[Vector2i]:
@@ -204,6 +208,8 @@ func _get_equipment_names() -> Dictionary:
 
 
 func _on_canvas_cell_pressed(cell: Vector2i) -> void:
+	if is_read_only:
+		return
 	var existing := _find_placement_at(cell)
 	if existing != null:
 		if not selected_placement_instance_id.is_empty() and existing.instance_id != selected_placement_instance_id:
@@ -305,6 +311,8 @@ func _get_footprint_sizes() -> Dictionary:
 
 
 func _on_placement_drag_started(instance_id: String) -> void:
+	if is_read_only:
+		return
 	selected_placement_instance_id = instance_id
 	selected_equipment_instance_id = ""
 	status_label.text = "拖动设备到目标网格"
@@ -320,6 +328,8 @@ func _on_placement_drag_previewed(instance_id: String, cell: Vector2i) -> void:
 
 
 func _on_placement_drop_requested(instance_id: String, cell: Vector2i) -> void:
+	if is_read_only:
+		return
 	var placement := _find_placement(instance_id)
 	if placement == null:
 		return
@@ -335,6 +345,8 @@ func _on_placement_drop_requested(instance_id: String, cell: Vector2i) -> void:
 
 
 func _on_rotate_pressed() -> void:
+	if is_read_only:
+		return
 	var placement := _find_placement(selected_placement_instance_id)
 	if placement == null:
 		return
@@ -349,6 +361,8 @@ func _on_rotate_pressed() -> void:
 
 
 func _on_delete_pressed() -> void:
+	if is_read_only:
+		return
 	var placement := _find_placement(selected_placement_instance_id)
 	if placement == null:
 		return
@@ -374,7 +388,7 @@ func _add_facade_component_button(list: VBoxContainer, type: String, count: int,
 	var button := Button.new()
 	button.text = "%s（%d/%d）" % [str(FACADE_TYPE_NAMES[type]), count, maximum]
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.disabled = count >= maximum
+	button.disabled = is_read_only or count >= maximum
 	button.pressed.connect(func(): _select_facade_type(type))
 	list.add_child(button)
 
@@ -391,8 +405,8 @@ func _refresh_facade_canvas() -> void:
 	facade_canvas.set_selected(selected_facade_placement)
 	facade_3d_canvas.setup(current_store.facade_layout, facade_grid_size, layout_geometry)
 	facade_3d_canvas.set_selected(selected_facade_placement)
-	facade_delete_button.disabled = selected_facade_placement == null
-	facade_3d_delete_button.disabled = selected_facade_placement == null
+	facade_delete_button.disabled = is_read_only or selected_facade_placement == null
+	facade_3d_delete_button.disabled = is_read_only or selected_facade_placement == null
 
 
 func _get_facade_type_count(type: String) -> int:
@@ -411,6 +425,8 @@ func _find_facade_placement_at(cell: Vector2i) -> StoreFacadePlacement:
 
 
 func _on_facade_cell_pressed(cell: Vector2i) -> void:
+	if is_read_only:
+		return
 	var existing := _find_facade_placement_at(cell)
 	if existing != null:
 		selected_facade_placement = existing
@@ -451,6 +467,8 @@ func _on_facade_cell_pressed(cell: Vector2i) -> void:
 
 
 func _on_facade_drag_started(placement: StoreFacadePlacement) -> void:
+	if is_read_only:
+		return
 	selected_facade_placement = placement
 	selected_facade_type = ""
 	status_label.text = "拖动%s到目标网格" % str(FACADE_TYPE_NAMES[placement.type])
@@ -464,6 +482,8 @@ func _on_facade_drag_previewed(placement: StoreFacadePlacement, cell: Vector2i) 
 
 
 func _on_facade_drop_requested(placement: StoreFacadePlacement, cell: Vector2i) -> void:
+	if is_read_only:
+		return
 	if not FacadeLayoutValidator.is_valid_placement(placement, cell, current_store.facade_layout, facade_grid_size):
 		status_label.text = "位置越界或与其他组件重叠"
 		_refresh_facade_canvas()
@@ -475,6 +495,8 @@ func _on_facade_drop_requested(placement: StoreFacadePlacement, cell: Vector2i) 
 
 
 func _on_facade_delete_pressed() -> void:
+	if is_read_only:
+		return
 	if selected_facade_placement == null:
 		return
 	var removed_type := selected_facade_placement.type
@@ -491,6 +513,8 @@ func _on_layout_tab_changed(tab: int) -> void:
 
 
 func _commit_layout() -> void:
+	if is_read_only:
+		return
 	_refresh_equipment_list()
 	_refresh_canvas()
 	_refresh_facade_components()

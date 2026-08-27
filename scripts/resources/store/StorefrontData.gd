@@ -15,6 +15,9 @@ extends Resource
 @export var supported_categories: Array[String] = []
 @export var equipment_condition: String = "normal"
 @export var notes: String = ""
+## Static world occupancy. It is distinct from the player's Store.is_open.
+@export var is_occupied: bool = false
+@export var occupant_name: String = ""
 
 @export var deposit_months: int = 2
 @export var inspection_cost: float = 500.0

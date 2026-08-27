@@ -203,9 +203,6 @@ func _gui_input(event: InputEvent) -> void:
 
 func _find_storefront_at_screen(screen_pos: Vector2) -> StorefrontData:
 	for sf in storefronts:
-		var diligence := GameManager.get_storefront_diligence(sf.id)
-		if diligence == "not_viewed":
-			continue
 		var sf_screen := _map_to_screen(sf.map_position)
 		if sf_screen.distance_to(screen_pos) <= STOREFRONT_CLICK_RADIUS_SCREEN_PX:
 			return sf
@@ -323,11 +320,7 @@ func _draw_storefronts() -> void:
 	## not_viewed的门面完全不画——对应"未被发现前不可见/不可选"的设计。
 	var labels := get_storefront_label_layout()
 	for sf in storefronts:
-		var diligence := GameManager.get_storefront_diligence(sf.id)
-		if diligence == "not_viewed":
-			continue
-
-		var color: Color = STOREFRONT_STATE_COLORS.get(diligence, Color.WHITE)
+		var color := Color.WHITE
 		var screen_pos := _map_to_screen(sf.map_position)
 		draw_circle(screen_pos, 6.0, color)
 		draw_circle(screen_pos, 6.0, Color(0, 0, 0, 0.6), false, 1.5)
@@ -356,9 +349,6 @@ func get_storefront_label_layout() -> Array[Dictionary]:
 	var layout: Array[Dictionary] = []
 	var occupied_rects: Array[Rect2] = []
 	for storefront in storefronts:
-		var diligence := GameManager.get_storefront_diligence(storefront.id)
-		if diligence == "not_viewed":
-			continue
 		var label := get_storefront_label_text(storefront.name)
 		var text_size := ThemeDB.fallback_font.get_string_size(
 			label,
@@ -385,7 +375,7 @@ func get_storefront_label_layout() -> Array[Dictionary]:
 				"storefront_id": storefront.id,
 				"label": label,
 				"rect": rect,
-				"color": STOREFRONT_STATE_COLORS.get(diligence, Color.WHITE),
+				"color": Color.WHITE,
 			})
 			break
 	return layout

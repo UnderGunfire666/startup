@@ -1,5 +1,6 @@
 extends Control
 signal storefront_interior_requested(storefront_id: String)
+signal storefront_details_requested(storefront_id: String)
 ## 地图页：鼠标点选一个或多个区块。
 ## Phase 2：调查行动直接绑定选中的 Block，不再通过 SurveyArea 启动调查。
 ## Phase 7：通过调查方式下拉菜单提供“随便逛逛”和“按顺序逛”两种模式。
@@ -34,7 +35,7 @@ func _ready() -> void:
 	map_canvas.selected_blocks_changed.connect(_on_selected_blocks_changed)
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
-	show_all_storefronts_button.pressed.connect(_on_show_all_storefronts_pressed)
+	show_all_storefronts_button.hide()
 	awareness_overlay_toggle.toggled.connect(_on_awareness_overlay_toggled)
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
 	research_focus_option.item_selected.connect(_on_research_focus_selected)
@@ -43,7 +44,6 @@ func _ready() -> void:
 	ScheduleManager.action_interrupt.connect(_on_action_interrupt)
 	ScheduleManager.hour_effect_applied.connect(_on_action_progress_applied)
 	TimeManager.clock_updated.connect(_on_clock_updated)
-	GameManager.storefronts_discovered.connect(_on_storefronts_discovered)
 	EventManager.notice_raised.connect(_on_event_notice_raised)
 
 	research_mode_option.clear()
@@ -93,9 +93,9 @@ func _on_show_all_storefronts_pressed() -> void:
 	var newly_revealed := GameManager.reveal_all_storefronts()
 	refresh()
 	if newly_revealed.is_empty():
-		status_label.text = "全部门面已显示；仍需完成完整尽调才能选址"
+		status_label.text = "全部门面已显示。"
 	else:
-		status_label.text = "✅ 已显示 %d 个门面；仍需完成完整尽调才能选址" % newly_revealed.size()
+		status_label.text = "✅ 已显示 %d 个门面。" % newly_revealed.size()
 
 
 func _on_awareness_overlay_toggled(_enabled: bool) -> void:
@@ -110,7 +110,7 @@ func _refresh_awareness_overlay() -> void:
 		map_canvas.clear_awareness_overlay()
 		return
 	var storefront := GameManager.get_storefront(store.signed_storefront_id)
-	var is_revealed := storefront != null and GameManager.get_storefront_diligence(storefront.id) != "not_viewed"
+	var is_revealed := storefront != null
 	awareness_overlay_toggle.disabled = not is_revealed
 	if not is_revealed:
 		awareness_overlay_toggle.button_pressed = false
@@ -165,10 +165,6 @@ func _on_schedule_changed() -> void:
 	_refresh_research_controls()
 	if ScheduleManager.current_action == null and not ScheduleManager.completed_entries_today.is_empty():
 		var last_entry: ScheduledActionEntry = ScheduleManager.completed_entries_today.back()
-		if last_entry.action_id == "deep_inspection":
-			var storefront := GameManager.get_storefront(last_entry.target_id)
-			var storefront_name := storefront.name if storefront != null else last_entry.target_id
-			status_label.text = "✅ 你把「%s」从门头到动线都看了一遍，尽调记录已经完整。" % storefront_name if last_entry.status == "completed" else "⚠ 对「%s」的勘验被迫停下：%s" % [storefront_name, last_entry.failure_reason]
 
 
 func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
@@ -186,13 +182,6 @@ func _on_action_progress_applied(action_id: String, _elapsed_hours: float, _prog
 	if action_id == "region_research":
 		_refresh_report()
 		_refresh_research_controls()
-	elif action_id == "deep_inspection":
-		_refresh_storefront_list()
-		var active := ScheduleManager.current_action
-		if active != null:
-			var storefront := GameManager.get_storefront(active.target_id)
-			if storefront != null:
-				status_label.text = "🔎 正在深度勘验「%s」：%.0f%%" % [storefront.name, GameManager.get_storefront_diligence_progress(storefront.id)]
 
 
 func _on_sequence_changed() -> void:
@@ -265,6 +254,8 @@ func _get_research_start_check(block_ids: Array[String]) -> Dictionary:
 
 
 func _on_storefront_clicked(storefront_id: String) -> void:
+	storefront_details_requested.emit(storefront_id)
+	return
 	var storefront := GameManager.get_storefront(storefront_id)
 	var store := GameManager.store_state
 	if storefront == null:
@@ -308,6 +299,11 @@ func _refresh_report() -> void:
 			lines.append("")
 			lines.append("按顺序逛：正在考察「%s」" % sequence_block.name)
 
+	lines.append("")
+	for intel_block in selected_blocks:
+		for intel_line in StorefrontIntelPresenter.describe_block(intel_block, GameManager.player_state):
+			lines.append(intel_line)
+		lines.append("")
 	report_label.text = "\n".join(lines)
 	var action_running := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
 	var start_check := _get_research_start_check(_get_incomplete_block_ids(selected_blocks))
@@ -318,6 +314,9 @@ func _refresh_report() -> void:
 func _refresh_storefront_list() -> void:
 	for child in storefront_list.get_children():
 		child.queue_free()
+	for storefront in GameManager.all_storefronts:
+		storefront_list.add_child(_build_storefront_row(storefront))
+	return
 
 	var discovered: Array[StorefrontData] = []
 	for storefront in GameManager.all_storefronts:
@@ -336,40 +335,35 @@ func _refresh_storefront_list() -> void:
 
 
 func _build_storefront_row(storefront: StorefrontData) -> Control:
+	var visible_box := VBoxContainer.new()
+	var visible_display := StorefrontIntelPresenter.describe_storefront(storefront, GameManager.player_state)
+	var visible_label := Label.new()
+	visible_label.text = "%s（%s）" % [storefront.name, str(visible_display.get("occupancy", ""))]
+	visible_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	visible_box.add_child(visible_label)
+	var visible_details := Button.new()
+	visible_details.text = "查看门面"
+	visible_details.pressed.connect(func(): storefront_details_requested.emit(storefront.id))
+	visible_box.add_child(visible_details)
+	visible_box.add_child(HSeparator.new())
+	return visible_box
 	var box := VBoxContainer.new()
 
-	var diligence := GameManager.get_storefront_diligence(storefront.id)
-	var diligence_progress := GameManager.get_storefront_diligence_progress(storefront.id)
-	var diligence_text: String = {
-		"initial_viewing": "初步看铺",
-		"full_diligence": "完整尽调",
-	}.get(diligence, diligence)
-
 	var name_label := Label.new()
-	var progress_text := "（%.0f%%）" % diligence_progress if diligence == "initial_viewing" else ""
-	name_label.text = "%s（%s ｜ 状态：%s%s）" % [storefront.name, storefront.notes, diligence_text, progress_text]
+	var npc_store := GameManager.get_npc_store_for_storefront(storefront.id)
+	var occupancy_text := "转让中" if npc_store != null and npc_store.transfer_state == "offered" else ("已开店" if storefront.is_occupied else "空门面")
+	var occupant_text := "｜经营者：%s" % storefront.occupant_name if storefront.is_occupied and not storefront.occupant_name.is_empty() else ""
+	name_label.text = "%s（%s%s）" % [storefront.name, occupancy_text, occupant_text]
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(name_label)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
-	if diligence == "initial_viewing":
-		var deep_btn := Button.new()
-		var is_inspecting := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active and ScheduleManager.current_action.action_id == "deep_inspection" and ScheduleManager.current_action.target_id == storefront.id
-		deep_btn.text = "深度勘验中（%.0f%%）" % diligence_progress if is_inspecting else "深度勘验（%.0f%%）" % diligence_progress
-		deep_btn.disabled = ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
-		deep_btn.pressed.connect(func():
-			var result := ScheduleManager.start_action_now("deep_inspection", storefront.id)
-			status_label.text = ("✅ " if result.get("can", false) else "⚠ ") + str(result.get("reason", ""))
-			_refresh_storefront_list()
-		)
-		row.add_child(deep_btn)
-
-	var select_btn := Button.new()
-	select_btn.text = "选定此门面（落实到当前企划）"
-	select_btn.pressed.connect(func(): _on_select_storefront_pressed(storefront))
-	row.add_child(select_btn)
+	var details_btn := Button.new()
+	details_btn.text = "查看门面"
+	details_btn.pressed.connect(func(): storefront_details_requested.emit(storefront.id))
+	row.add_child(details_btn)
 
 	box.add_child(row)
 	box.add_child(HSeparator.new())
@@ -391,3 +385,20 @@ func _on_select_storefront_pressed(storefront: StorefrontData) -> void:
 
 	if storefront_result.get("success", false):
 		refresh()
+
+
+func _on_contact_landlord_pressed(storefront: StorefrontData) -> void:
+	var store := GameManager.store_state
+	if store == null:
+		status_label.text = "⚠ 请先创建开店企划，再联系空门面的房东"
+		return
+	if store.is_open:
+		status_label.text = "⚠ 当前店铺已开业，不能为它更换或谈判新门面"
+		return
+	var selected := GameManager.select_storefront(storefront.id)
+	if not bool(selected.get("success", false)):
+		status_label.text = "⚠ " + str(selected.get("reason", "无法选定门面"))
+		return
+	var result := ScheduleManager.start_action_now("landlord_negotiation")
+	status_label.text = ("✅ " if bool(result.get("can", false)) else "⚠ ") + str(result.get("reason", ""))
+	refresh()

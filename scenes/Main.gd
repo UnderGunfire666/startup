@@ -34,6 +34,7 @@ extends Control
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/StoreListPanel
 @onready var interior_layout_panel: Control = $InteriorLayoutPanel
 @onready var event_popup: EventPopup = $EventPopup
+@onready var storefront_popup: StorefrontPopup = $StorefrontPopup
 
 var settlement_history: Array[Dictionary] = []
 
@@ -49,6 +50,8 @@ func _ready() -> void:
 	store_list_panel.setup_requested.connect(_on_store_setup_requested)
 	store_list_panel.procurement_requested.connect(_on_procurement_requested)
 	map_panel.storefront_interior_requested.connect(_on_storefront_interior_requested)
+	map_panel.storefront_details_requested.connect(storefront_popup.open_for_storefront)
+	storefront_popup.layout_requested.connect(_on_storefront_interior_requested)
 	operation_panel.settlement_done.connect(_on_settlement_done)
 	operation_panel.store_opened.connect(_on_store_opened)
 	operation_panel.day_ended.connect(_on_day_ended)
@@ -126,8 +129,8 @@ func _on_procurement_requested() -> void:
 func _on_store_opened() -> void:
 	_on_procurement_requested()
 
-func _on_storefront_interior_requested(storefront_id: String) -> void:
-	interior_layout_panel.open_for_storefront(storefront_id)
+func _on_storefront_interior_requested(storefront_id: String, store: Store = null, read_only: bool = false) -> void:
+	interior_layout_panel.open_for_storefront(storefront_id, store, read_only)
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()

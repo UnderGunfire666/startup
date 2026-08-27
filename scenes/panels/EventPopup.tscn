@@ -4,6 +4,7 @@
 
 [node name="EventPopup" type="PopupPanel"]
 size = Vector2i(580, 500)
+exclusive = true
 script = ExtResource("1")
 
 [node name="Margin" type="MarginContainer" parent="."]

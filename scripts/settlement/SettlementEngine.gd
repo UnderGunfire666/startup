@@ -53,17 +53,23 @@ static func calculate_params_from_trade_area(
 
 		visitors = int(float(base_visitors) * (1.0 + trait_mods))
 
-	var rent_cost := _calc_rent_cost(storefront)
-	var utility_cost := _calc_utility_cost(product, store_state, is_open)
-	var staff_cost := _calc_staff_cost()
+	var group_profiles := _make_group_order_profiles(
+		trade_area, storefront, category, product, hour, conversion_rate, trait_mods
+	)
+	if is_open and not group_profiles.is_empty():
+		visitors = 0
+		for profile in group_profiles.values():
+			visitors += int(profile.get("visitors", 0))
 
 	return {
 		"is_open": is_open,
 		"visitors": visitors,
 		"conversion_rate": conversion_rate,
-		"rent_cost": rent_cost,
-		"utility_cost": utility_cost,
-		"staff_cost": staff_cost,
+		## Fixed rent, equipment power and wages are settled once per store by
+		## GameManager. Product records carry only order-dependent costs.
+		"rent_cost": 0.0,
+		"utility_cost": 0.0,
+		"staff_cost": 0.0,
 		"owner_supervising": owner_supervising,
 		"trade_area": trade_area,
 		"storefront": storefront,
@@ -77,6 +83,7 @@ static func calculate_params_from_trade_area(
 		"reputation_modifier": reputation_mod,
 		"owner_modifier": owner_mod,
 		"trait_modifier": trait_mods,
+		"group_profiles": group_profiles,
 	}
 
 
@@ -104,6 +111,10 @@ static func finalize_from_simulation(
 	var capture_multiplier := maxf(0.0, storefront.capture_modifier) if storefront != null else 0.0
 	r.reachable_traffic = slot_foot_traffic * storefront.flow_share * capture_multiplier if storefront != null else 0.0
 	r.entry_rate = category.base_entry_rate
+	r.natural_visitors = int(params.get("natural_visitors", r.visitors))
+	r.destination_visitors = int(params.get("destination_visitors", 0))
+	r.market_pool_remaining_supply = int(params.get("market_pool_remaining_supply", 0))
+	r.market_pool_share = float(params.get("market_pool_share", 0.0))
 	r.conversion_rate = float(params.get("conversion_rate", 0.0))
 	r.inventory_limit = inventory_limit
 	r.base_visitors = int(params.get("base_visitors", 0))
@@ -126,9 +137,9 @@ static func finalize_from_simulation(
 		r.modifiers.append({"label": "layout_signboard", "value": layout_capture_multiplier - 1.0})
 
 	if not r.is_open or sim == null:
-		r.rent_cost = params.get("rent_cost", 0.0)
-		r.utility_cost = params.get("utility_cost", 0.0)
-		r.staff_cost = params.get("staff_cost", 0.0)
+		r.rent_cost = 0.0
+		r.utility_cost = 0.0
+		r.staff_cost = 0.0
 		r.profit = -(r.rent_cost + r.utility_cost + r.staff_cost)
 		if not r.business_open:
 			r.not_open_reason = "\u95e8\u5e97\u5f53\u524d\u5904\u4e8e\u5173\u95e8\u72b6\u6001"
@@ -141,6 +152,9 @@ static func finalize_from_simulation(
 		return r
 
 	r.actual_orders = sim.actual_orders
+	r.group_summary = sim.group_summary.duplicate(true)
+	r.lost_price_rejection = sim.rejected_price_count
+	r.lost_self_cannibalization = int(params.get("lost_self_cannibalization", 0))
 	r.average_queue_wait_seconds = sim.total_wait_seconds / float(sim.actual_orders) if sim.actual_orders > 0 else 0.0
 	r.max_queue_wait_seconds = sim.max_wait_seconds
 	r.queue_patience_seconds = sim.max_queue_wait_seconds
@@ -153,10 +167,10 @@ static func finalize_from_simulation(
 	r.lost_inventory = sim.rejected_inventory_count
 	r.revenue = sim.revenue
 	r.ingredient_cost = sim.ingredient_cost
+	r.utility_cost = sim.utility_cost
 	r.waste_cost = 0.0
-	r.rent_cost = params.get("rent_cost", 0.0)
-	r.utility_cost = params.get("utility_cost", 0.0)
-	r.staff_cost = params.get("staff_cost", 0.0)
+	r.rent_cost = 0.0
+	r.staff_cost = 0.0
 
 	r.profit = r.revenue - r.ingredient_cost - r.rent_cost - r.utility_cost - r.staff_cost
 
@@ -192,6 +206,54 @@ static func _calc_base_visitors_from_trade_area(
 	var visitors := reachable * category.base_entry_rate
 	return maxi(1, int(visitors))
 
+
+static func _make_group_order_profiles(trade_area: TradeAreaSnapshot, storefront: StorefrontData, category: CategoryData, product: ProductData, hour: int, base_conversion: float, trait_mod: float) -> Dictionary:
+	var profiles := {}
+	if trade_area == null or storefront == null or category == null or product == null:
+		return profiles
+	var preference := CustomerPreferenceConfig.get_profile(category, product)
+	var market := _get_weighted_market_profile(trade_area)
+	var capture := storefront.flow_share * maxf(0.0, storefront.capture_modifier) * category.base_entry_rate
+	for group_id in SpatialConfig.POPULATION_GROUPS:
+		var audience := float(trade_area.reachable_groups.get(group_id, 0.0)) * capture
+		var affinity := CustomerPreferenceConfig.get_group_affinity(preference, group_id)
+		var time_affinity := CustomerPreferenceConfig.get_time_affinity(preference, hour)
+		var spend_affinity := CustomerPreferenceConfig.get_spending_affinity(str(preference.get("spending_tier", "medium")), str(market.get("tier", "medium")))
+		var price_penalty := (1.0 - float(market.get("price_sensitivity", 0.5))) * 0.03
+		var quality_bonus := float(market.get("quality_preference", 0.5)) * float(preference.get("quality_bias", 0.0)) * 0.08
+		var conversion := clampf(base_conversion * affinity * time_affinity * spend_affinity + price_penalty + quality_bonus, 0.0, 0.95)
+		profiles[group_id] = {
+			"visitors": maxi(0, int(round(audience * affinity * time_affinity * (1.0 + trait_mod)))),
+			"conversion_rate": conversion,
+			"price_rejection_rate": clampf((1.0 - spend_affinity) * (0.35 + float(market.get("price_sensitivity", 0.5)) * 0.45), 0.0, 0.6),
+		}
+	if trade_area.external_traffic > 0.0:
+		profiles["external"] = {"visitors": maxi(0, int(round(trade_area.external_traffic * capture))), "conversion_rate": base_conversion}
+	return profiles
+
+
+static func _get_weighted_market_profile(trade_area: TradeAreaSnapshot) -> Dictionary:
+	var total := 0.0
+	var sensitivity := 0.0
+	var quality := 0.0
+	var tiers := {"low": 0.0, "medium": 0.0, "high": 0.0}
+	if trade_area != null:
+		for contribution in trade_area.block_contributions:
+			var weight := maxf(0.0, float(contribution.get("contribution", 0.0)))
+			var spending: Dictionary = contribution.get("spending_profile", {})
+			total += weight
+			sensitivity += weight * float(spending.get("price_sensitivity", 0.5))
+			quality += weight * float(spending.get("quality_preference", 0.5))
+			var tier := str(spending.get("spend_potential_tier", "medium"))
+			tiers[tier] = float(tiers.get(tier, 0.0)) + weight
+	if total <= 0.0001:
+		return {"price_sensitivity": 0.5, "quality_preference": 0.5, "tier": "medium"}
+	var chosen_tier := "medium"
+	for tier in tiers:
+		if float(tiers[tier]) > float(tiers[chosen_tier]):
+			chosen_tier = tier
+	return {"price_sensitivity": sensitivity / total, "quality_preference": quality / total, "tier": chosen_tier}
+
 static func _is_weekend_day(day: int) -> bool:
 	return (day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
 
@@ -217,32 +279,6 @@ static func _calc_trait_mods(player_state: PlayerState, category: CategoryData, 
 
 
 ## 用真实字段重建：monthly_rent_wan换算到每小时。取代原来编造的daily_rent字段。
-static func _calc_rent_cost(storefront: StorefrontData) -> float:
-	return storefront.get_monthly_rent_yuan() / 30.0 / 24.0
-
-
-static func _calc_utility_cost(
-		product: ProductData,
-		store_state: Store,
-		is_open: bool
-) -> float:
-	if not is_open:
-		return 0.0
-	var unit_cost := product.utility_cost_per_unit
-	var total_units := 0
-	for slot in store_state.category_slots:
-		for pc in slot.product_configs:
-			if pc.product_id == product.id:
-				total_units += pc.inventory_units
-	return float(total_units) * unit_cost
-
-
-## CategoryData本身不建模人力成本字段（真实项目里人力成本不在这一层结算），
-## 固定返回0.0，与你项目原有模型保持一致。
-static func _calc_staff_cost() -> float:
-	return 0.0
-
-
 static func _calc_reputation_gain(actual_orders: int, inventory_limit: int) -> float:
 	if inventory_limit <= 0:
 		return 0.0

@@ -69,6 +69,9 @@ tooltip_text = "显示所有门面；仍需完成完整尽调才能选址。"
 [node name="ResearchModeOption" type="OptionButton" parent="HBoxContainer/SidePanel"]
 layout_mode = 2
 
+[node name="ResearchFocusOption" type="OptionButton" parent="HBoxContainer/SidePanel"]
+layout_mode = 2
+
 [node name="AwarenessOverlayToggle" type="CheckBox" parent="HBoxContainer/SidePanel"]
 layout_mode = 2
 text = "显示当前店铺影响范围"

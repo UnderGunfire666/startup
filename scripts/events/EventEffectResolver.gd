@@ -19,6 +19,13 @@ static func apply(event: ActiveGameEvent) -> void:
 					var block := GameManager.get_block(event.target_id)
 					if block != null:
 						GameManager.recalculate_region_intel(block.city_region_id)
+			"block_research_progress_add":
+				var progress_amount := float(effect.get("amount", 0.0))
+				if progress_amount > 0.0 and not event.target_id.is_empty():
+					GameManager.advance_block_research_progress(event.target_id, str(effect.get("focus_id", "population")), progress_amount)
+					var progress_block := GameManager.get_block(event.target_id)
+					if progress_block != null:
+						GameManager.recalculate_region_intel(progress_block.city_region_id)
 			"temporary_modifier":
 				EventManager.add_temporary_modifier(
 					int(effect.get("scope", event.scope)), event.target_id,

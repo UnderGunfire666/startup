@@ -278,6 +278,11 @@ func apply_settlement(result: SettlementResult) -> void:
 	daily_history.append({
 		"day": result.day, "slot": result.slot, "is_open": result.is_open,
 		"is_store_overhead": result.is_store_overhead,
+		"lease_cost": result.lease_cost,
+		"category_occupancy_cost": result.category_occupancy_cost,
+		"operating_equipment_cost": result.operating_equipment_cost,
+		"storage_equipment_cost": result.storage_equipment_cost,
+		"scheduled_wage_cost": result.scheduled_wage_cost,
 		"revenue": result.revenue, "ingredient_cost": result.ingredient_cost,
 		"staff_cost": result.staff_cost, "rent_cost": result.rent_cost,
 		"utility_cost": result.utility_cost,
@@ -299,7 +304,16 @@ func apply_settlement(result: SettlementResult) -> void:
 		"service_time_seconds": result.service_time_seconds,
 		"staffing_power": result.staffing_power,
 		"slot_capacity": result.slot_capacity,
+		"natural_visitors": result.natural_visitors,
+		"destination_visitors": result.destination_visitors,
+		"market_pool_remaining_supply": result.market_pool_remaining_supply,
+		"market_pool_share": result.market_pool_share,
 		"inventory_limit": result.inventory_limit,
+		"group_summary": result.group_summary.duplicate(true),
+		"lost_no_menu": result.lost_no_menu,
+		"lost_price_rejection": result.lost_price_rejection,
+		"lost_external_competition": result.lost_external_competition,
+		"lost_self_cannibalization": result.lost_self_cannibalization,
 		"not_open_reason": result.not_open_reason,
 	})
 

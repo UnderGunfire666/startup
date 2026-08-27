@@ -50,14 +50,15 @@ func _test_research_notice_effect_cooldown_and_save() -> void:
 	if definition == null:
 		return
 	var event := EventManager._activate(definition, block.id)
-	_assert_true(event != null and event.scope == GameEventDefinition.Scope.BLOCK, "research discovery creates a block-scoped event")
-	_assert_true(is_equal_approx(GameManager.get_block_understanding(block.id), 13.0), "research discovery grants only its configured bonus progress")
-	_assert_true(int(received.get("count", 0)) == 1 and str(received.get("event_id", "")) == "research_local_tip", "notice event is emitted once")
+	_assert_true(event != null and not event.instance_id.is_empty() and event.scope == GameEventDefinition.Scope.BLOCK, "research discovery creates a uniquely identified block event")
+	_assert_true(_event_options_include_descriptions(event), "research choices retain their narrative descriptions when activated")
+	_assert_true(EventManager.pending_decisions.size() == 1 and EventManager.resolve_decision(event.instance_id, "record"), "research event requires and resolves a player choice")
+	_assert_true(int(received.get("count", 0)) == 1 and str(received.get("event_id", "")) == "research_local_tip", "interactive event is emitted to the global event UI")
 	_assert_true(EventManager.try_research_discovery(block.id) == null, "event cooldown prevents an immediate repeat roll")
 	var save_data := EventManager.to_save_dict()
 	EventManager.reset_for_new_game()
 	EventManager.apply_save_dict(save_data)
-	_assert_true(EventManager.event_history.size() == 1, "event history survives save round trip")
+	_assert_true(EventManager.event_history.size() == 1, "resolved event history survives save round trip")
 	_assert_true(not EventManager.cooldown_until.is_empty(), "event cooldown survives save round trip")
 
 
@@ -105,7 +106,8 @@ func _test_store_disruption_event_modifiers() -> void:
 	_assert_true(definition != null and definition.scope == GameEventDefinition.Scope.STORE, "store disruption event is registered with store scope")
 	if definition == null:
 		return
-	EventManager._activate(definition, "store_test_002", "store_test_002")
+	var event := EventManager._activate(definition, "store_test_002", "store_test_002")
+	_assert_true(not definition.message_variants.is_empty() and _event_uses_registered_message(event, definition), "recurring disruption snapshots one registered narrative variant")
 	_assert_true(is_equal_approx(EventManager.get_modifier_total(GameEventDefinition.Scope.STORE, "store_test_002", "service_time_multiplier_add"), 0.25), "disruption increases service time by its configured modifier")
 	_assert_true(is_equal_approx(EventManager.get_modifier_total(GameEventDefinition.Scope.STORE, "store_test_002", "conversion_rate_add"), -0.08), "disruption decreases conversion rate by its configured modifier")
 
@@ -297,6 +299,7 @@ func _test_decision_queue() -> void:
 	_assert_true(definition != null, "store activity partnership decision is registered")
 	if definition == null:
 		return
+	_assert_true(_definition_options_include_descriptions(definition), "partnership choices define narrative descriptions")
 	var event := EventManager._activate(definition, "store_decision_test", "store_decision_test")
 	_assert_true(EventManager.pending_decisions.size() == 1, "decision event enters pending queue")
 	_assert_true(EventManager.resolve_decision("store_activity_partnership", "accept"), "decision option can be resolved")
@@ -359,6 +362,30 @@ func _test_destination_road_distance() -> void:
 	_assert_true(block != null and storefront != null, "road distance test data exists")
 	if block != null and storefront != null:
 		_assert_true(GameManager.get_block_to_storefront_road_distance(block, storefront) > 0.0, "destination distance resolves through the road graph")
+
+
+func _event_options_include_descriptions(event: ActiveGameEvent) -> bool:
+	if event == null:
+		return false
+	for option in event.options:
+		if str(option.get("description", "")).strip_edges().is_empty():
+			return false
+	return not event.options.is_empty()
+
+
+func _definition_options_include_descriptions(definition: GameEventDefinition) -> bool:
+	if definition == null:
+		return false
+	for option in definition.options:
+		if str(option.get("description", "")).strip_edges().is_empty():
+			return false
+	return not definition.options.is_empty()
+
+
+func _event_uses_registered_message(event: ActiveGameEvent, definition: GameEventDefinition) -> bool:
+	if event == null or event.message.is_empty():
+		return false
+	return event.message == definition.message or definition.message_variants.has(event.message)
 
 
 func _assert_true(condition: bool, message: String) -> void:

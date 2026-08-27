@@ -7,6 +7,13 @@ var is_open: bool = true
 var not_open_reason: String = ""
 ## 标记该记录是否为门店级固定成本合成记录（非具体商品结算）
 var is_store_overhead: bool = false
+## Fixed-cost breakdown. These values are populated only on the one hourly
+## store-overhead record and remain zero on product/order records.
+var lease_cost: float = 0.0
+var category_occupancy_cost: float = 0.0
+var operating_equipment_cost: float = 0.0
+var storage_equipment_cost: float = 0.0
+var scheduled_wage_cost: float = 0.0
 
 # ── 归属标识（新增，供多品类门店的报告区分显示） ──────────
 var category_id: String = ""
@@ -19,6 +26,11 @@ var slot_foot_traffic: float = 0.0
 var reachable_traffic: float = 0.0
 var entry_rate: float = 0.0
 var visitors: int = 0
+## Visitor-source split for shared-market reporting.
+var natural_visitors: int = 0
+var destination_visitors: int = 0
+var market_pool_remaining_supply: int = 0
+var market_pool_share: float = 0.0
 var conversion_rate: float = 0.0
 var theoretical_orders: int = 0
 var slot_capacity: int = 0
@@ -37,6 +49,12 @@ var reputation_modifier: float = 0.0
 var owner_modifier: float = 0.0
 var trait_modifier: float = 0.0
 var ingredient_consumption_multiplier: float = 1.0
+## Per-group order funnel, retained in history for reports and save files.
+var group_summary: Dictionary = {}
+var lost_no_menu: int = 0
+var lost_price_rejection: int = 0
+var lost_external_competition: int = 0
+var lost_self_cannibalization: int = 0
 
 # ── 未成交分项 ───────────────────────────────────────────
 var lost_no_entry: int = 0
@@ -74,6 +92,11 @@ func to_summary_dict() -> Dictionary:
 		"product_id": product_id, "product_name": product_name,
 		"is_open": is_open,
 		"is_store_overhead": is_store_overhead,
+		"lease_cost": lease_cost,
+		"category_occupancy_cost": category_occupancy_cost,
+		"operating_equipment_cost": operating_equipment_cost,
+		"storage_equipment_cost": storage_equipment_cost,
+		"scheduled_wage_cost": scheduled_wage_cost,
 		"actual_orders": actual_orders,
 		"average_queue_wait_seconds": average_queue_wait_seconds,
 		"max_queue_wait_seconds": max_queue_wait_seconds,
@@ -88,6 +111,11 @@ func to_summary_dict() -> Dictionary:
 		"owner_modifier": owner_modifier,
 		"trait_modifier": trait_modifier,
 		"ingredient_consumption_multiplier": ingredient_consumption_multiplier,
+		"group_summary": group_summary.duplicate(true),
+		"lost_no_menu": lost_no_menu,
+		"lost_price_rejection": lost_price_rejection,
+		"lost_external_competition": lost_external_competition,
+		"lost_self_cannibalization": lost_self_cannibalization,
 		"revenue": revenue,
 		"ingredient_cost": ingredient_cost,
 		"staff_cost": staff_cost,
@@ -105,6 +133,10 @@ func to_summary_dict() -> Dictionary:
 		"reachable_traffic": reachable_traffic,
 		"entry_rate": entry_rate,
 		"visitors": visitors,
+		"natural_visitors": natural_visitors,
+		"destination_visitors": destination_visitors,
+		"market_pool_remaining_supply": market_pool_remaining_supply,
+		"market_pool_share": market_pool_share,
 		"conversion_rate": conversion_rate,
 		"theoretical_orders": theoretical_orders,
 		"slot_capacity": slot_capacity,

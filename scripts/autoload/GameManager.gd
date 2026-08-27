@@ -1,9 +1,13 @@
 extends Node
 
+const MarketAllocatorScript = preload("res://scripts/spatial/MarketAllocator.gd")
+
 ## GameManager.gd 顶部signal区新增
 signal active_store_changed(store_id: String)
 signal store_plan_updated(store_id: String)
 signal storefronts_discovered(storefront_ids: Array[String])
+
+const BLOCK_RESEARCH_FOCUSES: Array[String] = ["population", "groups", "time", "spending", "demand", "competition"]
 
 var player_state: PlayerState = PlayerState.new()
 var last_settlement_error: String = ""
@@ -27,7 +31,7 @@ var active_store_id: String = ""
 
 var _next_store_sequence: int = 0
 
-var active_simulations: Array[Dictionary] = []  # {sim, params, category, product_template, inventory_limit, product_count, store_id}
+var active_simulations: Array[Dictionary] = []  # {store_id, service:CategoryServiceSimulator, params, category, products}
 
 ## 兼容属性：绝大多数现有代码沿用"store_state.xxx"的写法不用改，
 ## 它永远指向"当前激活的那家店"。角色创建完成前，stores为空，
@@ -256,19 +260,38 @@ func get_block_understanding(block_id: String) -> float:
 	return player_state.get_block_understanding(block_id)
 
 
-func advance_block_understanding(block_id: String, delta: float) -> Dictionary:
+func get_block_research_progress(block_id: String, focus_id: String) -> float:
+	return player_state.get_block_research_progress(block_id, focus_id)
+
+
+func is_block_research_complete(block_id: String) -> bool:
+	for focus_id in BLOCK_RESEARCH_FOCUSES:
+		if get_block_research_progress(block_id, focus_id) < 100.0 - 0.0001:
+			return false
+	return true
+
+
+func advance_block_research_progress(block_id: String, focus_id: String, delta: float) -> Dictionary:
 	if block_id.is_empty():
 		return {"success": false, "reason": "区块 ID 为空"}
-
-	var current := get_block_understanding(block_id)
+	if not BLOCK_RESEARCH_FOCUSES.has(focus_id):
+		return {"success": false, "reason": "未知调研重点"}
+	var tracks: Dictionary = player_state.block_research_progress.get(block_id, {})
+	var current := float(tracks.get(focus_id, 0.0))
 	var next_value := clampf(current + delta, 0.0, 100.0)
-	player_state.block_understanding[block_id] = next_value
+	tracks[focus_id] = next_value
+	player_state.block_research_progress[block_id] = tracks
 
-	if current < SpatialConfig.BLOCK_UNDERSTANDING_INITIAL_SURVEY \
+	if focus_id == "population" and current < SpatialConfig.BLOCK_UNDERSTANDING_INITIAL_SURVEY \
 			and next_value >= SpatialConfig.BLOCK_UNDERSTANDING_INITIAL_SURVEY:
 		_discover_storefronts_in_block(block_id)
 
-	return {"success": true, "reason": "", "new_value": next_value}
+	return {"success": true, "reason": "", "new_value": next_value, "focus_id": focus_id}
+
+
+## Legacy compatibility only. New gameplay must name the research focus.
+func advance_block_understanding(block_id: String, delta: float) -> Dictionary:
+	return advance_block_research_progress(block_id, "population", delta)
 
 func _generate_unique_id(prefix: String) -> String:
 	_next_store_sequence += 1
@@ -1312,11 +1335,169 @@ func start_new_game() -> void:
 
 func begin_slot_simulation() -> void:
 	active_simulations.clear()
-	for store in get_open_stores():
-		_begin_slot_simulation_for_store(store)
+	_begin_slot_simulation_for_stores(get_open_stores())
+
+
+## Slot setup is intentionally global: natural demand is finite per
+## block/group/category/hour, so stores must be collected before any service is
+## created.  This also makes the allocation independent from store array order.
+func _begin_slot_simulation_for_stores(candidate_stores: Array[Store]) -> void:
+	var participants := _collect_market_participants(candidate_stores)
+	if participants.is_empty():
+		return
+	_allocate_shared_market_pools(participants)
+	for participant in participants:
+		_create_category_service_simulation(participant)
+
+
+func _collect_market_participants(candidate_stores: Array[Store]) -> Array[Dictionary]:
+	var participants: Array[Dictionary] = []
+	var hour := TimeManager.get_current_hour_int()
+	var is_weekend := (TimeManager.current_day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
+	var block_visitor_multipliers := _get_block_visitor_multipliers()
+	for store in candidate_stores:
+		if store == null or not store.is_open or not store.is_business_open:
+			continue
+		var storefront := get_storefront(store.selected_storefront_id)
+		if storefront == null:
+			continue
+		var city_region := get_city_region(storefront.city_region_id)
+		if city_region == null:
+			continue
+		var city_multiplier := _get_city_region_visitor_multiplier(city_region.id)
+		for category_slot in store.category_slots:
+			var category := get_category(category_slot.category_id)
+			if category == null or category_slot.product_configs.is_empty() or not store_has_category_equipment(store, category):
+				continue
+			var staffing_power := get_category_staffing_power(store, category, hour)
+			if staffing_power <= 0.0:
+				continue
+			var first_template := get_product(category_slot.product_configs[0].product_id)
+			if first_template == null:
+				continue
+			var category_front: StorefrontData = storefront.duplicate()
+			category_front.capture_modifier *= StoreLayoutEffects.get_capture_multiplier(store)
+			var trade_area := TradeAreaCalculator.calculate_snapshot(category_front, category.id, first_template.id, hour, city_region, all_blocks, is_weekend, TradeAreaCalculator.DEFAULT_MAX_RADIUS, block_visitor_multipliers, city_multiplier, TimeManager.current_day)
+			var params := SettlementEngine.calculate_params_from_trade_area(trade_area, category_front, category, first_template, store, player_state, hour, true, staffing_power)
+			participants.append({
+				"participant_id": "%s|%s" % [store.id, category.id],
+				"store": store, "storefront": storefront, "category_front": category_front,
+				"city_region": city_region, "category": category, "category_slot": category_slot,
+				"first_template": first_template, "staffing_power": staffing_power,
+				"trade_area": trade_area, "params": params,
+				"block_visitor_multipliers": block_visitor_multipliers,
+				"city_region_visitor_multiplier": city_multiplier,
+				"allocated_groups": SpatialConfig.make_empty_group_weights(),
+				"external_competition_loss": 0,
+				"market_pool_remaining_supply": 0,
+			})
+	participants.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.participant_id) < str(b.participant_id))
+	return participants
+
+
+func _allocate_shared_market_pools(participants: Array[Dictionary]) -> void:
+	var pools: Dictionary = {}
+	var day := TimeManager.current_day
+	var hour := TimeManager.get_current_hour_int()
+	var is_weekend := (day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
+	for participant in participants:
+		var category: CategoryData = participant.category
+		var city_region: CityRegionData = participant.city_region
+		for block in all_blocks:
+			if block == null or not block.is_valid() or block.city_region_id != city_region.id:
+				continue
+			var factors := TradeAreaCalculator.get_participant_market_factors(block, participant.category_front, category.id)
+			if factors.is_empty():
+				continue
+			for group_id in SpatialConfig.POPULATION_GROUPS:
+				var key := MarketAllocatorScript.make_pool_key(city_region.id, block.id, group_id, category.id, day, hour)
+				if not pools.has(key):
+					var group_supply := PopulationSupplyCalculator.calculate_activity_supply_by_group(block, SpatialConfig.get_period_for_hour(hour), city_region, is_weekend)
+					var raw := float(group_supply.get(group_id, 0.0)) * DemandPatternCalculator.get_group_multiplier(block, group_id, day, hour)
+					raw *= float(participant.block_visitor_multipliers.get(block.id, 1.0)) * float(participant.city_region_visitor_multiplier)
+					raw *= SettlementConfig.TRAFFIC_SCALE_MULTIPLIER * category.base_entry_rate
+					pools[key] = {"raw_supply": maxi(0, int(round(raw))), "external_competition_ratio": TradeAreaCalculator.get_external_competition_ratio(block, category.id), "weights": {}, "participants": {}}
+				var weight_input := {
+					"is_operating": true, "offers_category": true,
+					"distance": factors.distance, "block_accessibility": factors.block_accessibility,
+					"storefront_accessibility": factors.storefront_accessibility,
+					"business_match": factors.business_match,
+					"capture_modifier": participant.category_front.flow_share * participant.category_front.capture_modifier,
+					"reputation": participant.store.reputation,
+					"awareness": maxf(float(participant.store.awareness_by_block.get(block.id, 0.0)), float(player_state.brand_awareness_by_block.get(block.id, 0.0)) * 0.5),
+				}
+				var pool: Dictionary = pools[key]
+				pool.weights[participant.participant_id] = MarketAllocatorScript.calculate_participant_weight(weight_input)
+				pool.participants[participant.participant_id] = participant
+	for key in pools.keys():
+		var pool: Dictionary = pools[key]
+		var description := MarketAllocatorScript.describe_pool(int(pool.raw_supply), float(pool.external_competition_ratio), pool.weights)
+		var parts := str(key).split("|")
+		var group_id := str(parts[2])
+		for participant_id in pool.participants.keys():
+			var participant: Dictionary = pool.participants[participant_id]
+			participant.allocated_groups[group_id] = float(participant.allocated_groups.get(group_id, 0.0)) + int(description.allocations.get(participant_id, 0))
+			participant.external_competition_loss = int(participant.external_competition_loss) + int(description.external_competition_losses.get(participant_id, 0))
+			participant.market_pool_remaining_supply = int(participant.market_pool_remaining_supply) + int(description.remaining_supply)
+
+
+func _create_category_service_simulation(participant: Dictionary) -> void:
+	var store: Store = participant.store
+	var storefront: StorefrontData = participant.storefront
+	var category: CategoryData = participant.category
+	var category_slot = participant.category_slot
+	var params: Dictionary = participant.params
+	var group_profiles: Dictionary = params.get("group_profiles", {}).duplicate(true)
+	## Trade-area external flow remains available to reports, but only explicit
+	## destination visitors may enter an order stream outside the natural pools.
+	group_profiles.erase("external")
+	var visitors := 0
+	for group_id in SpatialConfig.POPULATION_GROUPS:
+		var profile: Dictionary = group_profiles.get(group_id, {"conversion_rate": float(params.get("conversion_rate", 0.0)), "price_rejection_rate": 0.0})
+		profile.visitors = maxi(0, int(participant.allocated_groups.get(group_id, 0)))
+		group_profiles[group_id] = profile
+		visitors += int(profile.visitors)
+	var destination_visitors := get_destination_visitors(store, storefront)
+	if destination_visitors > 0:
+		group_profiles["external"] = {"visitors": destination_visitors, "conversion_rate": float(params.get("conversion_rate", 0.0)), "price_rejection_rate": 0.0}
+		visitors += destination_visitors
+	params.group_profiles = group_profiles
+	params.visitors = visitors
+	params.natural_visitors = visitors - destination_visitors
+	params.destination_visitors = destination_visitors
+	params.market_pool_remaining_supply = int(participant.market_pool_remaining_supply)
+	params.market_pool_share = float(params.natural_visitors) / float(params.market_pool_remaining_supply) if int(params.market_pool_remaining_supply) > 0 else 0.0
+	params.lost_external_competition = int(participant.external_competition_loss)
+	var options: Array[Dictionary] = []
+	var products: Array[Dictionary] = []
+	var consumption := get_category_ingredient_consumption_multiplier(store, category, TimeManager.get_current_hour_int())
+	for config in category_slot.product_configs:
+		var template := get_product(config.product_id)
+		if template == null:
+			continue
+		var product: ProductData = template.duplicate()
+		product.average_price = config.get_effective_price(template)
+		var profile := CustomerPreferenceConfig.get_profile(category, product)
+		var group_weights := {}
+		var price_rates := {}
+		for group_id in SpatialConfig.POPULATION_GROUPS:
+			group_weights[group_id] = CustomerPreferenceConfig.get_group_affinity(profile, group_id) * CustomerPreferenceConfig.get_time_affinity(profile, TimeManager.get_current_hour_int()) / pow(maxf(1.0, product.average_price), 0.12)
+			price_rates[group_id] = float(group_profiles.get(group_id, {}).get("price_rejection_rate", 0.0))
+		group_weights["external"] = 1.0
+		price_rates["external"] = 0.0
+		profile["weight_by_group"] = group_weights
+		profile["price_rejection_rate_by_group"] = price_rates
+		var limit := store.get_max_produceable_by_ingredients(template, consumption)
+		options.append({"product": product, "profile": profile, "service_seconds": get_product_service_seconds(category, product, float(participant.staffing_power)), "inventory_limit": limit, "unit_ingredient_cost": get_product_unit_ingredient_cost_for_store(store, template, consumption), "unit_utility_cost": get_product_unit_utility_cost(template), "reserve_ingredients": _reserve_product_ingredients.bind(store, template, consumption)})
+		products.append({"product": product, "product_template": template, "inventory_limit": limit, "ingredient_consumption_multiplier": consumption})
+	var service := CategoryServiceSimulator.new(category.id)
+	service.setup(category.id, visitors, group_profiles, options, SettlementConfig.CUSTOMER_MAX_QUEUE_WAIT_SECONDS)
+	active_simulations.append({"store_id": store.id, "service": service, "params": params, "category": category, "products": products})
 
 
 func _begin_slot_simulation_for_store(store: Store) -> void:
+	_begin_slot_simulation_for_stores([store])
+	return
 	var storefront := get_storefront(store.selected_storefront_id)
 	if storefront == null or store.category_slots.is_empty():
 		return
@@ -1327,6 +1508,7 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 	var hour := TimeManager.get_current_hour_int()
 	var is_weekend := (TimeManager.current_day % 7) in SettlementConfig.WEEKEND_DAY_REMAINDERS
 	var active_product_count := 0
+	var active_category_count := 0
 	for category_slot in store.category_slots:
 		var slot_category := get_category(category_slot.category_id)
 		if slot_category == null or category_slot.product_configs.is_empty():
@@ -1336,26 +1518,93 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 		if get_category_staffing_power(store, slot_category, hour) <= 0.0:
 			continue
 		active_product_count += category_slot.product_configs.size()
+		active_category_count += 1
 	if active_product_count <= 0:
 		return
+	# Category-level order streams. A category gets one candidate flow regardless
+	# of its menu size; products are selected only when a customer arrives.
 	var block_visitor_multipliers := _get_block_visitor_multipliers()
 	var city_region_visitor_multiplier := _get_city_region_visitor_multiplier(city_region.id)
-
+	for cat_slot in store.category_slots:
+		var category := get_category(cat_slot.category_id)
+		if category == null or cat_slot.product_configs.is_empty() or not store_has_category_equipment(store, category):
+			continue
+		var staffing_power := get_category_staffing_power(store, category, hour)
+		if staffing_power <= 0.0:
+			continue
+		var first_template := get_product(cat_slot.product_configs[0].product_id)
+		if first_template == null:
+			continue
+		var category_front := storefront.duplicate()
+		category_front.capture_modifier *= StoreLayoutEffects.get_capture_multiplier(store)
+		var trade_area := TradeAreaCalculator.calculate_snapshot(category_front, category.id, first_template.id, hour, city_region, all_blocks, is_weekend, TradeAreaCalculator.DEFAULT_MAX_RADIUS, block_visitor_multipliers, city_region_visitor_multiplier, TimeManager.current_day)
+		var category_params := SettlementEngine.calculate_params_from_trade_area(trade_area, category_front, category, first_template, store, player_state, hour, store.is_business_open, staffing_power)
+		var competition_mod := maxf(0.01, trade_area.average_competition_modifier)
+		category_params.lost_external_competition = maxi(0, int(round(float(category_params.get("visitors", 0)) / competition_mod)) - int(category_params.get("visitors", 0)))
+		var category_share := 1.0 / float(maxi(1, active_category_count))
+		category_params.visitors = maxi(0, int(round(float(category_params.get("visitors", 0)) * category_share)))
+		category_params.visitors += get_destination_visitors(store, storefront, category_share)
+		var options: Array[Dictionary] = []
+		var products: Array[Dictionary] = []
+		var weighted_sensitivity := 0.5
+		var weighted_tier := "medium"
+		var contribution_total := 0.0
+		var sensitivity_total := 0.0
+		var tier_weights := {"low": 0.0, "medium": 0.0, "high": 0.0}
+		for contribution in trade_area.block_contributions:
+			var weight := float(contribution.get("contribution", 0.0))
+			var spending: Dictionary = contribution.get("spending_profile", {})
+			contribution_total += weight
+			sensitivity_total += weight * float(spending.get("price_sensitivity", 0.5))
+			var tier := str(spending.get("spend_potential_tier", "medium"))
+			tier_weights[tier] = float(tier_weights.get(tier, 0.0)) + weight
+		if contribution_total > 0.0:
+			weighted_sensitivity = sensitivity_total / contribution_total
+			for tier in tier_weights:
+				if float(tier_weights[tier]) > float(tier_weights[weighted_tier]): weighted_tier = tier
+		var consumption := get_category_ingredient_consumption_multiplier(store, category, hour)
+		for config in cat_slot.product_configs:
+			var template := get_product(config.product_id)
+			if template == null: continue
+			var product: ProductData = template.duplicate()
+			product.average_price = config.get_effective_price(template)
+			var profile := CustomerPreferenceConfig.get_profile(category, product)
+			var group_weights := {}
+			var price_rates := {}
+			for group_id in SpatialConfig.POPULATION_GROUPS:
+				group_weights[group_id] = CustomerPreferenceConfig.get_group_affinity(profile, group_id) * CustomerPreferenceConfig.get_time_affinity(profile, hour) / pow(maxf(1.0, product.average_price), 0.12)
+				var spend_fit := CustomerPreferenceConfig.get_spending_affinity(str(profile.get("spending_tier", "medium")), weighted_tier)
+				price_rates[group_id] = clampf((1.0 - spend_fit) * (0.25 + weighted_sensitivity * 0.5), 0.0, 0.6)
+			profile["weight_by_group"] = group_weights
+			profile["price_rejection_rate_by_group"] = price_rates
+			var limit := store.get_max_produceable_by_ingredients(template, consumption)
+			var service_seconds := get_product_service_seconds(category, product, staffing_power)
+			options.append({"product": product, "profile": profile, "service_seconds": service_seconds, "inventory_limit": limit, "unit_ingredient_cost": get_product_unit_ingredient_cost_for_store(store, template, consumption), "unit_utility_cost": get_product_unit_utility_cost(template), "reserve_ingredients": _reserve_product_ingredients.bind(store, template, consumption)})
+			products.append({"product": product, "product_template": template, "inventory_limit": limit, "ingredient_consumption_multiplier": consumption})
+		var service := CategoryServiceSimulator.new(category.id)
+		service.setup(category.id, int(category_params.get("visitors", 0)), category_params.get("group_profiles", {}), options, SettlementConfig.CUSTOMER_MAX_QUEUE_WAIT_SECONDS)
+		active_simulations.append({"store_id": store.id, "service": service, "params": category_params, "category": category, "products": products})
+	return
+	var menu_shares := _get_active_menu_shares(store, hour)
 	for cat_slot in store.category_slots:
 		var category := get_category(cat_slot.category_id)
 		if category == null or cat_slot.product_configs.is_empty():
 			continue
 		if not store_has_category_equipment(store, category):
 			continue
+		var category_service := CategoryServiceSimulator.new(category.id)
+		var category_service_queue := category_service.get_shared_state()
 
 		var product_count: int = cat_slot.product_configs.size()
-		var product_share := 1.0 / float(active_product_count)
 		var staffing_power := get_category_staffing_power(store, category, hour)
 		var ingredient_consumption_multiplier := get_category_ingredient_consumption_multiplier(store, category, hour)
 
 		for pc in cat_slot.product_configs:
 			var product_template := get_product(pc.product_id)
 			if product_template == null:
+				continue
+			var product_share := float(menu_shares.get(_get_menu_share_key(category.id, product_template.id), 0.0))
+			if product_share <= 0.0:
 				continue
 
 			var scaled_storefront: StorefrontData = storefront.duplicate()
@@ -1372,7 +1621,7 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 				scaled_storefront, category.id, product_template.id, hour,
 				city_region, all_blocks, is_weekend,
 				TradeAreaCalculator.DEFAULT_MAX_RADIUS, block_visitor_multipliers,
-				city_region_visitor_multiplier)
+				city_region_visitor_multiplier, TimeManager.current_day)
 
 			var params: Dictionary = SettlementEngine.calculate_params_from_trade_area(
 				trade_area, scaled_storefront, category, product_instance,
@@ -1410,14 +1659,15 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 				var sim := CustomerSimulator.new()
 				var service_time_multiplier_add := EventManager.get_modifier_total(
 					GameEventDefinition.Scope.STORE, store.id, "service_time_multiplier_add")
-				var service_seconds := get_product_service_seconds(category, product_instance, staffing_power) * product_count * maxf(0.1, 1.0 + service_time_multiplier_add)
+				var service_seconds := get_product_service_seconds(category, product_instance, staffing_power) * maxf(0.1, 1.0 + service_time_multiplier_add)
 				var reserve_ingredients := _reserve_product_ingredients.bind(
 					store, product_template, ingredient_consumption_multiplier)
 				sim.setup(params.visitors, 3600.0, params.conversion_rate,
 					service_seconds, SettlementConfig.CUSTOMER_MAX_QUEUE_WAIT_SECONDS, entry.inventory_limit,
 					product_instance.average_price, unit_ingredient_cost, unit_utility_cost,
-					reserve_ingredients)
+					reserve_ingredients, params.get("group_profiles", {}), category_service_queue)
 				entry.sim = sim
+				entry.category_service = category_service
 
 			active_simulations.append(entry)
 
@@ -1428,6 +1678,12 @@ func advance_slot_simulation(elapsed_seconds: float) -> void:
 		var next_entry: Dictionary = {}
 		var earliest_arrival := INF
 		for entry in active_simulations:
+			var service: CategoryServiceSimulator = entry.get("service", null)
+			if service != null:
+				if service.next_arrival_at <= elapsed_seconds and service.next_arrival_at <= service.slot_duration_seconds and service.next_arrival_at < earliest_arrival:
+					earliest_arrival = service.next_arrival_at
+					next_entry = entry
+				continue
 			var sim: CustomerSimulator = entry.get("sim", null)
 			if sim == null or sim.next_arrival_at > elapsed_seconds or sim.next_arrival_at > sim.slot_duration_seconds:
 				continue
@@ -1436,9 +1692,16 @@ func advance_slot_simulation(elapsed_seconds: float) -> void:
 				next_entry = entry
 		if next_entry.is_empty():
 			break
+		var next_service: CategoryServiceSimulator = next_entry.get("service", null)
+		if next_service != null:
+			if not next_service.process_next_arrival_if_due(elapsed_seconds): break
+			continue
 		var next_sim: CustomerSimulator = next_entry.get("sim", null)
 		if next_sim == null or not next_sim.process_next_arrival_if_due(elapsed_seconds):
 			break
+		var category_service: CategoryServiceSimulator = next_entry.get("category_service", null)
+		if category_service != null:
+			category_service.sync_from_state(next_sim.shared_service_state)
 
 
 func get_storefront_road_exposure(storefront: StorefrontData) -> float:
@@ -1478,8 +1741,11 @@ func get_destination_visitor_sources(store: Store, storefront: StorefrontData, p
 	if store == null or storefront == null or store.reputation <= 0.0:
 		return sources
 	var local_block := _get_block_for_storefront(storefront)
-	for block_id in store.awareness_by_block.keys():
-		var awareness := float(store.awareness_by_block.get(block_id, 0.0))
+	var awareness_blocks: Dictionary = store.awareness_by_block.duplicate()
+	for brand_block_id in player_state.brand_awareness_by_block:
+		awareness_blocks[brand_block_id] = maxf(float(awareness_blocks.get(brand_block_id, 0.0)), float(player_state.brand_awareness_by_block.get(brand_block_id, 0.0)) * 0.5)
+	for block_id in awareness_blocks.keys():
+		var awareness := float(awareness_blocks.get(block_id, 0.0))
 		var block := get_block(str(block_id))
 		# The host block belongs to the natural-visitor funnel. Destination
 		# visitors must originate in other blocks to avoid double counting.
@@ -1522,6 +1788,35 @@ func _reserve_product_ingredients(
 		product, 1, consumption_multiplier)
 
 
+## Retained only while the legacy product-stream block below is removed in a
+## follow-up cleanup; the live slot path never reads menu shares.
+func _get_menu_share_key(category_id: String, product_id: String) -> String:
+	return category_id + ":" + product_id
+
+
+func _get_active_menu_shares(store: Store, hour: int) -> Dictionary:
+	var weights: Dictionary = {}
+	var total := 0.0
+	if store == null:
+		return weights
+	for slot in store.category_slots:
+		var category := get_category(slot.category_id)
+		if category == null or not store_has_category_equipment(store, category) or get_category_staffing_power(store, category, hour) <= 0.0:
+			continue
+		for config in slot.product_configs:
+			var product := get_product(config.product_id)
+			if product == null:
+				continue
+			var profile := CustomerPreferenceConfig.get_profile(category, product)
+			var weight := maxf(0.1, CustomerPreferenceConfig.get_time_affinity(profile, hour) / pow(maxf(1.0, config.get_effective_price(product)), 0.12))
+			weights[_get_menu_share_key(category.id, product.id)] = weight
+			total += weight
+	if total > 0.0001:
+		for key in weights:
+			weights[key] = float(weights[key]) / total
+	return weights
+
+
 func set_player_store_presence(store: Store, present: bool) -> void:
 	if store == null:
 		return
@@ -1544,6 +1839,22 @@ func refresh_active_store_staffing(store: Store) -> void:
 	for entry in active_simulations:
 		if str(entry.get("store_id", "")) != store.id:
 			continue
+		var category_service: CategoryServiceSimulator = entry.get("service", null)
+		if category_service != null:
+			has_live_entry = true
+			if not store.is_business_open:
+				category_service.arrival_rate_per_second = 0.0
+				category_service.next_arrival_at = INF
+				continue
+			var category_for_service: CategoryData = entry.get("category", null)
+			if category_for_service == null or get_category_staffing_power(store, category_for_service, hour) <= 0.0:
+				category_service.arrival_rate_per_second = 0.0
+				category_service.next_arrival_at = INF
+				continue
+			if category_service.arrival_rate_per_second <= 0.0:
+				category_service.arrival_rate_per_second = float(entry.get("params", {}).get("visitors", 0)) / 3600.0
+				category_service._schedule_next_arrival(TimeManager.total_game_seconds - floor(TimeManager.total_game_seconds / 3600.0) * 3600.0)
+			continue
 		var sim: CustomerSimulator = entry.get("sim", null)
 		if sim == null:
 			continue
@@ -1557,7 +1868,6 @@ func refresh_active_store_staffing(store: Store) -> void:
 		if category == null or product == null:
 			continue
 		var power := get_category_staffing_power(store, category, hour)
-		var product_count := maxi(1, int(entry.get("product_count", 1)))
 		if power <= 0.0:
 			sim.arrival_rate_per_second = 0.0
 			sim.next_arrival_at = INF
@@ -1566,7 +1876,7 @@ func refresh_active_store_staffing(store: Store) -> void:
 			var params: Dictionary = entry.get("params", {})
 			sim.arrival_rate_per_second = float(params.get("visitors", 0)) / 3600.0
 			sim._schedule_next_arrival(TimeManager.total_game_seconds - floor(TimeManager.total_game_seconds / 3600.0) * 3600.0)
-		sim.service_time_seconds = get_product_service_seconds(category, product, power) * product_count
+		sim.service_time_seconds = get_product_service_seconds(category, product, power)
 	if not has_live_entry and store.is_business_open:
 		_begin_slot_simulation_for_store(store)
 
@@ -1643,16 +1953,39 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 		var store := get_store(entry.store_id)
 		if store == null:
 			continue
+		var category_service: CategoryServiceSimulator = entry.get("service", null)
+		if category_service != null:
+			var category: CategoryData = entry.get("category", null)
+			var products: Array = entry.get("products", [])
+			for product_index in products.size():
+				var product_entry: Dictionary = products[product_index]
+				var product: ProductData = product_entry.get("product", null)
+				var template: ProductData = product_entry.get("product_template", null)
+				if category == null or product == null or template == null: continue
+				var ledger: CustomerSimulator = category_service.product_ledgers.get(product.id, null)
+				var result := SettlementEngine.finalize_from_simulation(entry.params, hour, day, category, product, int(product_entry.get("inventory_limit", 0)), ledger)
+				if product_index == 0:
+					result.group_summary = category_service.group_summary.duplicate(true)
+					result.lost_no_menu = category_service.lost_no_menu
+					result.lost_price_rejection = category_service.lost_price_rejection
+					result.lost_capacity = category_service.lost_capacity
+					result.lost_inventory = category_service.lost_inventory
+					result.lost_external_competition = int(entry.params.get("lost_external_competition", 0))
+				result.ingredient_consumption_multiplier = float(product_entry.get("ingredient_consumption_multiplier", 1.0))
+				result.preparation_waste_ingredients = store.get_preparation_waste_for_orders(template, result.actual_orders, result.ingredient_consumption_multiplier)
+				store.apply_settlement(result)
+				player_state.apply_settlement(result)
+				results.append(result)
+				if not results_by_store.has(store.id): results_by_store[store.id] = []
+				results_by_store[store.id].append(result)
+			if bool(entry.params.get("is_open", false)): operating_store_ids[store.id] = true
+			continue
 
 		var result: SettlementResult
 		if entry.sim != null:
 			result = SettlementEngine.finalize_from_simulation(
 				entry.params, hour, day, entry.category, entry.product,
 				entry.inventory_limit, entry.sim)
-
-			var extra_upkeep: float = (entry.category.extra_rent_wan * 10000.0) / 30.0 / 24.0 / entry.product_count
-			result.rent_cost += extra_upkeep
-			result.profit -= extra_upkeep
 
 			result.ingredient_consumption_multiplier = float(entry.get("ingredient_consumption_multiplier", 1.0))
 			result.preparation_waste_ingredients = store.get_preparation_waste_for_orders(
@@ -1676,55 +2009,55 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 		spoilage_by_store[open_store.id] = open_store.apply_ingredient_spoilage(
 			get_ingredient_spoilage_ratios(open_store))
 
-	for store_id in operating_store_ids.keys():
-		var operating_store := get_store(store_id)
-		if operating_store == null:
-			continue
-		var equipment_utility := get_equipment_hourly_utility_cost(operating_store)
-		var staff_wages := get_scheduled_staff_hourly_cost(operating_store, hour)
-		var spoiled_ingredients: Dictionary = spoilage_by_store.get(store_id, {})
-		if equipment_utility <= 0.0 and staff_wages <= 0.0 and spoiled_ingredients.is_empty():
-			continue
-		var overhead := SettlementResult.new()
-		overhead.day = day
-		overhead.slot = "%02d:00" % hour
-		overhead.is_open = true
-		overhead.is_store_overhead = true
-		overhead.product_name = "\u95e8\u5e97\u56fa\u5b9a\u6210\u672c"
-		overhead.utility_cost = equipment_utility
-		overhead.staff_cost = staff_wages
-		overhead.spoilage_ingredients = spoiled_ingredients
-		overhead.profit = -(equipment_utility + staff_wages)
-		operating_store.apply_settlement(overhead)
-		player_state.apply_settlement(overhead)
-		results.append(overhead)
-		results_by_store[store_id].append(overhead)
-
+	## Fixed costs are accrued once for every opened store, independent of the
+	## number of products, active staff, or completed orders in this hour.
 	for open_store in get_open_stores():
-		if operating_store_ids.has(open_store.id):
-			continue
-		var spoiled_ingredients: Dictionary = spoilage_by_store.get(open_store.id, {})
-		if spoiled_ingredients.is_empty():
-			continue
-		var spoilage_result := SettlementResult.new()
-		spoilage_result.day = day
-		spoilage_result.slot = "%02d:00" % hour
-		spoilage_result.is_store_overhead = true
-		spoilage_result.product_name = "\u539f\u6599\u8fc7\u671f"
-		spoilage_result.spoilage_ingredients = spoiled_ingredients
-		spoilage_result.utility_cost = get_storage_equipment_hourly_utility_cost(open_store)
-		spoilage_result.profit = -spoilage_result.utility_cost
-		open_store.apply_settlement(spoilage_result)
-		results.append(spoilage_result)
-		if not results_by_store.has(open_store.id):
-			results_by_store[open_store.id] = []
-		results_by_store[open_store.id].append(spoilage_result)
+		var fixed_store_id := open_store.id
+		var fixed_storefront := get_storefront(open_store.selected_storefront_id)
+		var lease_cost := fixed_storefront.get_monthly_rent_yuan() / 30.0 / 24.0 if fixed_storefront != null else 0.0
+		var category_cost := _get_store_category_hourly_occupancy_cost(open_store)
+		var is_operating := operating_store_ids.has(fixed_store_id)
+		var fixed_utility := get_equipment_hourly_utility_cost(open_store) if is_operating else get_storage_equipment_hourly_utility_cost(open_store)
+		var fixed_wages := get_scheduled_staff_hourly_cost(open_store, hour) if open_store.is_business_open else 0.0
+		var fixed_overhead := SettlementResult.new()
+		fixed_overhead.day = day
+		fixed_overhead.slot = "%02d:00" % hour
+		fixed_overhead.is_open = open_store.is_business_open
+		fixed_overhead.is_store_overhead = true
+		fixed_overhead.product_name = "Store fixed costs"
+		fixed_overhead.rent_cost = lease_cost + category_cost
+		fixed_overhead.utility_cost = fixed_utility
+		fixed_overhead.staff_cost = fixed_wages
+		fixed_overhead.lease_cost = lease_cost
+		fixed_overhead.category_occupancy_cost = category_cost
+		fixed_overhead.operating_equipment_cost = fixed_utility if is_operating else 0.0
+		fixed_overhead.storage_equipment_cost = fixed_utility if not is_operating else 0.0
+		fixed_overhead.scheduled_wage_cost = fixed_wages
+		fixed_overhead.spoilage_ingredients = spoilage_by_store.get(fixed_store_id, {})
+		fixed_overhead.profit = -(fixed_overhead.rent_cost + fixed_utility + fixed_wages)
+		open_store.apply_settlement(fixed_overhead)
+		player_state.apply_settlement(fixed_overhead)
+		results.append(fixed_overhead)
+		if not results_by_store.has(fixed_store_id):
+			results_by_store[fixed_store_id] = []
+		results_by_store[fixed_store_id].append(fixed_overhead)
 
 	for store_id in results_by_store.keys():
 		_apply_operating_understanding_gain(get_store(store_id), results_by_store[store_id], hour, day)
 
 	active_simulations.clear()
 	return results
+
+
+func _get_store_category_hourly_occupancy_cost(store: Store) -> float:
+	var total := 0.0
+	if store == null:
+		return total
+	for slot in store.category_slots:
+		var category := get_category(slot.category_id)
+		if category != null:
+			total += category.extra_rent_wan * 10000.0 / 30.0 / 24.0
+	return total
 
 
 ## backlog任务4：经营数据反哺区块了解度。现在按"这次结算属于哪家店"分别计算，
@@ -1751,7 +2084,8 @@ func _apply_operating_understanding_gain(store: Store, results: Array, settled_h
 		return
 
 	var gain := float(total_orders) * SpatialConfig.OPERATING_UNDERSTANDING_PER_ORDER
-	advance_block_understanding(block.id, gain)
+	advance_block_research_progress(block.id, "spending", gain * 0.5)
+	advance_block_research_progress(block.id, "demand", gain * 0.5)
 	recalculate_region_intel(block.city_region_id)
 
 
@@ -1820,7 +2154,11 @@ func _add_store_awareness(store: Store, block_id: String, gain: float) -> float:
 	var before := float(store.awareness_by_block.get(block_id, 0.0))
 	var after := clampf(before + gain, 0.0, 100.0)
 	store.awareness_by_block[block_id] = after
-	return after - before
+	var applied := after - before
+	if applied > 0.0:
+		var brand_before := float(player_state.brand_awareness_by_block.get(block_id, 0.0))
+		player_state.brand_awareness_by_block[block_id] = clampf(brand_before + applied * 0.35, 0.0, 100.0)
+	return applied
 
 
 func _make_awareness_update_snapshot(store: Store, storefront: StorefrontData, local_block: BlockData, coverage_ratios: Dictionary, exposure_gain: float, word_of_mouth_gain: float, exposure_by_block: Dictionary, word_of_mouth_by_block: Dictionary, gain_multiplier: float, settled_hour: int, settled_day: int) -> Dictionary:

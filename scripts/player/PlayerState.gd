@@ -31,6 +31,9 @@ var energy_debt: float = 0.0
 var region_intel_levels: Dictionary = {}
 var region_intel_progress: Dictionary = {}
 var block_understanding: Dictionary = {}
+## Independent research tracks. Legacy block_understanding is retained only while
+## loading old saves and is never written by new saves.
+var block_research_progress: Dictionary = {}
 ## { block_id: { discovery_id: highest_tier } }. The timeline keeps every
 ## first discovery and later upgrade, while this map drives current cards.
 var block_discovery_progress: Dictionary = {}
@@ -52,6 +55,8 @@ var supervising_store_id: String = ""
 ## character-creation traits so future training and events can grant skills.
 var work_skills: Array[String] = []
 var work_skill_level: float = 1.0
+## Shared brand recognition, separate from each store's local awareness.
+var brand_awareness_by_block: Dictionary = {}
 
 func reset_to_defaults() -> void:
 	is_character_created = false
@@ -74,6 +79,7 @@ func reset_to_defaults() -> void:
 	supervising_store_id = ""
 	work_skills.clear()
 	work_skill_level = 1.0
+	brand_awareness_by_block.clear()
 
 
 func get_used_trait_points() -> int:
@@ -120,7 +126,17 @@ func get_region_intel_progress(city_region_id: String) -> float:
 
 
 func get_block_understanding(block_id: String) -> float:
-	return float(block_understanding.get(block_id, 0.0))
+	var tracks: Dictionary = block_research_progress.get(block_id, {})
+	if tracks.is_empty():
+		return float(block_understanding.get(block_id, 0.0))
+	var total := 0.0
+	for focus_id in GameManager.BLOCK_RESEARCH_FOCUSES:
+		total += float(tracks.get(focus_id, 0.0))
+	return total / float(GameManager.BLOCK_RESEARCH_FOCUSES.size())
+
+
+func get_block_research_progress(block_id: String, focus_id: String) -> float:
+	return clampf(float((block_research_progress.get(block_id, {}) as Dictionary).get(focus_id, 0.0)), 0.0, 100.0)
 
 
 func get_storefront_diligence(storefront_id: String) -> String:
@@ -295,7 +311,7 @@ func to_save_dict() -> Dictionary:
 		
 		"region_intel_levels": region_intel_levels,
 		"region_intel_progress": region_intel_progress,
-		"block_understanding": block_understanding,
+		"block_research_progress": block_research_progress,
 		"block_discovery_progress": block_discovery_progress,
 		"discovery_history": discovery_history,
 		"storefront_diligence": storefront_diligence,
@@ -306,6 +322,7 @@ func to_save_dict() -> Dictionary:
 		"supervising_store_id": supervising_store_id,
 		"work_skills": work_skills,
 		"work_skill_level": work_skill_level,
+		"brand_awareness_by_block": brand_awareness_by_block,
 	}
 
 
@@ -340,16 +357,19 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p.region_intel_levels = data.get("region_intel_levels", {})
 	p.region_intel_progress = data.get("region_intel_progress", {})
 	p.block_understanding = data.get("block_understanding", {})
+	p.block_research_progress = data.get("block_research_progress", {}).duplicate(true)
 	p.block_discovery_progress = data.get("block_discovery_progress", {})
 	for raw_record in data.get("discovery_history", []):
 		if raw_record is Dictionary:
 			p.discovery_history.append(raw_record.duplicate(true))
+	p._migrate_legacy_research_progress()
 	p.storefront_diligence = data.get("storefront_diligence", {})
 	p.storefront_diligence_progress = data.get("storefront_diligence_progress", {})
 	p.focused_city_region_id = data.get("focused_city_region_id", "")
 	p.current_block_id = str(data.get("current_block_id", ""))
 	p.supervising_store_id = data.get("supervising_store_id", "")
 	p.work_skill_level = float(data.get("work_skill_level", 1.0))
+	p.brand_awareness_by_block = data.get("brand_awareness_by_block", {}).duplicate(true)
 	var raw_work_skills: Array = data.get("work_skills", [])
 	for skill_id in raw_work_skills:
 		p.work_skills.append(str(skill_id))
@@ -361,6 +381,19 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 			survey_area_typed.append(SurveyAreaState.from_save_dict(raw_area))
 	p.survey_areas = survey_area_typed
 	return p
+
+
+func _migrate_legacy_research_progress() -> void:
+	if not block_research_progress.is_empty():
+		return
+	for record in discovery_history:
+		var block_id := str(record.get("block_id", ""))
+		var focus_id := BlockDiscoveryManager.get_focus_for_discovery(str(record.get("discovery_id", "")))
+		if block_id.is_empty() or focus_id.is_empty():
+			continue
+		var tracks: Dictionary = block_research_progress.get(block_id, {})
+		tracks[focus_id] = maxf(float(tracks.get(focus_id, 0.0)), float(record.get("tier", 0)) * 25.0)
+		block_research_progress[block_id] = tracks
 
 func get_required_region_familiarity() -> float:
 	return clampf(

@@ -50,7 +50,11 @@ func _test_build_state() -> void:
 
 	GameManager.player_state.cash = 87654.0
 	GameManager.player_state.stress = 23.5
-	GameManager.player_state.block_understanding["cc_primary_school_1"] = 37.5
+	GameManager.player_state.block_research_progress["block_w_school"] = {
+		"population": 37.5,
+		"groups": 62.5,
+	}
+	GameManager.player_state.brand_awareness_by_block["block_w_school"] = 14.75
 	GameManager.player_state.storefront_diligence["S004"] = "full_diligence"
 	GameManager.player_state.focused_city_region_id = "CR001"
 	GameManager.player_state.supervising_store_id = ""
@@ -70,6 +74,15 @@ func _test_build_state() -> void:
 		store1.reputation = 72.5
 		store1.ingredient_stock["soybean"] = 11.0
 		store1.ingredient_avg_cost["soybean"] = 8.5
+		store1.daily_history.append({
+			"day": 1,
+			"slot": "10:00",
+			"group_summary": {"student": {"visitors": 12, "intended_orders": 7, "actual_orders": 5}},
+			"lost_no_menu": 2,
+			"lost_price_rejection": 1,
+			"lost_external_competition": 3,
+			"lost_self_cannibalization": 4,
+		})
 
 	var second_result: Dictionary = GameManager.create_new_store("存档分店")
 	_store2_id = str(second_result.get("store_id", ""))
@@ -90,8 +103,10 @@ func _test_build_state() -> void:
 	GameManager.player_state.region_intel_levels["CR001"] = 3
 	GameManager.player_state.region_intel_progress["CR001"] = 12.5
 
-	TimeManager.reset()
-	TimeManager._advance(7200.0)
+	TimeManager.total_game_seconds = TimeManager.DAY_START_SECONDS + 7200.0
+	TimeManager.current_day = 1
+	_check(is_equal_approx(TimeManager.total_game_seconds, TimeManager.DAY_START_SECONDS + 7200.0),
+		"Save state uses the explicit 10:00 game timestamp")
 	GameManager.switch_active_store(_store1_id)
 
 	_check(GameManager.active_store_id == _store1_id, "保存前应激活首店")
@@ -124,8 +139,12 @@ func _test_save_and_load() -> void:
 	_check(GameManager.player_state.player_name == "存档回归测试者", "加载后玩家姓名应恢复")
 	_check(is_equal_approx(GameManager.player_state.cash, 87654.0), "加载后玩家现金应恢复")
 	_check(is_equal_approx(GameManager.player_state.stress, 23.5), "加载后玩家压力应恢复")
-	_check(is_equal_approx(GameManager.player_state.block_understanding.get("cc_primary_school_1", 0.0), 37.5),
+	_check(is_equal_approx(GameManager.player_state.get_block_research_progress("block_w_school", "population"), 37.5),
 		"加载后区块了解度应恢复")
+	_check(is_equal_approx(GameManager.player_state.get_block_research_progress("block_w_school", "groups"), 62.5),
+		"Independent group research progress restores")
+	_check(is_equal_approx(float(GameManager.player_state.brand_awareness_by_block.get("block_w_school", 0.0)), 14.75),
+		"Brand awareness restores")
 	_check(GameManager.player_state.storefront_diligence.get("S004", "") == "full_diligence",
 		"加载后门面尽调状态应恢复")
 	_check(GameManager.player_state.region_intel_levels.get("CR001", 0) == 3,
@@ -164,6 +183,18 @@ func _test_save_and_load() -> void:
 	_check(TimeManager.current_day == 1, "加载后当前日应恢复为第1天")
 	_check(TimeManager.get_current_hour_int() == 10, "加载后当前时间应恢复为10:00")
 
+
+	if loaded_store1 != null:
+		var saved_slot: Dictionary = loaded_store1.daily_history[0] if not loaded_store1.daily_history.is_empty() else {}
+		var saved_student: Dictionary = saved_slot.get("group_summary", {}).get("student", {})
+		_check(int(saved_student.get("actual_orders", 0)) == 5
+			and int(saved_slot.get("lost_no_menu", 0)) == 2
+			and int(saved_slot.get("lost_price_rejection", 0)) == 1
+			and int(saved_slot.get("lost_external_competition", 0)) == 3
+			and int(saved_slot.get("lost_self_cannibalization", 0)) == 4,
+			"Group order summary and loss breakdown restore")
+	_check(is_equal_approx(TimeManager.total_game_seconds, TimeManager.DAY_START_SECONDS + 7200.0),
+		"Total game seconds restore")
 
 func _cleanup() -> void:
 	SaveManager.delete_save()

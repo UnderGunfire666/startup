@@ -17,6 +17,10 @@ var duration_hours: float = 0.0
 ## applied_hours记录已经实际结算过的调查时间，避免停止/整点推进时重复扣精力或重复增加了解度。
 var continuous_mode: bool = false
 var applied_hours: float = 0.0
+## Shared cadence for all blocks in one continuous research action.
+var next_discovery_check_game_seconds: float = -1.0
+## "all" means evenly distribute work across this block's unfinished focuses.
+var research_focus: String = "all"
 var is_active: bool = false
 var stopped_by_player: bool = false
 var source_entry: ScheduledActionEntry = null   # 若是从"日程"计划队列自动接续的，记录来源；纯单步触发则为null

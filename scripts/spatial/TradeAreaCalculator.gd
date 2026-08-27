@@ -32,7 +32,8 @@ static func calculate_snapshot(
 	is_weekend: bool = false,
 	max_radius: float = DEFAULT_MAX_RADIUS,
 	block_visitor_multipliers: Dictionary = {},
-	city_region_visitor_multiplier: float = 1.0
+	city_region_visitor_multiplier: float = 1.0,
+	day: int = 1
 ) -> TradeAreaSnapshot:
 	var snapshot := TradeAreaSnapshot.new()
 	snapshot.storefront_id = storefront.id if storefront != null else ""
@@ -83,7 +84,7 @@ static func calculate_snapshot(
 		var contributed_groups: Dictionary = {}
 
 		for group_id in SpatialConfig.POPULATION_GROUPS:
-			var raw_supply := float(group_supply.get(group_id, 0.0))
+			var raw_supply := float(group_supply.get(group_id, 0.0)) * DemandPatternCalculator.get_group_multiplier(block, group_id, day, hour)
 			var contributed := raw_supply * modifier
 
 			reachable_totals[group_id] = float(reachable_totals[group_id]) + contributed
@@ -104,6 +105,7 @@ static func calculate_snapshot(
 			"dynamic_visitor_multiplier": dynamic_visitor_multiplier,
 			"city_region_visitor_multiplier": city_region_visitor_multiplier,
 			"group_supply": contributed_groups,
+			"spending_profile": block.spending_profile.duplicate(),
 			"external_supply": contributed_external,
 			"contribution": block_contribution,
 		})
@@ -160,3 +162,23 @@ static func _calculate_competition_mod(block: BlockData, category_id: String) ->
 	var sensitivity := BusinessDemandConfig.get_competition_sensitivity(category_id)
 
 	return clampf(1.0 - sensitivity * level_value, 0.1, 1.0)
+
+
+## Shared market pools use the same static external-competition model as the
+## trade-area report, but deduct it once at pool level rather than per store.
+static func get_external_competition_ratio(block: BlockData, category_id: String) -> float:
+	return 1.0 - _calculate_competition_mod(block, category_id)
+
+
+static func get_participant_market_factors(block: BlockData, storefront: StorefrontData, category_id: String) -> Dictionary:
+	if block == null or storefront == null:
+		return {}
+	var distance := storefront.map_position.distance_to(block.center_position)
+	if distance >= DEFAULT_MAX_RADIUS:
+		return {}
+	return {
+		"distance": distance,
+		"block_accessibility": clampf(block.accessibility, 0.0, 1.0),
+		"storefront_accessibility": clampf(storefront.accessibility_modifier, 0.0, 2.0),
+		"business_match": _calculate_business_match(block, category_id),
+	}

@@ -10,6 +10,8 @@ extends Control
 	$MarginContainer/RootVBox/SaveLoadBar
 @onready var character_creation_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs/CharacterCreationPanel
+@onready var character_status_panel: PanelContainer = \
+	$MarginContainer/RootVBox/MainTabs/PlayerPanel/PlayerSubTabs/CharacterStatusPanel
 @onready var operation_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/OperationPanel
 @onready var category_manager_panel: PanelContainer = \
@@ -31,6 +33,7 @@ extends Control
 @onready var store_list_panel: PanelContainer = \
 	$MarginContainer/RootVBox/MainTabs/StorePanel/StoreSubTabs/StoreListPanel
 @onready var interior_layout_panel: Control = $InteriorLayoutPanel
+@onready var event_popup: EventPopup = $EventPopup
 
 var settlement_history: Array[Dictionary] = []
 
@@ -38,6 +41,8 @@ func _ready() -> void:
 	_setup_tab_titles()
 	store_sub_tabs.set_tab_title(6, "\u5458\u5de5\u4e0e\u6392\u73ed")
 	character_creation_panel.character_created.connect(_on_character_created)
+	TimeManager.clock_updated.connect(_on_clock_updated)
+	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
 	category_manager_panel.category_changed.connect(_on_category_changed)
 	employee_panel.employee_changed.connect(_on_employee_changed)
 	procurement_panel.procurement_completed.connect(_on_procurement_completed)
@@ -51,6 +56,12 @@ func _ready() -> void:
 	GameManager.active_store_changed.connect(_on_active_store_changed)
 	GameManager.store_plan_updated.connect(_on_store_plan_updated)
 	BlockDiscoveryManager.discovery_recorded.connect(func(_record: Dictionary) -> void: discovery_panel.refresh())
+	EventManager.notice_raised.connect(func(event: ActiveGameEvent) -> void:
+		if event.interaction == GameEventDefinition.Interaction.NOTICE:
+			event_popup.enqueue(event)
+	)
+	EventManager.decision_raised.connect(event_popup.enqueue)
+	EventManager.interrupt_raised.connect(event_popup.enqueue)
 	_refresh_all_panels()
 
 func _setup_tab_titles() -> void:
@@ -59,6 +70,7 @@ func _setup_tab_titles() -> void:
 	main_tabs.set_tab_title(2, "地图")
 	main_tabs.set_tab_title(3, "发现")
 	player_sub_tabs.set_tab_title(0, "创建角色")
+	player_sub_tabs.set_tab_title(1, "当前角色")
 	store_sub_tabs.set_tab_title(0, "我的店铺")
 	store_sub_tabs.set_tab_title(1, "营业")
 	store_sub_tabs.set_tab_title(2, "品类商品")
@@ -69,7 +81,16 @@ func _setup_tab_titles() -> void:
 func _on_character_created() -> void:
 	settlement_history.clear()
 	_refresh_all_panels()
-	main_tabs.current_tab = 2
+	main_tabs.current_tab = 0
+	player_sub_tabs.current_tab = 1
+
+
+func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
+	_refresh_character_panel()
+
+
+func _on_schedule_changed() -> void:
+	_refresh_character_panel()
 
 func _refresh_all_panels() -> void:
 	_refresh_character_panel()
@@ -149,7 +170,17 @@ func _on_data_changed() -> void:
 	_refresh_all_panels()
 
 func _refresh_character_panel() -> void:
-	character_creation_panel.refresh()
+	var has_character := GameManager.player_state.is_character_created
+	if has_character:
+		player_sub_tabs.set_tab_hidden(1, false)
+		character_status_panel.refresh()
+		player_sub_tabs.current_tab = 1
+		player_sub_tabs.set_tab_hidden(0, true)
+	else:
+		player_sub_tabs.set_tab_hidden(0, false)
+		character_creation_panel.refresh()
+		player_sub_tabs.current_tab = 0
+		player_sub_tabs.set_tab_hidden(1, true)
 func _refresh_map_panel() -> void:
 	map_panel.refresh()
 func _refresh_discovery_panel() -> void:

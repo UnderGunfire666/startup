@@ -13,6 +13,7 @@ signal storefront_interior_requested(storefront_id: String)
 @onready var show_all_storefronts_button: Button = $HBoxContainer/SidePanel/ShowAllStorefrontsButton
 @onready var awareness_overlay_toggle: CheckBox = $HBoxContainer/SidePanel/AwarenessOverlayToggle
 @onready var research_mode_option: OptionButton = $HBoxContainer/SidePanel/ResearchModeOption
+@onready var research_focus_option: OptionButton = $HBoxContainer/SidePanel/ResearchFocusOption
 @onready var start_research_button: Button = $HBoxContainer/SidePanel/StartResearchButton
 
 ## 已发现门面列表容器。
@@ -21,6 +22,11 @@ signal storefront_interior_requested(storefront_id: String)
 var _sequence_research: RegionResearchSequence = null
 const RESEARCH_MODE_SELECTED_BLOCKS := 0
 const RESEARCH_MODE_SEQUENTIAL := 1
+const RESEARCH_FOCUS_LABELS := {
+	ScheduleManager.RESEARCH_FOCUS_ALL: "同步调查（均分未完成项）",
+	"population": "人口", "groups": "人群", "time": "时段",
+	"spending": "消费", "demand": "业态需求", "competition": "竞争",
+}
 
 
 func _ready() -> void:
@@ -31,9 +37,12 @@ func _ready() -> void:
 	show_all_storefronts_button.pressed.connect(_on_show_all_storefronts_pressed)
 	awareness_overlay_toggle.toggled.connect(_on_awareness_overlay_toggled)
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
+	research_focus_option.item_selected.connect(_on_research_focus_selected)
 	start_research_button.pressed.connect(_on_start_research_pressed)
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
+	ScheduleManager.action_interrupt.connect(_on_action_interrupt)
 	ScheduleManager.hour_effect_applied.connect(_on_action_progress_applied)
+	TimeManager.clock_updated.connect(_on_clock_updated)
 	GameManager.storefronts_discovered.connect(_on_storefronts_discovered)
 	EventManager.notice_raised.connect(_on_event_notice_raised)
 
@@ -41,6 +50,13 @@ func _ready() -> void:
 	research_mode_option.add_item("调查所选区块", RESEARCH_MODE_SELECTED_BLOCKS)
 	research_mode_option.add_item("按顺序逛（自动前往）", RESEARCH_MODE_SEQUENTIAL)
 	research_mode_option.tooltip_text = "按顺序逛会在完成当前区块后自动前往下一个选中区块。"
+	research_focus_option.clear()
+	research_focus_option.add_item("调研方式：同步调查（均分未完成项）")
+	research_focus_option.set_item_metadata(0, ScheduleManager.RESEARCH_FOCUS_ALL)
+	for focus in [["population", "人口"], ["groups", "人群"], ["time", "时段"], ["spending", "消费"], ["demand", "业态需求"], ["competition", "竞争"]]:
+		research_focus_option.add_item("调研重点：" + str(focus[1]))
+		research_focus_option.set_item_metadata(research_focus_option.item_count - 1, str(focus[0]))
+	_sync_research_focus_option()
 
 	_sequence_research = RegionResearchSequence.new()
 	_sequence_research.changed.connect(_on_sequence_changed)
@@ -53,6 +69,7 @@ func _ready() -> void:
 
 
 func refresh() -> void:
+	_sync_research_focus_option()
 	map_canvas.refresh_storefronts(GameManager.all_storefronts)
 	_refresh_awareness_overlay()
 	_refresh_report()
@@ -108,9 +125,11 @@ func _refresh_awareness_overlay() -> void:
 func _on_start_research_pressed() -> void:
 	var selected_blocks := map_canvas.get_selected_blocks()
 	var block_ids := _get_incomplete_block_ids(selected_blocks)
-	if block_ids.is_empty():
-		status_label.text = "⚠ 所选区块都已经完全了解"
-		_refresh_report()
+	var start_check := _get_research_start_check(block_ids)
+	if not bool(start_check.get("can", false)):
+		start_research_button.disabled = true
+		start_research_button.tooltip_text = str(start_check.get("reason", ""))
+		status_label.text = "⚠ " + str(start_check.get("reason", "无法开始调查"))
 		return
 
 	var result: Dictionary
@@ -126,7 +145,21 @@ func _on_research_mode_selected(_mode_id: int) -> void:
 	_refresh_research_controls()
 
 
+func _on_research_focus_selected(index: int) -> void:
+	ScheduleManager.set_region_research_focus(str(research_focus_option.get_item_metadata(index)))
+	_refresh_report()
+	_refresh_research_controls()
+
+
+func _sync_research_focus_option() -> void:
+	for index in range(research_focus_option.item_count):
+		if str(research_focus_option.get_item_metadata(index)) == ScheduleManager.selected_research_focus:
+			research_focus_option.select(index)
+			return
+
+
 func _on_schedule_changed() -> void:
+	_sync_research_focus_option()
 	_refresh_report()
 	_refresh_storefront_list()
 	_refresh_research_controls()
@@ -135,7 +168,18 @@ func _on_schedule_changed() -> void:
 		if last_entry.action_id == "deep_inspection":
 			var storefront := GameManager.get_storefront(last_entry.target_id)
 			var storefront_name := storefront.name if storefront != null else last_entry.target_id
-			status_label.text = "✅ 深度勘验完成：%s" % storefront_name if last_entry.status == "completed" else "⚠ 深度勘验已停止：%s" % last_entry.failure_reason
+			status_label.text = "✅ 你把「%s」从门头到动线都看了一遍，尽调记录已经完整。" % storefront_name if last_entry.status == "completed" else "⚠ 对「%s」的勘验被迫停下：%s" % [storefront_name, last_entry.failure_reason]
+
+
+func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
+	_refresh_research_controls()
+
+
+func _on_action_interrupt(reason_code: String, reason: String) -> void:
+	if reason_code != "energy_insufficient":
+		return
+	status_label.text = "⚠ " + reason
+	_refresh_research_controls()
 
 
 func _on_action_progress_applied(action_id: String, _elapsed_hours: float, _progress_ratio: float, _effect_mult: float) -> void:
@@ -157,7 +201,7 @@ func _on_sequence_changed() -> void:
 
 
 func _on_sequence_completed() -> void:
-	status_label.text = "✅ 已按顺序完成所有选中区块的调查"
+	status_label.text = "✅ 你沿着安排走完了所有选中的区块，今天的街面观察已经收进记录。"
 	_refresh_report()
 	_refresh_research_controls()
 
@@ -176,7 +220,7 @@ func _on_storefronts_discovered(_storefront_ids: Array[String]) -> void:
 		if sf != null:
 			names.append(sf.name)
 	if not names.is_empty():
-		status_label.text = "🏪 新发现门面：%s" % "、".join(names)
+		status_label.text = "🏪 你在街面上认出了新的可看门面：%s。" % "、".join(names)
 
 
 func _on_event_notice_raised(event: ActiveGameEvent) -> void:
@@ -188,20 +232,36 @@ func _on_event_notice_raised(event: ActiveGameEvent) -> void:
 
 func _refresh_research_controls() -> void:
 	var selected_blocks := map_canvas.get_selected_blocks()
-	var has_incomplete := not _get_incomplete_block_ids(selected_blocks).is_empty()
+	var block_ids := _get_incomplete_block_ids(selected_blocks)
+	var start_check := _get_research_start_check(block_ids)
+	var can_start := bool(start_check.get("can", false))
 	var action_running := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
 	var sequence_running := _sequence_research != null and _sequence_research.active
 	research_mode_option.disabled = action_running or sequence_running
-	start_research_button.disabled = not has_incomplete or action_running or sequence_running
+	start_research_button.disabled = not can_start or action_running or sequence_running
 	start_research_button.text = "按顺序逛（进行中）" if sequence_running else "开始调查"
+	start_research_button.tooltip_text = "" if can_start else str(start_check.get("reason", ""))
+	if not can_start and not action_running and not sequence_running and not block_ids.is_empty():
+		status_label.text = "⚠ " + str(start_check.get("reason", "无法开始调查"))
 
 
 func _get_incomplete_block_ids(selected_blocks: Array[BlockData]) -> Array[String]:
 	var block_ids: Array[String] = []
 	for block in selected_blocks:
-		if GameManager.get_block_understanding(block.id) < 100.0:
+		if not GameManager.is_block_research_complete(block.id):
 			block_ids.append(block.id)
 	return block_ids
+
+
+func _get_research_start_check(block_ids: Array[String]) -> Dictionary:
+	if block_ids.is_empty():
+		return {"can": false, "reason": "所选区块都已经完全了解"}
+	var energy_check := ScheduleManager.get_region_research_start_energy_check()
+	if not bool(energy_check.get("can", false)):
+		return energy_check
+	if research_mode_option.get_selected_id() == RESEARCH_MODE_SEQUENTIAL:
+		return {"can": true, "reason": ""}
+	return ScheduleManager.can_schedule_action("region_research", TimeManager.get_current_hour_int(), "", block_ids)
 
 
 func _on_storefront_clicked(storefront_id: String) -> void:
@@ -232,10 +292,14 @@ func _refresh_report() -> void:
 
 	var has_incomplete_block := false
 	for block in selected_blocks:
-		var understanding := GameManager.get_block_understanding(block.id)
-		if understanding < 100.0:
+		if not GameManager.is_block_research_complete(block.id):
 			has_incomplete_block = true
-		lines.append("• %s：%.0f%%了解度" % [block.name, understanding])
+		var progress_parts: Array[String] = []
+		for focus_id in GameManager.BLOCK_RESEARCH_FOCUSES:
+			progress_parts.append("%s %.0f%%" % [str(RESEARCH_FOCUS_LABELS.get(focus_id, focus_id)), GameManager.get_block_research_progress(block.id, focus_id)])
+		lines.append("• %s：%s" % [block.name, " | ".join(progress_parts)])
+	lines.append("")
+	lines.append("当前调研方式：%s" % str(RESEARCH_FOCUS_LABELS.get(ScheduleManager.selected_research_focus, ScheduleManager.selected_research_focus)))
 
 	if _sequence_research != null and _sequence_research.active:
 		var current_sequence_block := _sequence_research.get_current_block_id()
@@ -246,7 +310,8 @@ func _refresh_report() -> void:
 
 	report_label.text = "\n".join(lines)
 	var action_running := ScheduleManager.current_action != null and ScheduleManager.current_action.is_active
-	start_research_button.disabled = not has_incomplete_block or action_running or (_sequence_research != null and _sequence_research.active)
+	var start_check := _get_research_start_check(_get_incomplete_block_ids(selected_blocks))
+	start_research_button.disabled = not bool(start_check.get("can", false)) or action_running or (_sequence_research != null and _sequence_research.active)
 
 
 ## 遍历所有已发现门面，维持当前地图页的选址/尽调功能。

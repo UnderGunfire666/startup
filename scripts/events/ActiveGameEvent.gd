@@ -2,6 +2,12 @@ class_name ActiveGameEvent
 extends RefCounted
 
 var event_id: String = ""
+var instance_id: String = ""
+var chain_id: String = ""
+var node_id: String = ""
+var parent_instance_id: String = ""
+var selected_option_id: String = ""
+var resume_speed: int = TimeManager.Speed.X1
 var scope: int = GameEventDefinition.Scope.PLAYER
 var interaction: int = GameEventDefinition.Interaction.NOTICE
 var target_id: String = ""
@@ -14,7 +20,10 @@ var options: Array[Dictionary] = []
 
 func to_save_dict() -> Dictionary:
 	return {
-		"event_id": event_id, "scope": scope, "interaction": interaction,
+		"event_id": event_id, "instance_id": instance_id, "chain_id": chain_id,
+		"node_id": node_id, "parent_instance_id": parent_instance_id,
+		"selected_option_id": selected_option_id, "resume_speed": resume_speed,
+		"scope": scope, "interaction": interaction,
 		"target_id": target_id, "store_id": store_id, "title": title,
 		"message": message, "started_game_seconds": started_game_seconds,
 		"effects": effects,
@@ -24,6 +33,12 @@ func to_save_dict() -> Dictionary:
 static func from_save_dict(data: Dictionary) -> ActiveGameEvent:
 	var event := ActiveGameEvent.new()
 	event.event_id = str(data.get("event_id", ""))
+	event.instance_id = str(data.get("instance_id", event.event_id))
+	event.chain_id = str(data.get("chain_id", ""))
+	event.node_id = str(data.get("node_id", ""))
+	event.parent_instance_id = str(data.get("parent_instance_id", ""))
+	event.selected_option_id = str(data.get("selected_option_id", ""))
+	event.resume_speed = int(data.get("resume_speed", TimeManager.Speed.X1))
 	event.scope = int(data.get("scope", GameEventDefinition.Scope.PLAYER))
 	event.interaction = int(data.get("interaction", GameEventDefinition.Interaction.NOTICE))
 	event.target_id = str(data.get("target_id", ""))

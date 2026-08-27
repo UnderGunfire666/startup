@@ -197,8 +197,12 @@ func _update_energy_label() -> void:
 	var player := GameManager.player_state
 	if player.energy_debt > 0.0:
 		energy_label.text = "精力：0 / %.0f（透支 %.0f）" % [player.max_energy, player.energy_debt]
+	elif player.energy < 0.1:
+		var research_check := ScheduleManager.get_region_research_start_energy_check()
+		var suffix := "（不足以开始调查）" if not bool(research_check.get("can", false)) else ""
+		energy_label.text = "精力：%.3f / %.1f%s" % [player.energy, player.max_energy, suffix]
 	else:
-		energy_label.text = "精力：%.0f / %.0f" % [player.energy, player.max_energy]
+		energy_label.text = "精力：%.1f / %.1f" % [player.energy, player.max_energy]
 
 func _update_fatigue_label() -> void:
 	var player := GameManager.player_state

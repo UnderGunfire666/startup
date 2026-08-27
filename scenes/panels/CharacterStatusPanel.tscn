@@ -1,0 +1,37 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/panels/CharacterStatusPanel.gd" id="1_script"]
+
+[node name="CharacterStatusPanel" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "当前角色状态"
+
+[node name="StatusScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StatusLabel" type="RichTextLabel" parent="MarginContainer/VBox/StatusScroll"]
+custom_minimum_size = Vector2(0, 420)
+layout_mode = 2
+size_flags_horizontal = 3
+bbcode_enabled = true
+fit_content = false
+autowrap_mode = 2

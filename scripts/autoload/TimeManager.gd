@@ -155,6 +155,15 @@ func refresh_current_store_staffing(store: Store) -> void:
 func _attach_customer_event_forwarding() -> void:
 	var hour_start_seconds: float = floor(total_game_seconds / 3600.0) * 3600.0
 	for entry in GameManager.active_simulations:
+		var category_service: CategoryServiceSimulator = entry.get("service", null)
+		if category_service != null:
+			var service_id := category_service.get_instance_id()
+			if _connected_simulation_ids.has(service_id):
+				continue
+			_connected_simulation_ids[service_id] = true
+			category_service.customer_event.connect(func(_product_id: String, product_name: String, purchased: bool, reason: String, event_time_seconds: float) -> void:
+				customer_event.emit(product_name if not product_name.is_empty() else "\u5546\u54c1", purchased, reason, hour_start_seconds + event_time_seconds))
+			continue
 		var sim: CustomerSimulator = entry.get("sim", null)
 		if sim == null:
 			continue

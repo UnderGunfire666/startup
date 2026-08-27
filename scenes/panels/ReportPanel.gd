@@ -90,15 +90,27 @@ func _show_empty_message(message: String) -> void:
 
 
 func _format_product(r: SettlementResult) -> String:
+	var group_line := ""
+	if not r.group_summary.is_empty():
+		var group_parts: Array[String] = []
+		for group_id in r.group_summary:
+			var group_data: Dictionary = r.group_summary[group_id]
+			group_parts.append("%s %d orders" % [_format_group_name(str(group_id)), int(group_data.get("actual_orders", 0))])
+		group_line = "[b]Customer groups[/b]  " + " | ".join(group_parts)
 	var title := "[b]\u7b2c %d \u65e5 %s | %s - %s[/b]" % [r.day, r.slot, r.category_name, r.product_name]
 	var lines: Array[String] = [title]
+	if not group_line.is_empty():
+		lines.append(group_line)
 	if not r.is_open:
 		lines.append("[color=orange]\u672a\u53c2\u4e0e\u8425\u4e1a[/color]  \u539f\u56e0\uff1a%s" % r.not_open_reason)
 		lines.append("\u6f5c\u5728\u8fdb\u5e97\u5ba2\u6d41\uff1a%d  |  \u5f53\u524d\u4eba\u624b\u6548\u80fd\uff1a%.2f" % [r.base_visitors, r.staffing_power])
 		return "\n".join(lines)
 
 	lines.append("[b]\u5ba2\u6d41\u6f0f\u6597[/b]  \u5546\u5708\u6709\u6548\u5ba2\u6d41 %.0f -> \u53ef\u89e6\u8fbe %.0f -> \u5b9e\u9645\u8fdb\u5e97 %d -> \u60f3\u4e0b\u5355 %d -> \u6210\u4ea4 %d" % [r.slot_foot_traffic, r.reachable_traffic, r.visitors, r.theoretical_orders, r.actual_orders])
+	lines.append("\u5e02\u573a\u6c60\u5206\u914d\uff1a\u81ea\u7136\u5ba2\u6d41 %d  |  \u76ee\u7684\u6027\u5ba2\u6d41 %d  |  \u5b9e\u9645\u8fdb\u5e97\u5408\u8ba1 %d" % [r.natural_visitors, r.destination_visitors, r.visitors])
+	lines.append("\u53ef\u5206\u914d\u5e02\u573a\u6c60\uff1a%d  |  \u672c\u5e97\u6c60\u5185\u4efd\u989d\uff1a%.1f%%" % [r.market_pool_remaining_supply, r.market_pool_share * 100.0])
 	lines.append("\u8f6c\u5316\u7387\uff1a%.1f%%  |  \u672a\u8fdb\u5e97\uff1a%d  |  \u8fdb\u5e97\u540e\u672a\u4e0b\u5355\uff1a%d" % [r.conversion_rate * 100.0, r.lost_no_entry, r.lost_no_conversion])
+	lines.append("\u5e02\u573a\u4e0e\u83dc\u5355\u6d41\u5931\uff1a\u65e0\u5339\u914d\u83dc\u5355 %d  |  \u4ef7\u683c\u62d2\u7edd %d  |  \u5916\u90e8\u7ade\u4e89 %d  |  \u81ea\u8425\u5206\u6d41 %d" % [r.lost_no_menu, r.lost_price_rejection, r.lost_external_competition, r.lost_self_cannibalization])
 	lines.append("[b]\u51fa\u9910\u4e0e\u6392\u961f[/b]  \u5355\u4efd\u9884\u8ba1\u51fa\u9910\uff1a%s  |  \u5f53\u524d\u4eba\u624b\u6548\u80fd\uff1a%.2f" % [_format_seconds(r.service_time_seconds), r.staffing_power])
 	lines.append("\u6210\u4ea4\u5ba2\u5e73\u5747\u7b49\u5f85\uff1a%s  |  \u6700\u957f\u7b49\u5f85\uff1a%s  |  \u5ba2\u6237\u5fcd\u8010\u4e0a\u9650\uff1a%s  |  \u56e0\u6392\u961f\u653e\u5f03\uff1a%d" % [_format_seconds(r.average_queue_wait_seconds), _format_seconds(r.max_queue_wait_seconds), _format_seconds(r.queue_patience_seconds), r.lost_capacity])
 	lines.append("[b]\u5e93\u5b58\u4e0e\u5546\u54c1[/b]  \u552e\u4ef7\uff1a%.2f\u5143  |  \u672c\u65f6\u6bb5\u539f\u6599\u53ef\u505a\uff1a%d \u5355  |  \u539f\u6599\u4e0d\u8db3\u672a\u6210\u4ea4\uff1a%d \u5355" % [r.unit_price, r.inventory_limit, r.lost_inventory])
@@ -113,7 +125,7 @@ func _format_product(r: SettlementResult) -> String:
 
 
 func _format_overhead(r: SettlementResult) -> String:
-	return "[b]\u7b2c %d \u65e5 %s | \u95e8\u5e97\u56fa\u5b9a\u5f00\u652f\u4e0e\u539f\u6599\u8fc7\u671f[/b]\n\u623f\u79df\uff1a%.2f  |  \u57fa\u7840\u6c34\u7535\uff1a%.2f  |  \u5458\u5de5\u5de5\u8d44\uff1a%.2f  |  [b]\u5408\u8ba1\uff1a%.2f[/b]\n\u672c\u65f6\u6bb5\u81ea\u7136\u8fc7\u671f\u539f\u6599\uff1a%s" % [r.day, r.slot, r.rent_cost, r.utility_cost, r.staff_cost, -r.profit, _format_ingredients(r.spoilage_ingredients)]
+	return "[b]\u7b2c %d \u65e5 %s | \u95e8\u5e97\u56fa\u5b9a\u5f00\u652f\u4e0e\u539f\u6599\u8fc7\u671f[/b]\n\u95e8\u9762\u79df\u91d1\uff1a%.2f  |  \u4e1a\u6001\u5360\u7528\uff1a%.2f  |  \u8425\u4e1a\u8bbe\u5907\uff1a%.2f  |  \u50a8\u5b58\u8bbe\u5907\uff1a%.2f  |  \u5458\u5de5\u5de5\u8d44\uff1a%.2f  |  [b]\u5408\u8ba1\uff1a%.2f[/b]\n\u672c\u65f6\u6bb5\u81ea\u7136\u8fc7\u671f\u539f\u6599\uff1a%s" % [r.day, r.slot, r.lease_cost, r.category_occupancy_cost, r.operating_equipment_cost, r.storage_equipment_cost, r.scheduled_wage_cost, -r.profit, _format_ingredients(r.spoilage_ingredients)]
 
 
 func _format_ingredients(items: Dictionary) -> String:
@@ -131,3 +143,7 @@ func _format_seconds(value: float) -> String:
 	if value < 60.0:
 		return "%.0f\u79d2" % value
 	return "%.1f\u5206\u949f" % (value / 60.0)
+
+
+func _format_group_name(group_id: String) -> String:
+	return {"student": "student", "office_worker": "office worker", "worker": "worker", "family_household": "family", "high_spend_household": "high-spend family", "external": "external"}.get(group_id, group_id)

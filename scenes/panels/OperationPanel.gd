@@ -106,7 +106,7 @@ func _on_owner_present_toggled(pressed: bool) -> void:
 	if store == null:
 		return
 	GameManager.set_player_store_presence(store, pressed)
-	_append_business_log("\u73a9\u5bb6" + ("\u5230\u5e97\u5c97\u4f4d" if pressed else "\u79bb\u5e97\u4e0b\u73ed"))
+	_append_business_log("你走到柜台前，准备和店里一起接住接下来的客人" if pressed else "你离开了柜台，把接下来的节奏交还给店里")
 	_refresh_live_metrics(store)
 
 func _on_open_store_pressed() -> void:
@@ -127,20 +127,20 @@ func _on_open_business_pressed() -> void:
 	var result := GameManager.open_business()
 	open_status_label.text = str(result.get("reason", ""))
 	if bool(result.get("success", false)):
-		_append_business_log("\u5f00\u95e8\u8425\u4e1a")
+		_append_business_log("卷帘门推开，店里的第一段营业时间开始了")
 	refresh_display()
 
 func _on_close_business_pressed() -> void:
 	var result := GameManager.close_business()
 	open_status_label.text = str(result.get("reason", ""))
 	if bool(result.get("success", false)):
-		_append_business_log("\u5173\u95e8\u6b47\u4e1a")
+		_append_business_log("最后一盏灯留在店里，今天的营业暂时收了尾")
 	refresh_display()
 
 func _on_customer_event(product_name: String, purchased: bool, reason: String, event_game_seconds: float) -> void:
 	var event_line := Label.new()
 	var time_text := _format_event_time(event_game_seconds)
-	event_line.text = "%s  %s" % [time_text, (product_name + "\uff1a\u6210\u4ea4\u4e00\u5355\uff08\u5b8c\u6210\uff09") if purchased else (product_name + "\uff1a" + reason)]
+	event_line.text = "%s  %s" % [time_text, (product_name + "：一位顾客带着它离开了柜台") if purchased else (product_name + "：" + reason)]
 	customer_feed.add_child(event_line)
 	while customer_feed.get_child_count() > CUSTOMER_FEED_MAX_LINES:
 		var oldest_event := customer_feed.get_child(0)

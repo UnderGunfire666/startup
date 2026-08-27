@@ -23,12 +23,15 @@ func start(selected_block_ids: Array[String]) -> Dictionary:
 		return {"can": false, "reason_code": "no_blocks_selected", "reason": "请先选择至少一个区块"}
 	if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active:
 		return {"can": false, "reason_code": "already_running", "reason": "已有行动正在进行"}
+	var energy_check := ScheduleManager.get_region_research_start_energy_check()
+	if not bool(energy_check.get("can", false)):
+		return energy_check
 	block_ids.clear()
 	for block_id in selected_block_ids:
 		var block := GameManager.get_block(block_id)
 		if block == null:
 			return {"can": false, "reason_code": "block_not_found", "reason": "调查区块不存在：%s" % block_id}
-		if GameManager.get_block_understanding(block_id) < 100.0:
+		if not GameManager.is_block_research_complete(block_id):
 			block_ids.append(block_id)
 
 	if block_ids.is_empty():
@@ -62,7 +65,7 @@ func _advance() -> void:
 	if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active:
 		return
 
-	while current_index < block_ids.size() and GameManager.get_block_understanding(block_ids[current_index]) >= 100.0:
+	while current_index < block_ids.size() and GameManager.is_block_research_complete(block_ids[current_index]):
 		current_index += 1
 
 	if current_index >= block_ids.size():
@@ -110,7 +113,7 @@ func _on_schedule_changed() -> void:
 
 	if expected_action_id == "region_research":
 		var target_id := block_ids[current_index] if current_index < block_ids.size() else ""
-		if target_id.is_empty() or GameManager.get_block_understanding(target_id) < 100.0:
+		if target_id.is_empty() or not GameManager.is_block_research_complete(target_id):
 			active = false
 			expected_action_id = ""
 			failed.emit("research_stopped", "当前区块尚未完全了解，按顺序调查已停止")

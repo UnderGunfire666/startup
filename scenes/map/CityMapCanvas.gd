@@ -35,6 +35,7 @@ const ROAD_NODE_COLOR := Color(0.98, 0.8, 0.3, 0.9)
 var city_regions: Array[CityRegionData] = []
 var blocks: Array[BlockData] = []
 var road_graph: RoadGraph = null
+var player_homes: Array = []
 var survey_areas: Array[SurveyAreaState] = []
 var storefronts: Array[StorefrontData] = []
 var selected_block_ids: Array[String] = []
@@ -49,10 +50,11 @@ func _ready() -> void:
 	resized.connect(queue_redraw)
 
 
-func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData], new_road_graph: RoadGraph = null) -> void:
+func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData], new_road_graph: RoadGraph = null, new_player_homes: Array = []) -> void:
 	city_regions = new_city_regions
 	blocks = new_blocks
 	road_graph = new_road_graph
+	player_homes = new_player_homes
 	_update_canvas_size()
 	queue_redraw()
 
@@ -234,6 +236,45 @@ func _draw() -> void:
 	_draw_awareness_overlay()
 	_draw_survey_areas()
 	_draw_storefronts()
+	_draw_player_travel()
+
+
+func _draw_player_travel() -> void:
+	var player := GameManager.player_state
+	if not player.is_character_created:
+		return
+	for home in player_homes:
+		var home_position := _map_to_screen(home.get("map_position", Vector2.ZERO))
+		draw_rect(Rect2(home_position - Vector2(4, 4), Vector2(8, 8)), Color(0.35, 0.75, 1.0, 0.95), true)
+		draw_rect(Rect2(home_position - Vector2(4, 4), Vector2(8, 8)), Color(0.05, 0.12, 0.2, 0.9), false, 1.0)
+	var position := player.current_map_position
+	if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active and ScheduleManager.current_action.action_id == "move_to_block":
+		var quote: Dictionary = ScheduleManager.current_action.context.get("travel_quote", {})
+		var points: Array[Vector2] = []
+		for node_id in quote.get("route_node_ids", []):
+			var node: RoadNode = road_graph.nodes.get(str(node_id), null) if road_graph != null else null
+			if node != null:
+				points.append(node.position)
+		if points.size() >= 2:
+			for index in range(1, points.size()):
+				draw_line(_map_to_screen(points[index - 1]), _map_to_screen(points[index]), Color(0.2, 0.9, 1.0, 0.9), 3.0, true)
+			var ratio := clampf((TimeManager.total_game_seconds - ScheduleManager.current_action.start_game_seconds) / maxf(1.0, ScheduleManager.current_action.duration_hours * 3600.0), 0.0, 1.0)
+			position = _interpolate_route(points, ratio)
+	draw_circle(_map_to_screen(position), 6.5, Color(1.0, 0.25, 0.35, 1.0))
+	draw_circle(_map_to_screen(position), 6.5, Color(0.15, 0.02, 0.05, 0.95), false, 1.5)
+
+
+func _interpolate_route(points: Array[Vector2], ratio: float) -> Vector2:
+	if points.is_empty(): return Vector2.ZERO
+	var total := 0.0
+	for index in range(1, points.size()): total += points[index - 1].distance_to(points[index])
+	var remaining := total * ratio
+	for index in range(1, points.size()):
+		var segment := points[index - 1].distance_to(points[index])
+		if remaining <= segment:
+			return points[index - 1].lerp(points[index], remaining / maxf(segment, 0.001))
+		remaining -= segment
+	return points.back()
 
 
 func _draw_city_regions() -> void:

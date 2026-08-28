@@ -106,6 +106,19 @@ text = "年龄"
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="HomeRow" type="HBoxContainer" parent="MarginContainer/RootVBox/SplitBox/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HomeLabel" type="Label" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/HomeRow"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "住宅"
+
+[node name="HomeOption" type="OptionButton" parent="MarginContainer/RootVBox/SplitBox/LeftPanel/HomeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="HSeparatorLeft" type="HSeparator" parent="MarginContainer/RootVBox/SplitBox/LeftPanel" unique_id=985925820]
 layout_mode = 2
 

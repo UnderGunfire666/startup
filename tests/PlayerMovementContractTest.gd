@@ -37,8 +37,8 @@ func _expect(condition: bool, description: String) -> void:
 		print("❌ %s" % description)
 
 func _find_test_block_pair() -> Array[BlockData]:
-	var first := GameManager.get_block("cc_primary_school_1")
-	var second := GameManager.get_block("cc_university_3")
+	var first := GameManager.get_block("block_w_school")
+	var second := GameManager.get_block("block_c_commercial")
 	if first != null and second != null and first.id != second.id:
 		return [first, second]
 	return []

@@ -7,6 +7,7 @@ signal character_created
 @onready var male_button: CheckButton = $MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow/MaleButton
 @onready var female_button: CheckButton = $MarginContainer/RootVBox/SplitBox/LeftPanel/GenderRow/FemaleButton
 @onready var age_option: OptionButton = $MarginContainer/RootVBox/SplitBox/LeftPanel/AgeRow/AgeOption
+@onready var home_option: OptionButton = $MarginContainer/RootVBox/SplitBox/LeftPanel/HomeRow/HomeOption
 @onready var preset_list: VBoxContainer = $MarginContainer/RootVBox/SplitBox/LeftPanel/PresetScroll/PresetList
 
 @onready var point_summary_label: RichTextLabel = $MarginContainer/RootVBox/SplitBox/RightPanel/PointSummaryLabel
@@ -49,11 +50,13 @@ func _ready() -> void:
 	age_option.item_selected.connect(func(_index: int) -> void:
 		_mark_custom_edit()
 	)
+	home_option.item_selected.connect(func(_index: int) -> void: _mark_custom_edit())
 
 	confirm_button.pressed.connect(_on_confirm_pressed)
 
 	_build_difficulty_options()
 	_build_age_options()
+	_build_home_options()
 	_build_trait_options()
 	refresh()
 
@@ -99,6 +102,16 @@ func _build_age_options() -> void:
 		age_option.set_item_metadata(age_option.item_count - 1, age)
 
 	_select_age(28)
+
+
+func _build_home_options() -> void:
+	home_option.clear()
+	for home in GameManager.all_player_homes:
+		var block := GameManager.get_block(str(home.get("block_id", "")))
+		home_option.add_item("%s（%s）" % [str(home.get("name", "")), block.name if block != null else str(home.get("block_id", ""))])
+		home_option.set_item_metadata(home_option.item_count - 1, str(home.get("id", "")))
+	if home_option.item_count > 0:
+		home_option.select(0)
 
 
 func _build_trait_options() -> void:
@@ -201,6 +214,8 @@ func _apply_default_form() -> void:
 	_select_age(28)
 	_select_difficulty("normal")
 	_selected_preset_id = ""
+	if home_option.item_count > 0:
+		home_option.select(0)
 
 	for option in _trait_options.values():
 		option.select(0)
@@ -217,12 +232,14 @@ func _apply_player_to_form(player: PlayerState) -> void:
 
 	_select_age(player.age)
 	_select_difficulty(player.difficulty_id)
+	_select_home(player.home_id)
 	_apply_trait_ids(player.selected_trait_ids)
 
 
 func _apply_preset(preset: Dictionary) -> void:
 	name_input.text = preset.name
 	_selected_preset_id = preset.id
+	_select_home(str(preset.get("home_id", "")))
 	_has_selection = true
 
 	if preset.gender == "female":
@@ -287,6 +304,17 @@ func _get_selected_difficulty_id() -> String:
 	return str(difficulty_option.get_item_metadata(difficulty_option.selected))
 
 
+func _select_home(home_id: String) -> void:
+	for index in range(home_option.item_count):
+		if str(home_option.get_item_metadata(index)) == home_id:
+			home_option.select(index)
+			return
+
+
+func _get_selected_home_id() -> String:
+	return str(home_option.get_item_metadata(home_option.selected)) if home_option.selected >= 0 else ""
+
+
 func _refresh_summary() -> void:
 	var age := _get_selected_age()
 	var bracket := CharacterCreationData.get_age_bracket(age)
@@ -347,6 +375,7 @@ func _on_confirm_pressed() -> void:
 		"age": _get_selected_age(),
 		"difficulty_id": _get_selected_difficulty_id(),
 		"preset_id": _selected_preset_id,
+		"home_id": _get_selected_home_id(),
 		"trait_ids": _get_selected_trait_ids(),
 	})
 

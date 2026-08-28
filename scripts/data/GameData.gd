@@ -135,6 +135,15 @@ static func get_blocks() -> Array[BlockData]:
 	return result
 
 
+static func get_player_homes() -> Array:
+	var result: Array = []
+	for entry in _load_json_array(DATA_DIR + "player_homes.json"):
+		var home: Dictionary = {"id": str(entry.get("id", "")), "name": str(entry.get("name", "")), "block_id": str(entry.get("block_id", "")), "road_entry_node_id": str(entry.get("road_entry_node_id", "")), "map_position": _dict_to_vector2(entry.get("map_position", {}))}
+		if not str(home.get("id", "")).is_empty() and not str(home.get("block_id", "")).is_empty() and not str(home.get("road_entry_node_id", "")).is_empty():
+			result.append(home)
+	return result
+
+
 static func _is_valid_block_market_profile(item: Dictionary, profile: Dictionary) -> bool:
 	var block_id := str(item.get("id", "<missing>"))
 	var block_type := str(item.get("block_type", ""))

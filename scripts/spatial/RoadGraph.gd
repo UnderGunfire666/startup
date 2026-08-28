@@ -17,16 +17,32 @@ func add_segment(segment: RoadSegment) -> bool:
 	return true
 
 func get_shortest_distance(from_node_id: String, to_node_id: String) -> float:
-	if not nodes.has(from_node_id) or not nodes.has(to_node_id):
+	var path := get_shortest_path(from_node_id, to_node_id)
+	if path.is_empty():
 		return INF
+	var distance := 0.0
+	for index in range(1, path.size()):
+		distance += (nodes[path[index - 1]] as RoadNode).position.distance_to((nodes[path[index]] as RoadNode).position)
+	return distance
+
+
+func get_shortest_path(from_node_id: String, to_node_id: String) -> Array[String]:
+	if not nodes.has(from_node_id) or not nodes.has(to_node_id):
+		return []
 	if from_node_id == to_node_id:
-		return 0.0
+		return [from_node_id]
 	var distances: Dictionary = {from_node_id: 0.0}
+	var previous: Dictionary = {}
 	var pending: Dictionary = {from_node_id: true}
 	while not pending.is_empty():
 		var current_id := _pop_nearest(pending, distances)
 		if current_id == to_node_id:
-			return float(distances[current_id])
+			var path: Array[String] = []
+			var cursor := to_node_id
+			while not cursor.is_empty():
+				path.push_front(cursor)
+				cursor = str(previous.get(cursor, ""))
+			return path
 		for segment in segments:
 			var neighbor := ""
 			if segment.from_node_id == current_id:
@@ -39,8 +55,9 @@ func get_shortest_distance(from_node_id: String, to_node_id: String) -> float:
 			var candidate := float(distances[current_id]) + length
 			if candidate < float(distances.get(neighbor, INF)):
 				distances[neighbor] = candidate
+				previous[neighbor] = current_id
 				pending[neighbor] = true
-	return INF
+	return []
 
 func _pop_nearest(pending: Dictionary, distances: Dictionary) -> String:
 	var best_id := ""

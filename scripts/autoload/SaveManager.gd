@@ -24,6 +24,7 @@ func save_game() -> bool:
 		"active_store_id": GameManager.active_store_id,
 		"time_manager": TimeManager.to_save_dict(),
 		"event_manager": EventManager.to_save_dict(),
+		"schedule_manager": ScheduleManager.get_save_dict(),
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -49,8 +50,10 @@ func load_game() -> bool:
 	var npc_stores_raw: Array = parsed.get("npc_stores", [])
 	var time_data: Dictionary = parsed.get("time_manager", {})
 	var event_data: Dictionary = parsed.get("event_manager", {})
+	var schedule_data: Dictionary = parsed.get("schedule_manager", {})
 
 	GameManager.player_state = PlayerState.from_save_dict(player_data)
+	GameManager._ensure_player_home()
 
 	var loaded_stores: Array[Store] = []
 	for raw_store in stores_raw:
@@ -79,6 +82,7 @@ func load_game() -> bool:
 
 	TimeManager.apply_save_dict(time_data)
 	EventManager.apply_save_dict(event_data)
+	ScheduleManager.apply_save_dict(schedule_data)
 	GameManager._sync_data_objects()
 	return true
 

@@ -23,6 +23,7 @@ var all_employee_candidates: Array[EmployeeCandidateData] = []
 
 var all_city_regions: Array[CityRegionData] = []
 var all_blocks: Array[BlockData] = []
+var all_player_homes: Array = []
 var road_graph: RoadGraph = RoadGraph.new()
 
 ## ── 多店重构阶段1 ────────────────────────────────────────────
@@ -55,6 +56,7 @@ func _ready() -> void:
 
 	all_city_regions = GameData.get_city_regions()
 	all_blocks = GameData.get_blocks()
+	all_player_homes = GameData.get_player_homes()
 	road_graph = GameData.get_road_graph()
 	_build_runtime_road_links()
 
@@ -93,6 +95,39 @@ func _build_runtime_road_links() -> void:
 		storefront.road_segment_id = nearest_id
 
 
+func get_player_home(home_id: String) -> Dictionary:
+	for home in all_player_homes:
+		if str(home.get("id", "")) == home_id:
+			return home
+	return {}
+
+
+func get_default_player_home() -> Dictionary:
+	return all_player_homes[0] if not all_player_homes.is_empty() else {}
+
+
+func _ensure_player_home() -> void:
+	if not player_state.is_character_created:
+		return
+	var home: Dictionary = get_player_home(player_state.home_id)
+	if home.is_empty():
+		var preset := {}
+		for candidate in CharacterCreationData.get_presets():
+			if str(candidate.get("id", "")) == player_state.selected_preset_id:
+				preset = candidate
+				break
+		home = get_player_home(str(preset.get("home_id", "")))
+		if home.is_empty():
+			home = get_default_player_home()
+		if not home.is_empty():
+			player_state.home_id = str(home.get("id", ""))
+			if player_state.current_block_id.is_empty():
+				player_state.set_home(home)
+			elif player_state.current_map_position == Vector2.ZERO:
+				var block := get_block(player_state.current_block_id)
+				player_state.current_map_position = block.center_position if block != null else home.get("map_position", Vector2.ZERO)
+
+
 func create_character(data: Dictionary) -> Dictionary:
 	if get_open_stores().size() > 0:
 		return {
@@ -105,6 +140,7 @@ func create_character(data: Dictionary) -> Dictionary:
 	var age := int(data.get("age", 0))
 	var difficulty_id := str(data.get("difficulty_id", ""))
 	var trait_ids_raw: Array = data.get("trait_ids", [])
+	var preset_id := str(data.get("preset_id", ""))
 
 	if player_name.is_empty():
 		return {"success": false, "reason": "请输入创业者姓名"}
@@ -118,6 +154,19 @@ func create_character(data: Dictionary) -> Dictionary:
 	var difficulty := CharacterCreationData.get_difficulty(difficulty_id)
 	if difficulty.is_empty():
 		return {"success": false, "reason": "请选择难度"}
+	var preset := {}
+	for candidate in CharacterCreationData.get_presets():
+		if str(candidate.get("id", "")) == preset_id:
+			preset = candidate
+			break
+	var requested_home_id := str(data.get("home_id", ""))
+	if not preset.is_empty():
+		requested_home_id = str(preset.get("home_id", requested_home_id))
+	var home: Dictionary = get_player_home(requested_home_id)
+	if home.is_empty() and requested_home_id.is_empty():
+		home = get_default_player_home()
+	if home.is_empty():
+		return {"success": false, "reason": "请选择有效的初始住宅"}
 
 	var trait_ids: Array[String] = []
 	var chosen_types: Dictionary = {}
@@ -164,10 +213,14 @@ func create_character(data: Dictionary) -> Dictionary:
 		"gender": gender,
 		"age": age,
 		"difficulty_id": difficulty_id,
-		"preset_id": str(data.get("preset_id", "")),
+		"preset_id": preset_id,
 		"starting_cash": float(difficulty.starting_cash),
 		"trait_ids": trait_ids,
 	})
+	player_state.set_home(home)
+	if not preset.is_empty():
+		for vehicle_id in preset.get("starting_vehicles", []):
+			player_state.owned_vehicles.append(str(vehicle_id))
 	player_state.storefront_intel_seed = abs(hash("storefront-intel:%s:%d" % [player_name, age]))
 
 	## 创建角色不再自动开店。"有角色"和"有开店企划"是两件事：

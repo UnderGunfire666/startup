@@ -1,0 +1,5 @@
+[
+  {"id":"home_old_community","name":"西北老社区的家","block_id":"block_nw_residential","road_entry_node_id":"n_10_08","map_position":{"x":52.5,"y":45.5}},
+  {"id":"home_south_residence","name":"西南住家的公寓","block_id":"block_sw_residential","road_entry_node_id":"n_10_42","map_position":{"x":52.5,"y":157.5}},
+  {"id":"home_mixed_street","name":"南城混合街区的家","block_id":"block_s_mixed","road_entry_node_id":"n_20_42","map_position":{"x":91.0,"y":157.5}}
+]

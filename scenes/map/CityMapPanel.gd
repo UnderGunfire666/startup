@@ -11,6 +11,9 @@ signal storefront_details_requested(storefront_id: String)
 @onready var report_label: Label = $HBoxContainer/SidePanel/ReportScroll/ReportLabel
 @onready var status_label: Label = $HBoxContainer/SidePanel/StatusLabel
 @onready var clear_selection_button: Button = $HBoxContainer/SidePanel/ClearSelectionButton
+@onready var travel_target_label: Label = $HBoxContainer/SidePanel/TravelCard/TravelTargetLabel
+@onready var travel_mode_option: OptionButton = $HBoxContainer/SidePanel/TravelCard/TravelModeOption
+@onready var start_travel_button: Button = $HBoxContainer/SidePanel/TravelCard/StartTravelButton
 @onready var show_all_storefronts_button: Button = $HBoxContainer/SidePanel/ShowAllStorefrontsButton
 @onready var awareness_overlay_toggle: CheckBox = $HBoxContainer/SidePanel/AwarenessOverlayToggle
 @onready var research_mode_option: OptionButton = $HBoxContainer/SidePanel/ResearchModeOption
@@ -21,6 +24,8 @@ signal storefront_details_requested(storefront_id: String)
 @onready var storefront_list: VBoxContainer = $HBoxContainer/SidePanel/StorefrontScroll/StorefrontList
 
 var _sequence_research: RegionResearchSequence = null
+var _travel_target_block_id := ""
+var _travel_target_storefront_id := ""
 const RESEARCH_MODE_SELECTED_BLOCKS := 0
 const RESEARCH_MODE_SEQUENTIAL := 1
 const RESEARCH_FOCUS_LABELS := {
@@ -31,10 +36,12 @@ const RESEARCH_FOCUS_LABELS := {
 
 
 func _ready() -> void:
-	map_canvas.setup(GameManager.all_city_regions, GameManager.all_blocks, GameManager.road_graph)
+	map_canvas.setup(GameManager.all_city_regions, GameManager.all_blocks, GameManager.road_graph, GameManager.all_player_homes)
 	map_canvas.selected_blocks_changed.connect(_on_selected_blocks_changed)
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
+	travel_mode_option.item_selected.connect(func(_index: int): _refresh_travel_card())
+	start_travel_button.pressed.connect(_on_start_travel_pressed)
 	show_all_storefronts_button.hide()
 	awareness_overlay_toggle.toggled.connect(_on_awareness_overlay_toggled)
 	research_mode_option.item_selected.connect(_on_research_mode_selected)
@@ -75,12 +82,17 @@ func refresh() -> void:
 	_refresh_report()
 	_refresh_storefront_list()
 	_refresh_research_controls()
+	_refresh_travel_card()
 
 
 func _on_selected_blocks_changed(block_ids: Array[String]) -> void:
 	ScheduleManager.set_selected_map_block_ids(block_ids)
 	_refresh_report()
 	_refresh_research_controls()
+	if block_ids.size() == 1:
+		_travel_target_block_id = block_ids[0]
+		_travel_target_storefront_id = ""
+	_refresh_travel_card()
 
 
 func _on_clear_selection_pressed() -> void:
@@ -168,7 +180,9 @@ func _on_schedule_changed() -> void:
 
 
 func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
+	map_canvas.queue_redraw()
 	_refresh_research_controls()
+	_refresh_travel_card()
 
 
 func _on_action_interrupt(reason_code: String, reason: String) -> void:
@@ -254,20 +268,40 @@ func _get_research_start_check(block_ids: Array[String]) -> Dictionary:
 
 
 func _on_storefront_clicked(storefront_id: String) -> void:
-	storefront_details_requested.emit(storefront_id)
-	return
 	var storefront := GameManager.get_storefront(storefront_id)
-	var store := GameManager.store_state
-	if storefront == null:
+	if storefront != null:
+		_travel_target_block_id = storefront.block_id
+		_travel_target_storefront_id = storefront.id
+		_refresh_travel_card()
+	storefront_details_requested.emit(storefront_id)
+
+
+func _refresh_travel_card() -> void:
+	if travel_mode_option.item_count == 0:
+		for mode in MovementConfig.TRAVEL_MODES:
+			travel_mode_option.add_item(MovementConfig.get_mode_name(mode))
+			travel_mode_option.set_item_metadata(travel_mode_option.item_count - 1, mode)
+	if _travel_target_block_id.is_empty():
+		travel_target_label.text = "选择一个区块或门面后，可比较出行方式。"
+		start_travel_button.disabled = true
 		return
-	if store == null:
-		status_label.text = "⚠ 请先创建开店企划"
-		return
-	if store.selected_storefront_id != storefront_id and store.signed_storefront_id != storefront_id:
-		status_label.text = "⚠ 请先在门面列表中选定此门面"
-		return
-	storefront_interior_requested.emit(storefront_id)
-	status_label.text = "正在打开门面室内：%s" % storefront.name
+	var target := GameManager.get_block(_travel_target_block_id)
+	var mode := str(travel_mode_option.get_item_metadata(travel_mode_option.selected))
+	var quote := ScheduleManager.get_travel_quote(_travel_target_block_id, mode)
+	var target_name := target.name if target != null else _travel_target_block_id
+	if not _travel_target_storefront_id.is_empty():
+		var storefront := GameManager.get_storefront(_travel_target_storefront_id)
+		if storefront != null: target_name = storefront.name + "（" + target_name + "）"
+	travel_target_label.text = "目标：%s\n%s｜距离 %.1f｜%.2f 小时｜精力 %.1f｜费用 ¥%.0f%s" % [target_name, MovementConfig.get_mode_name(mode), float(quote.get("distance", 0.0)), float(quote.get("hours", 0.0)), float(quote.get("energy_cost", 0.0)), float(quote.get("cost", 0.0)), "" if bool(quote.get("can", false)) else "\n不可出发：" + str(quote.get("reason", ""))]
+	start_travel_button.disabled = not bool(quote.get("can", false))
+	start_travel_button.text = "前往：" + MovementConfig.get_mode_name(mode)
+
+
+func _on_start_travel_pressed() -> void:
+	var mode := str(travel_mode_option.get_item_metadata(travel_mode_option.selected))
+	var result := ScheduleManager.start_travel(_travel_target_block_id, mode, _travel_target_storefront_id)
+	status_label.text = ("✅ " if bool(result.get("can", false)) else "⚠ ") + str(result.get("reason", "无法出发"))
+	_refresh_travel_card()
 
 
 func _refresh_report() -> void:

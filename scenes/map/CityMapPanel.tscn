@@ -61,6 +61,22 @@ autowrap_mode = 3
 layout_mode = 2
 text = "清空区块选择"
 
+[node name="TravelCard" type="VBoxContainer" parent="HBoxContainer/SidePanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TravelTargetLabel" type="Label" parent="HBoxContainer/SidePanel/TravelCard"]
+layout_mode = 2
+text = "选择区块或门面后，可在此安排出行。"
+autowrap_mode = 3
+
+[node name="TravelModeOption" type="OptionButton" parent="HBoxContainer/SidePanel/TravelCard"]
+layout_mode = 2
+
+[node name="StartTravelButton" type="Button" parent="HBoxContainer/SidePanel/TravelCard"]
+layout_mode = 2
+text = "前往"
+
 [node name="ShowAllStorefrontsButton" type="Button" parent="HBoxContainer/SidePanel"]
 layout_mode = 2
 text = "显示全部门面"

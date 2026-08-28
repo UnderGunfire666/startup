@@ -52,6 +52,11 @@ var focused_city_region_id: String = ""
 ## 玩家当前所在区块。空字符串表示尚未定位到城市地图区块；Phase 6移动系统建立后，
 ## 所有跨区块移动都必须从这个状态出发并消耗游戏时间。
 var current_block_id: String = ""
+var home_id: String = ""
+var current_map_position: Vector2 = Vector2.ZERO
+var current_location_kind: String = "home"
+var current_storefront_id: String = ""
+var owned_vehicles: Array[String] = []
 
 ## 玩家当前亲自坐镇在哪家店，同一时刻只能坐镇一家；空字符串=不在任何店坐镇。
 var supervising_store_id: String = ""
@@ -81,6 +86,11 @@ func reset_to_defaults() -> void:
 	base_trait_points = 0
 	selected_trait_ids.clear()
 	current_block_id = ""
+	home_id = ""
+	current_map_position = Vector2.ZERO
+	current_location_kind = "home"
+	current_storefront_id = ""
+	owned_vehicles.clear()
 	supervising_store_id = ""
 	work_skills.clear()
 	work_skill_level = 1.0
@@ -211,7 +221,26 @@ func set_current_block(block_id: String) -> bool:
 		return false
 
 	current_block_id = block_id
+	current_location_kind = "block"
+	current_storefront_id = ""
+	if block != null:
+		current_map_position = block.center_position
 	return true
+
+
+func set_home(home: Dictionary) -> bool:
+	if home == null:
+		return false
+	home_id = str(home.get("id", ""))
+	current_block_id = str(home.get("block_id", ""))
+	current_map_position = home.get("map_position", Vector2.ZERO)
+	current_location_kind = "home"
+	current_storefront_id = ""
+	return true
+
+
+func has_vehicle(vehicle_id: String) -> bool:
+	return owned_vehicles.has(vehicle_id)
 
 ## 用于后续接入调研、行动、谈判与经营结算。
 ## 对数值型 effect 采用“加总”规则；倍率类字段由调用方自行约定默认值。
@@ -340,6 +369,11 @@ func to_save_dict() -> Dictionary:
 		"survey_areas": _survey_areas_to_save_data(),
 		"focused_city_region_id": focused_city_region_id,
 		"current_block_id": current_block_id,
+		"home_id": home_id,
+		"current_map_position": {"x": current_map_position.x, "y": current_map_position.y},
+		"current_location_kind": current_location_kind,
+		"current_storefront_id": current_storefront_id,
+		"owned_vehicles": owned_vehicles,
 		"supervising_store_id": supervising_store_id,
 		"work_skills": work_skills,
 		"work_skill_level": work_skill_level,
@@ -394,6 +428,13 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p._migrate_legacy_storefront_intel()
 	p.focused_city_region_id = data.get("focused_city_region_id", "")
 	p.current_block_id = str(data.get("current_block_id", ""))
+	p.home_id = str(data.get("home_id", ""))
+	var map_raw: Dictionary = data.get("current_map_position", {})
+	p.current_map_position = Vector2(float(map_raw.get("x", 0.0)), float(map_raw.get("y", 0.0)))
+	p.current_location_kind = str(data.get("current_location_kind", "home"))
+	p.current_storefront_id = str(data.get("current_storefront_id", ""))
+	for vehicle_id in data.get("owned_vehicles", []):
+		p.owned_vehicles.append(str(vehicle_id))
 	p.supervising_store_id = data.get("supervising_store_id", "")
 	p.work_skill_level = float(data.get("work_skill_level", 1.0))
 	p.brand_awareness_by_block = data.get("brand_awareness_by_block", {}).duplicate(true)

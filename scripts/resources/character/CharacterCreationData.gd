@@ -214,6 +214,7 @@ static func get_presets() -> Array[Dictionary]:
 	return [
 		{
 			"id": "steady_shopkeeper",
+			"home_id": "home_old_community", "starting_vehicles": ["bicycle"],
 			"name": "稳健小店主",
 			"gender": "female",
 			"age": 27,
@@ -226,6 +227,7 @@ static func get_presets() -> Array[Dictionary]:
 		},
 		{
 			"id": "site_selector",
+			"home_id": "home_south_residence", "starting_vehicles": ["car"],
 			"name": "精明选址者",
 			"gender": "male",
 			"age": 27,
@@ -239,6 +241,7 @@ static func get_presets() -> Array[Dictionary]:
 		},
 		{
 			"id": "night_market_adventurer",
+			"home_id": "home_mixed_street", "starting_vehicles": ["bicycle"],
 			"name": "夜市冒险家",
 			"gender": "male",
 			"age": 47,

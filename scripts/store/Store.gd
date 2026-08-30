@@ -50,6 +50,8 @@ var is_business_open: bool = false
 var business_hour_ranges: Array[Vector2i] = [Vector2i(9, 21)]
 
 var reputation: float = SettlementConfig.INITIAL_REPUTATION
+## A store's inherent walk-in appeal. It affects only the finite offline market pool.
+var offline_influence: float = 1.0
 var awareness_by_block: Dictionary = {}
 ## Latest completed operating-slot breakdown. It is intentionally a snapshot,
 ## not a historical series; daily trends belong to a later reporting stage.
@@ -265,6 +267,7 @@ func apply_ingredient_spoilage(ratios_by_ingredient: Dictionary) -> Dictionary:
 
 func reset_to_defaults() -> void:
 	reputation = SettlementConfig.INITIAL_REPUTATION
+	offline_influence = 1.0
 	awareness_by_block.clear()
 	last_awareness_update.clear()
 	category_slots.clear()
@@ -415,6 +418,7 @@ func to_save_dict() -> Dictionary:
 		"is_business_open": is_business_open,
 		"business_hour_ranges": business_ranges_data,
 		"reputation": reputation,
+		"offline_influence": offline_influence,
 		"awareness_by_block": awareness_by_block,
 		"last_awareness_update": last_awareness_update,
 		"category_slots": slots_data,
@@ -469,6 +473,7 @@ static func from_save_dict(data: Dictionary) -> Store:
 	if s.business_hour_ranges.is_empty():
 		s.business_hour_ranges.append(Vector2i(9, 21))
 	s.reputation = data.get("reputation", SettlementConfig.INITIAL_REPUTATION)
+	s.offline_influence = maxf(0.0, float(data.get("offline_influence", 1.0)))
 	s.awareness_by_block = data.get("awareness_by_block", {})
 	s.last_awareness_update = data.get("last_awareness_update", {}).duplicate(true)
 

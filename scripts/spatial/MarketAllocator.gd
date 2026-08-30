@@ -3,6 +3,14 @@ class_name MarketAllocator
 static func make_pool_key(city_region_id: String, block_id: String, group_id: String, category_id: String, day: int, hour: int) -> String:
 	return "%s|%s|%s|%s|%d|%02d" % [city_region_id, block_id, group_id, category_id, day, hour]
 
+static func storefronts_are_in_competition(first: StorefrontData, second: StorefrontData) -> bool:
+	if first == null or second == null or first.id == second.id:
+		return false
+	if first.city_region_id != second.city_region_id:
+		return false
+	var distance := first.map_position.distance_to(second.map_position)
+	return distance <= maxf(0.0, first.competition_radius) or distance <= maxf(0.0, second.competition_radius)
+
 static func calculate_participant_weight(participant: Dictionary) -> float:
 	if not bool(participant.get("is_operating", false)) or not bool(participant.get("offers_category", false)):
 		return 0.0
@@ -13,7 +21,9 @@ static func calculate_participant_weight(participant: Dictionary) -> float:
 	var business_match := maxf(0.0, float(participant.get("business_match", 1.0)))
 	var reputation := 0.5 + clampf(float(participant.get("reputation", 0.0)) / 100.0, 0.0, 1.0)
 	var awareness := 1.0 + clampf(float(participant.get("awareness", 0.0)) / 100.0, 0.0, 1.0) * 0.25
-	return maxf(0.0, distance_factor * accessibility * capture * business_match * reputation * awareness)
+	var store_influence := maxf(0.0, float(participant.get("store_offline_influence", 1.0)))
+	var product_influence := maxf(0.0, float(participant.get("product_offline_influence", 1.0)))
+	return maxf(0.0, distance_factor * accessibility * capture * business_match * reputation * awareness * store_influence * product_influence)
 
 static func describe_pool(raw_supply: int, external_competition_ratio: float, participant_weights: Dictionary) -> Dictionary:
 	var raw := maxi(0, raw_supply)

@@ -10,6 +10,9 @@ extends Resource
 @export var preferred_hour_ranges: Array[Vector2i] = []
 @export var price_tier: String
 @export var average_price: float
+## Offline appeal used only when allocating finite walk-in demand between
+## competing stores. Online marketing traffic deliberately ignores it.
+@export var offline_influence: float = 1.0
 @export var ingredient_cost_per_unit: float = 3.0
 @export var utility_cost_per_unit: float = 0.5
 @export var suggested_margin_rate: float = 0.6

@@ -10,6 +10,7 @@ func _ready() -> void:
 	_test_finite_market_allocation()
 	_test_market_pool_prerequisites()
 	_test_market_pool_allocation_is_order_independent()
+	_test_range_limited_competition_and_influence()
 	_test_store_overhead_breakdown()
 	_test_periodic_demand_is_deterministic()
 	_test_menu_preferences_have_stable_fallback()
@@ -99,6 +100,30 @@ func _test_market_pool_allocation_is_order_independent() -> void:
 	_expect(first.allocations == second.allocations
 		and first.external_competition_losses == second.external_competition_losses
 		and first_total == int(first.remaining_supply), "shared market allocation is exact and independent from participant insertion order")
+
+func _test_range_limited_competition_and_influence() -> void:
+	var a := StorefrontData.new()
+	a.id = "a"
+	a.city_region_id = "city"
+	a.map_position = Vector2.ZERO
+	a.competition_radius = 10.0
+	var b := StorefrontData.new()
+	b.id = "b"
+	b.city_region_id = "city"
+	b.map_position = Vector2(20.0, 0.0)
+	b.competition_radius = 25.0
+	var c := StorefrontData.new()
+	c.id = "c"
+	c.city_region_id = "city"
+	c.map_position = Vector2(60.0, 0.0)
+	c.competition_radius = 5.0
+	var strong := MarketAllocator.calculate_participant_weight({"is_operating": true, "offers_category": true, "store_offline_influence": 4.0, "product_offline_influence": 1.0})
+	var normal := MarketAllocator.calculate_participant_weight({"is_operating": true, "offers_category": true, "store_offline_influence": 1.0, "product_offline_influence": 1.0})
+	var allocation := MarketAllocator.allocate_finite_pool(100, {"strong": strong, "normal": normal})
+	_expect(MarketAllocator.storefronts_are_in_competition(a, b)
+		and not MarketAllocator.storefronts_are_in_competition(a, c)
+		and int(allocation.allocations.get("strong", 0)) == 80
+		and int(allocation.allocations.get("normal", 0)) == 20, "competition uses either storefront range and stronger offline influence divides one finite pool")
 
 func _test_periodic_demand_is_deterministic() -> void:
 	var block := BlockData.new()

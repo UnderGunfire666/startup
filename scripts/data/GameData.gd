@@ -212,6 +212,7 @@ static func get_storefronts() -> Array[StorefrontData]:
 		var default_awareness_radius: float = (8.0 + float(required_storefront_cells) * 2.0) * 3.5
 		s.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false))
 		s.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", default_awareness_radius))) if s.awareness_radius_manual_override else default_awareness_radius
+		s.competition_radius = maxf(0.0, float(entry.get("competition_radius", s.awareness_radius)))
 		s.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0)))
 		s.road_segment_id = str(entry.get("road_segment_id", ""))
 		s.frontage_side = str(entry.get("frontage_side", "south"))
@@ -288,6 +289,7 @@ static func get_products() -> Array[ProductData]:
 		p.preferred_hour_ranges = _to_vector2i_array(entry.get("preferred_hours", []))
 		p.price_tier = entry.get("price_tier", "medium")
 		p.average_price = entry.get("average_price", 15.0)
+		p.offline_influence = maxf(0.0, float(entry.get("offline_influence", 1.0)))
 		p.ingredient_cost_per_unit = entry.get("ingredient_cost_per_unit", 3.0)
 		p.utility_cost_per_unit = entry.get("utility_cost_per_unit", 0.5)
 		p.suggested_margin_rate = entry.get("suggested_margin_rate", 0.6)

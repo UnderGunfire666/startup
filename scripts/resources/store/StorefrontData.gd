@@ -48,6 +48,9 @@ extends Resource
 @export var awareness_radius: float = 35.0
 ## True only when the map author intentionally overrides the size-based radius formula.
 @export var awareness_radius_manual_override: bool = false
+## Radius used to discover offline competitors. Two same-category stores
+## compete when either storefront lies inside the other's radius.
+@export var competition_radius: float = 35.0
 ## 门面自身被注意、被记住的效率；道路 Exposure 会与此项共同决定线下知名度增长。
 @export var awareness_exposure_modifier: float = 1.0
 

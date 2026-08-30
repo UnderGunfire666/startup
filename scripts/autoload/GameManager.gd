@@ -1775,6 +1775,8 @@ func _allocate_shared_market_pools(participants: Array[Dictionary]) -> void:
 	for participant in participants:
 		var category: CategoryData = participant.category
 		var city_region: CityRegionData = participant.city_region
+		var competing_participants := _get_competing_market_participants(participant, participants)
+		var competition_scope := _get_competition_scope_key(competing_participants)
 		for block in all_blocks:
 			if block == null or not block.is_valid() or block.city_region_id != city_region.id:
 				continue
@@ -1782,25 +1784,31 @@ func _allocate_shared_market_pools(participants: Array[Dictionary]) -> void:
 			if factors.is_empty():
 				continue
 			for group_id in SpatialConfig.POPULATION_GROUPS:
-				var key := MarketAllocatorScript.make_pool_key(city_region.id, block.id, group_id, category.id, day, hour)
+				var key := MarketAllocatorScript.make_pool_key(city_region.id, block.id, group_id, category.id, day, hour) + "|" + competition_scope
 				if not pools.has(key):
 					var group_supply := PopulationSupplyCalculator.calculate_activity_supply_by_group(block, SpatialConfig.get_period_for_hour(hour), city_region, is_weekend)
 					var raw := float(group_supply.get(group_id, 0.0)) * DemandPatternCalculator.get_group_multiplier(block, group_id, day, hour)
 					raw *= float(participant.block_visitor_multipliers.get(block.id, 1.0)) * float(participant.city_region_visitor_multiplier)
 					raw *= SettlementConfig.TRAFFIC_SCALE_MULTIPLIER * category.base_entry_rate
 					pools[key] = {"raw_supply": maxi(0, int(round(raw))), "external_competition_ratio": TradeAreaCalculator.get_external_competition_ratio(block, category.id), "weights": {}, "participants": {}}
-				var weight_input := {
-					"is_operating": true, "offers_category": true,
-					"distance": factors.distance, "block_accessibility": factors.block_accessibility,
-					"storefront_accessibility": factors.storefront_accessibility,
-					"business_match": factors.business_match,
-					"capture_modifier": participant.category_front.flow_share * participant.category_front.capture_modifier,
-					"reputation": participant.store.reputation,
-					"awareness": maxf(float(participant.store.awareness_by_block.get(block.id, 0.0)), float(player_state.brand_awareness_by_block.get(block.id, 0.0)) * 0.5),
-				}
 				var pool: Dictionary = pools[key]
-				pool.weights[participant.participant_id] = MarketAllocatorScript.calculate_participant_weight(weight_input)
-				pool.participants[participant.participant_id] = participant
+				for competitor in competing_participants:
+					var competitor_factors := TradeAreaCalculator.get_participant_market_factors(block, competitor.category_front, category.id)
+					if competitor_factors.is_empty():
+						continue
+					var weight_input := {
+						"is_operating": true, "offers_category": true,
+						"distance": competitor_factors.distance, "block_accessibility": competitor_factors.block_accessibility,
+						"storefront_accessibility": competitor_factors.storefront_accessibility,
+						"business_match": competitor_factors.business_match,
+						"capture_modifier": competitor.category_front.flow_share * competitor.category_front.capture_modifier,
+						"reputation": competitor.store.reputation,
+						"awareness": maxf(float(competitor.store.awareness_by_block.get(block.id, 0.0)), float(player_state.brand_awareness_by_block.get(block.id, 0.0)) * 0.5),
+						"store_offline_influence": competitor.store.offline_influence,
+						"product_offline_influence": _get_category_menu_offline_influence(competitor.category_slot),
+					}
+					pool.weights[competitor.participant_id] = MarketAllocatorScript.calculate_participant_weight(weight_input)
+					pool.participants[competitor.participant_id] = competitor
 	for key in pools.keys():
 		var pool: Dictionary = pools[key]
 		var description := MarketAllocatorScript.describe_pool(int(pool.raw_supply), float(pool.external_competition_ratio), pool.weights)
@@ -1811,6 +1819,47 @@ func _allocate_shared_market_pools(participants: Array[Dictionary]) -> void:
 			participant.allocated_groups[group_id] = float(participant.allocated_groups.get(group_id, 0.0)) + int(description.allocations.get(participant_id, 0))
 			participant.external_competition_loss = int(participant.external_competition_loss) + int(description.external_competition_losses.get(participant_id, 0))
 			participant.market_pool_remaining_supply = int(participant.market_pool_remaining_supply) + int(description.remaining_supply)
+
+
+func _get_competing_market_participants(participant: Dictionary, all_participants: Array[Dictionary]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var pending: Array[Dictionary] = [participant]
+	var seen: Dictionary = {}
+	while not pending.is_empty():
+		var current: Dictionary = pending.pop_back()
+		var current_id := str(current.participant_id)
+		if seen.has(current_id):
+			continue
+		seen[current_id] = true
+		result.append(current)
+		for other in all_participants:
+			if other.category.id != participant.category.id or seen.has(str(other.participant_id)):
+				continue
+			if MarketAllocatorScript.storefronts_are_in_competition(current.storefront, other.storefront):
+				pending.append(other)
+	return result
+
+
+func _get_competition_scope_key(participants: Array[Dictionary]) -> String:
+	var ids: Array[String] = []
+	for participant in participants:
+		ids.append(str(participant.participant_id))
+	ids.sort()
+	return ",".join(ids)
+
+
+func _get_category_menu_offline_influence(category_slot: StoreCategorySlot) -> float:
+	if category_slot == null or category_slot.product_configs.is_empty():
+		return 1.0
+	var total := 0.0
+	var count := 0
+	for config in category_slot.product_configs:
+		var product := get_product(config.product_id)
+		if product == null:
+			continue
+		total += maxf(0.0, product.offline_influence)
+		count += 1
+	return total / float(count) if count > 0 else 1.0
 
 
 func _create_category_service_simulation(participant: Dictionary) -> void:
@@ -1853,7 +1902,7 @@ func _create_category_service_simulation(participant: Dictionary) -> void:
 		var group_weights := {}
 		var price_rates := {}
 		for group_id in SpatialConfig.POPULATION_GROUPS:
-			group_weights[group_id] = CustomerPreferenceConfig.get_group_affinity(profile, group_id) * CustomerPreferenceConfig.get_time_affinity(profile, TimeManager.get_current_hour_int()) / pow(maxf(1.0, product.average_price), 0.12)
+			group_weights[group_id] = CustomerPreferenceConfig.get_group_affinity(profile, group_id) * CustomerPreferenceConfig.get_time_affinity(profile, TimeManager.get_current_hour_int()) * maxf(0.0, product.offline_influence) / pow(maxf(1.0, product.average_price), 0.12)
 			price_rates[group_id] = float(group_profiles.get(group_id, {}).get("price_rejection_rate", 0.0))
 		group_weights["external"] = 1.0
 		price_rates["external"] = 0.0

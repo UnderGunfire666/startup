@@ -58,6 +58,12 @@ func _ready() -> void:
 	var export_files := panel.document.export_json_files()
 	var files: Dictionary = export_files.get("files", {})
 	_assert(bool(export_files.get("success", false)) and files.has("roads.json") and files.has("blocks.json") and files.has("storefronts.json"), "authoring tool prepares all three JSON files before user-selected save")
+	_test_canvas_selection_interactions(panel)
+	_test_storefront_competition_radius_round_trip(panel)
+	_test_export_directory(panel)
+	_test_document_lifecycle_commands(panel)
+	panel.queue_free()
+	await get_tree().process_frame
 	print("========== Map Authoring Tool Test: %d passed / %d failed ==========" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)
 
@@ -69,3 +75,106 @@ func _assert(condition: bool, message: String) -> void:
 	else:
 		failed += 1
 		print("FAIL: " + message)
+
+
+func _click_canvas(canvas: MapAuthoringCanvas, screen_position: Vector2, pressed: bool, button_index: MouseButton = MOUSE_BUTTON_LEFT, ctrl_pressed: bool = false) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = button_index
+	event.pressed = pressed
+	event.position = screen_position
+	event.ctrl_pressed = ctrl_pressed
+	canvas._gui_input(event)
+
+
+func _drag_canvas(canvas: MapAuthoringCanvas, from_screen_position: Vector2, to_screen_position: Vector2) -> void:
+	_click_canvas(canvas, from_screen_position, true)
+	var motion := InputEventMouseMotion.new()
+	motion.position = to_screen_position
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	canvas._gui_input(motion)
+	_click_canvas(canvas, to_screen_position, false)
+
+
+func _test_canvas_selection_interactions(panel: MapAuthoringPanel) -> void:
+	var canvas := panel.map_canvas
+	var storefront := panel.document._get_storefront("sf_nw_grocery")
+	_assert(storefront != null, "selection test has a storefront target")
+	if storefront == null:
+		return
+	var storefront_screen := storefront.map_position / MapAuthoringDocument.GRID_CELL_SIZE * canvas.grid_screen_size
+	_click_canvas(canvas, storefront_screen, true)
+	_click_canvas(canvas, storefront_screen, false)
+	_assert(panel.selected_storefront_id == storefront.id and canvas.selected_storefront_ids.size() == 1 and canvas.selected_storefront_ids[0] == storefront.id, "clicking a storefront updates the panel and typed canvas highlight selection")
+	_drag_canvas(canvas, storefront_screen, storefront_screen)
+	_assert(canvas._dragging_storefront_id.is_empty(), "storefront drag interaction completes without leaving canvas drag state")
+	var second: StorefrontData = null
+	for candidate in panel.document.storefronts:
+		if candidate.id != storefront.id:
+			second = candidate
+			break
+	if second != null:
+		var second_screen := second.map_position / MapAuthoringDocument.GRID_CELL_SIZE * canvas.grid_screen_size
+		_click_canvas(canvas, second_screen, true, MOUSE_BUTTON_LEFT, true)
+		_click_canvas(canvas, second_screen, false, MOUSE_BUTTON_LEFT, true)
+		_assert(canvas.selected_storefront_ids.has(storefront.id) and canvas.selected_storefront_ids.has(second.id), "Ctrl-click adds a second storefront selection")
+	_click_canvas(canvas, storefront_screen, true, MOUSE_BUTTON_RIGHT)
+	_assert(canvas.selected_storefront_id.is_empty() and canvas.selected_storefront_ids.is_empty() and panel.selected_storefront_id.is_empty(), "right-click clears storefront selection in canvas and panel")
+	var block := panel.document.blocks[0]
+	var block_screen := block.center_position / MapAuthoringDocument.GRID_CELL_SIZE * canvas.grid_screen_size
+	_click_canvas(canvas, block_screen, true)
+	_click_canvas(canvas, block_screen, false)
+	_assert(canvas.selected_block_ids.has(block.id) and panel.selected_block_id == block.id, "clicking a block updates block selection")
+	var original_block_center := block.center_position
+	_click_canvas(canvas, block_screen, true)
+	var preview_motion := InputEventMouseMotion.new()
+	preview_motion.position = block_screen + Vector2(canvas.grid_screen_size, 0.0)
+	preview_motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	canvas._gui_input(preview_motion)
+	_click_canvas(canvas, block_screen, true, MOUSE_BUTTON_RIGHT)
+	_assert(canvas._dragging_block_id.is_empty() and block.center_position == original_block_center, "right-click cancels an active block drag")
+
+
+func _test_storefront_competition_radius_round_trip(panel: MapAuthoringPanel) -> void:
+	var storefront := panel.document._get_storefront("sf_nw_grocery")
+	_assert(storefront != null, "competition-radius test has a storefront target")
+	if storefront == null:
+		return
+	panel._on_storefront_selected(storefront.id)
+	panel.storefront_awareness_radius_input.text = "45"
+	panel.storefront_competition_radius_input.text = "70"
+	panel.storefront_awareness_exposure_input.text = "1.25"
+	panel._on_update_storefront_pressed()
+	_assert(is_equal_approx(storefront.awareness_radius, 45.0) and is_equal_approx(storefront.competition_radius, 70.0) and is_equal_approx(storefront.awareness_exposure_modifier, 1.25), "storefront editor saves separate awareness, competition, and exposure values")
+	var exported := panel.document.export_map_data()
+	var restored_result := MapAuthoringDocument.from_exported_map_data(exported)
+	var restored: MapAuthoringDocument = restored_result.get("document", null)
+	var restored_storefront := restored._get_storefront(storefront.id) if restored != null else null
+	_assert(bool(restored_result.get("success", false)) and restored_storefront != null and is_equal_approx(restored_storefront.competition_radius, 70.0), "competition radius survives map export and import")
+	var legacy_export: Dictionary = exported.duplicate(true)
+	var legacy_storefronts: Array = legacy_export.get("storefronts", [])
+	if not legacy_storefronts.is_empty() and legacy_storefronts[0] is Dictionary:
+		legacy_storefronts[0].erase("competition_radius")
+	var legacy_result := MapAuthoringDocument.from_exported_map_data(legacy_export)
+	var legacy_document: MapAuthoringDocument = legacy_result.get("document", null)
+	var legacy_storefront := legacy_document._get_storefront(storefront.id) if legacy_document != null else null
+	_assert(bool(legacy_result.get("success", false)) and legacy_storefront != null and is_equal_approx(legacy_storefront.competition_radius, legacy_storefront.awareness_radius), "legacy storefront maps default competition radius to awareness radius")
+
+
+func _test_export_directory(panel: MapAuthoringPanel) -> void:
+	var directory := "user://map_authoring_contract_export"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
+	var exported := panel.document.export_json_files()
+	panel.pending_export_files = exported.get("files", {})
+	panel._on_export_directory_selected(directory)
+	_assert(FileAccess.file_exists(directory.path_join("roads.json")) and FileAccess.file_exists(directory.path_join("blocks.json")) and FileAccess.file_exists(directory.path_join("storefronts.json")), "authoring tool writes all JSON exports to the selected directory")
+
+
+func _test_document_lifecycle_commands(panel: MapAuthoringPanel) -> void:
+	panel._on_load_reference_map_pressed()
+	_assert(not panel.document.blocks.is_empty() and not panel.document.storefronts.is_empty(), "load-reference command replaces the authoring document")
+	panel._on_export_pressed()
+	var preview := panel.export_text.text
+	panel._on_import_preview_pressed()
+	_assert(not preview.is_empty() and panel.status_label.text.contains("通过"), "import-preview command restores a validated exported document")
+	panel._on_new_blank_map_pressed()
+	_assert(panel.document.blocks.is_empty() and panel.document.storefronts.is_empty() and panel.document.road_graph.nodes.is_empty(), "new-blank-map command resets all editable map content")

@@ -461,7 +461,7 @@
 			}
 		],
 		"id": "sf_central_main_01",
-		"frontage_side": "south",
+		"frontage_side": "north",
 		"default_entrance_offset": -1,
 		"map_position": {
 			"x": 82.25,

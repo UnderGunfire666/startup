@@ -1,5 +1,5 @@
 [
-  {"id":"home_old_community","name":"西北老社区的家","block_id":"block_nw_residential","road_entry_node_id":"n_10_08","map_position":{"x":52.5,"y":45.5}},
-  {"id":"home_south_residence","name":"西南住家的公寓","block_id":"block_sw_residential","road_entry_node_id":"n_10_42","map_position":{"x":52.5,"y":157.5}},
-  {"id":"home_mixed_street","name":"南城混合街区的家","block_id":"block_s_mixed","road_entry_node_id":"n_20_42","map_position":{"x":91.0,"y":157.5}}
+  {"id":"home_old_community","name":"Old Community Home","block_id":"block_nw_residential","grid_cells":[{"x":14,"y":10}],"entrance_cell":{"x":13,"y":10}},
+  {"id":"home_south_residence","name":"South Residence","block_id":"block_sw_residential","grid_cells":[{"x":12,"y":35}],"entrance_cell":{"x":11,"y":35}},
+  {"id":"home_mixed_street","name":"Mixed Street Home","block_id":"block_s_mixed","grid_cells":[{"x":23,"y":36}],"entrance_cell":{"x":22,"y":36}}
 ]

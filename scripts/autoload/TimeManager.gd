@@ -7,6 +7,8 @@ const DAY_SECONDS: float = 86400.0
 const DAY_START_SECONDS: float = 8.0 * 3600.0
 const DAYS_PER_WEEK: int = 7
 const WEEKDAY_COUNT: int = 5
+## Authority still advances every frame; only presentation listeners are capped.
+const CLOCK_UI_INTERVAL_MSEC := 100
 const WEEKDAY_NAMES: Array[String] = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
 
@@ -24,6 +26,7 @@ var _simulation_active: bool = false
 var _last_emitted_hour: int = -1
 var _last_emitted_day: int = -1
 var _connected_simulation_ids: Dictionary = {}
+var _last_clock_emit_msec := -CLOCK_UI_INTERVAL_MSEC
 
 
 func _process(delta: float) -> void:
@@ -36,7 +39,12 @@ func _process(delta: float) -> void:
 
 func set_speed(new_speed: int) -> void:
 	speed = new_speed
-	_emit_clock()
+	_emit_clock(true)
+
+
+func advance_action_time(game_seconds: float) -> void:
+	if game_seconds > 0.0001:
+		_advance(game_seconds)
 
 
 func reset() -> void:
@@ -47,7 +55,7 @@ func reset() -> void:
 	_connected_simulation_ids.clear()
 	_last_emitted_hour = get_current_hour_int()
 	_last_emitted_day = current_day
-	_emit_clock()
+	_emit_clock(true)
 
 
 func get_hour_of_day() -> float:
@@ -123,7 +131,8 @@ func _after_time_advance() -> void:
 	var target_day: int = 1 + int(total_game_seconds / DAY_SECONDS)
 	var hour_int: int = int(target_hour)
 
-	if hour_int != _last_emitted_hour or target_day != _last_emitted_day:
+	var crossed_hour := hour_int != _last_emitted_hour or target_day != _last_emitted_day
+	if crossed_hour:
 		var finished_hour := _last_emitted_hour
 		var finished_day := _last_emitted_day if _last_emitted_day > 0 else target_day
 
@@ -142,7 +151,7 @@ func _after_time_advance() -> void:
 		_last_emitted_day = target_day
 		hour_advanced.emit(current_day, hour_int)
 
-	_emit_clock()
+	_emit_clock(crossed_hour)
 
 
 func refresh_current_store_staffing(store: Store) -> void:
@@ -155,14 +164,14 @@ func refresh_current_store_staffing(store: Store) -> void:
 func _attach_customer_event_forwarding() -> void:
 	var hour_start_seconds: float = floor(total_game_seconds / 3600.0) * 3600.0
 	for entry in GameManager.active_simulations:
+		var simulation_store_id := str(entry.get("store_id", ""))
 		var category_service: CategoryServiceSimulator = entry.get("service", null)
 		if category_service != null:
 			var service_id := category_service.get_instance_id()
 			if _connected_simulation_ids.has(service_id):
 				continue
 			_connected_simulation_ids[service_id] = true
-			category_service.customer_event.connect(func(_product_id: String, product_name: String, purchased: bool, reason: String, event_time_seconds: float) -> void:
-				customer_event.emit(product_name if not product_name.is_empty() else "\u5546\u54c1", purchased, reason, hour_start_seconds + event_time_seconds))
+			category_service.customer_event.connect(_forward_category_customer_event.bind(simulation_store_id, hour_start_seconds))
 			continue
 		var sim: CustomerSimulator = entry.get("sim", null)
 		if sim == null:
@@ -173,11 +182,24 @@ func _attach_customer_event_forwarding() -> void:
 		_connected_simulation_ids[sim_id] = true
 		var product: ProductData = entry.get("product", null)
 		var product_name := product.name if product != null else "\u5546\u54c1"
-		sim.customer_event.connect(func(purchased: bool, reason: String, event_time_seconds: float) -> void:
-			customer_event.emit(product_name, purchased, reason, hour_start_seconds + event_time_seconds))
+		sim.customer_event.connect(_forward_legacy_customer_event.bind(product_name, simulation_store_id, hour_start_seconds))
 
 
-func _emit_clock() -> void:
+func _forward_category_customer_event(_product_id: String, product_name: String, purchased: bool, reason: String, event_time_seconds: float, simulation_store_id: String, hour_start_seconds: float) -> void:
+	if simulation_store_id == GameManager.active_store_id:
+		customer_event.emit(product_name if not product_name.is_empty() else "\u5546\u54c1", purchased, reason, hour_start_seconds + event_time_seconds)
+
+
+func _forward_legacy_customer_event(purchased: bool, reason: String, event_time_seconds: float, product_name: String, simulation_store_id: String, hour_start_seconds: float) -> void:
+	if simulation_store_id == GameManager.active_store_id:
+		customer_event.emit(product_name, purchased, reason, hour_start_seconds + event_time_seconds)
+
+
+func _emit_clock(force: bool = false) -> void:
+	var now_msec := Time.get_ticks_msec()
+	if not force and now_msec - _last_clock_emit_msec < CLOCK_UI_INTERVAL_MSEC:
+		return
+	_last_clock_emit_msec = now_msec
 	var seconds_in_day: float = fposmod(total_game_seconds, DAY_SECONDS)
 	var total_seconds: int = int(seconds_in_day)
 	var h := (total_seconds / 3600) % 24
@@ -206,4 +228,4 @@ func apply_save_dict(data: Dictionary) -> void:
 	_simulation_active = false
 	_last_emitted_hour = get_current_hour_int()
 	_last_emitted_day = current_day
-	_emit_clock()
+	_emit_clock(true)

@@ -5,10 +5,12 @@ extends Control
 signal node_moved(node_id: String)
 signal storefront_moved(storefront_id: String)
 signal storefront_selected(storefront_id: String)
+signal player_home_selected(home_id: String)
 signal block_moved(block_id: String)
 signal grid_road_requested(from_cell: Vector2i, to_cell: Vector2i)
 signal grid_cells_selected(cells: Array[Vector2i])
 signal grid_block_selected(block_id: String)
+signal grid_internal_roads_requested(cells: Array[Vector2i])
 signal road_node_selected(node_id: String)
 signal road_segment_selected(segment_id: String)
 signal selection_cleared
@@ -18,7 +20,7 @@ signal additional_element_selected(element_id: String, is_storefront: bool)
 const MAP_SCALE := 0.3
 const NODE_RADIUS := 7.0
 const GRID_SCREEN_SIZE := 16.0
-enum EditMode { SELECT, ROAD, BLOCK }
+enum EditMode { SELECT, ROAD, BLOCK, INTERNAL_ROAD }
 
 var document: MapAuthoringDocument
 var _dragging_node_id := ""
@@ -34,10 +36,13 @@ var validation_errors: Array[String] = []
 var selected_storefront_id := ""
 var selected_storefront_ids: Array[String] = []
 var selected_block_ids: Array[String] = []
+var selected_home_id := ""
 
 func set_selected_storefront(storefront_id: String) -> void:
 	selected_storefront_id = storefront_id
-	selected_storefront_ids = [storefront_id] if not storefront_id.is_empty() else []
+	selected_storefront_ids.clear()
+	if not storefront_id.is_empty():
+		selected_storefront_ids.append(storefront_id)
 	queue_redraw()
 
 func set_validation_errors(errors: Array[String]) -> void:
@@ -124,6 +129,7 @@ func _gui_input(event: InputEvent) -> void:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
 			_cancel_active_block_drag()
+			selected_storefront_id = ""
 			selected_storefront_ids.clear()
 			selected_block_ids.clear()
 			selection_cleared.emit()
@@ -140,6 +146,8 @@ func _gui_input(event: InputEvent) -> void:
 					var end_cell := _screen_to_grid_intersection(mouse_button.position) if edit_mode == EditMode.ROAD else _screen_to_grid(mouse_button.position)
 					if edit_mode == EditMode.ROAD:
 						grid_road_requested.emit(_grid_drag_start, end_cell)
+					elif edit_mode == EditMode.INTERNAL_ROAD:
+						grid_internal_roads_requested.emit(_rectangle_cells(_grid_drag_start, end_cell))
 					else:
 						grid_cells_selected.emit(_rectangle_cells(_grid_drag_start, end_cell))
 				_grid_dragging = false
@@ -158,10 +166,18 @@ func _gui_input(event: InputEvent) -> void:
 						additional_element_selected.emit(_dragging_storefront_id, true)
 					else:
 						selected_storefront_id = _dragging_storefront_id
-						selected_storefront_ids = [_dragging_storefront_id]
+						selected_storefront_ids.clear()
+						selected_storefront_ids.append(_dragging_storefront_id)
 						selected_block_ids.clear()
 						storefront_selected.emit(_dragging_storefront_id)
 			if _dragging_node_id.is_empty() and _dragging_storefront_id.is_empty():
+				var home_id := _find_home_at_screen(mouse_button.position)
+				if not home_id.is_empty():
+					selected_home_id = home_id
+					selected_block_ids.clear()
+					player_home_selected.emit(home_id)
+					queue_redraw()
+					return
 				var segment_id := _find_segment_at_screen(mouse_button.position)
 				if not segment_id.is_empty():
 					road_segment_selected.emit(segment_id)
@@ -177,7 +193,8 @@ func _gui_input(event: InputEvent) -> void:
 							selected_block_ids.append(_dragging_block_id)
 						additional_element_selected.emit(_dragging_block_id, false)
 					else:
-						selected_block_ids = [_dragging_block_id]
+						selected_block_ids.clear()
+						selected_block_ids.append(_dragging_block_id)
 						selected_storefront_ids.clear()
 						grid_block_selected.emit(_dragging_block_id)
 		else:
@@ -256,6 +273,14 @@ func _find_storefront_at_screen(screen_position: Vector2) -> String:
 	return ""
 
 
+func _find_home_at_screen(screen_position: Vector2) -> String:
+	if document == null: return ""
+	for home in document.player_homes:
+		for cell in home.get("grid_cells", []):
+			if Rect2(Vector2(cell) * grid_screen_size, Vector2.ONE * grid_screen_size).has_point(screen_position): return str(home.get("id", ""))
+	return ""
+
+
 func _find_segment_at_screen(screen_position: Vector2) -> String:
 	if document == null:
 		return ""
@@ -319,6 +344,9 @@ func _draw() -> void:
 					draw_rect(cell_rect.grow(1.0), Color(1.0, 0.85, 0.2, 1.0), false, 2.0)
 			var tier_position := block.center_position / MapAuthoringDocument.GRID_CELL_SIZE * grid_screen_size
 			draw_string(ThemeDB.fallback_font, tier_position, str(block.tier), HORIZONTAL_ALIGNMENT_CENTER, 18, 14)
+		for cell in block.internal_road_cells:
+			var internal_road_rect := Rect2(Vector2(cell) * grid_screen_size, Vector2.ONE * grid_screen_size)
+			draw_rect(internal_road_rect, Color(0.78, 0.76, 0.64, 0.92), true)
 	for segment in document.road_graph.segments:
 		var from_node: RoadNode = document.road_graph.nodes.get(segment.from_node_id, null)
 		var to_node: RoadNode = document.road_graph.nodes.get(segment.to_node_id, null)
@@ -345,8 +373,16 @@ func _draw() -> void:
 		var storefront_position := _world_to_grid_screen(storefront.map_position)
 		draw_circle(storefront_position, 5.0, Color(0.25, 0.95, 0.55, 1.0))
 		draw_circle(storefront_position, 5.0, Color(0.05, 0.1, 0.05, 0.9), false, 1.0)
+	for home in document.player_homes:
+		for cell in home.get("grid_cells", []):
+			var rect := Rect2(Vector2(cell) * grid_screen_size, Vector2.ONE * grid_screen_size)
+			draw_rect(rect, Color(0.3, 0.65, 1.0, 0.55), true)
+			draw_rect(rect, Color(0.7, 0.9, 1.0, 0.95), false, 1.0)
+			if str(home.get("id", "")) == selected_home_id: draw_rect(rect.grow(1.0), Color(1.0, 0.85, 0.2), false, 2.0)
+		var entrance: Vector2i = home.get("entrance_cell", Vector2i(-1, -1))
+		if entrance != Vector2i(-1, -1): draw_circle((Vector2(entrance) + Vector2(0.5, 0.5)) * grid_screen_size, 3.0, Color(0.35, 0.85, 1.0, 1.0))
 	_draw_validation_overlays()
-	if _grid_dragging and edit_mode == EditMode.BLOCK:
+	if _grid_dragging and (edit_mode == EditMode.BLOCK or edit_mode == EditMode.INTERNAL_ROAD):
 		var preview := _rectangle_cells(_grid_drag_start, _screen_to_grid(get_local_mouse_position()))
 		for cell in preview:
 			draw_rect(Rect2(Vector2(cell) * grid_screen_size, Vector2.ONE * grid_screen_size), Color(0.95, 0.8, 0.25, 0.3), true)

@@ -6,6 +6,7 @@ extends Control
 
 signal selected_blocks_changed(block_ids: Array[String])
 signal storefront_clicked(storefront_id: String)
+signal navigable_cell_clicked(block_id: String, cell: Vector2i)
 
 const MIN_MAP_SCALE := 0.3
 const MAX_MAP_SCALE := 5.0
@@ -21,6 +22,9 @@ const BLOCK_TYPE_COLORS: Dictionary = {
 	"commercial": Color(0.95, 0.6, 0.2, 0.5),
 	"industrial": Color(0.5, 0.5, 0.5, 0.5),
 	"residential": Color(0.3, 0.75, 0.4, 0.5),
+	"mixed": Color(0.65, 0.4, 0.82, 0.5),
+	"tourism": Color(0.95, 0.62, 0.2, 0.5),
+	"public_green": Color(0.32, 0.72, 0.38, 0.5),
 }
 
 const STOREFRONT_STATE_COLORS: Dictionary = {
@@ -35,27 +39,41 @@ const ROAD_NODE_COLOR := Color(0.98, 0.8, 0.3, 0.9)
 var city_regions: Array[CityRegionData] = []
 var blocks: Array[BlockData] = []
 var road_graph: RoadGraph = null
+var road_cells: Dictionary = {}
 var player_homes: Array = []
 var survey_areas: Array[SurveyAreaState] = []
 var storefronts: Array[StorefrontData] = []
+var selected_storefront_id := ""
 var selected_block_ids: Array[String] = []
 var awareness_overlay_storefront: StorefrontData = null
 var awareness_overlay_coverage: Dictionary = {}
 var awareness_overlay_values: Dictionary = {}
 var map_scale := MIN_MAP_SCALE
 var content_bounds := Rect2(Vector2.ZERO, Vector2.ONE)
+var _cached_label_layout: Array[Dictionary] = []
+var _label_layout_valid := false
+var _storefront_entrance_cache: Dictionary = {}
+
+var travel_layer: CityMapTravelLayer = null
 
 
 func _ready() -> void:
-	resized.connect(queue_redraw)
+	travel_layer = get_node_or_null("TravelLayer") as CityMapTravelLayer
+	resized.connect(_on_canvas_resized)
+	if travel_layer != null:
+		travel_layer.setup(self, road_graph)
 
 
 func setup(new_city_regions: Array[CityRegionData], new_blocks: Array[BlockData], new_road_graph: RoadGraph = null, new_player_homes: Array = []) -> void:
 	city_regions = new_city_regions
 	blocks = new_blocks
 	road_graph = new_road_graph
+	road_cells = MapGridGeometry.build_road_cells(road_graph)
 	player_homes = new_player_homes
 	_update_canvas_size()
+	_invalidate_static_layout_cache()
+	if travel_layer != null:
+		travel_layer.setup(self, road_graph)
 	queue_redraw()
 
 
@@ -67,6 +85,25 @@ func refresh_survey_areas(new_survey_areas: Array[SurveyAreaState]) -> void:
 func refresh_storefronts(new_storefronts: Array[StorefrontData]) -> void:
 	storefronts = new_storefronts
 	_update_canvas_size()
+	_invalidate_static_layout_cache()
+	queue_redraw()
+
+
+func refresh_storefront_layout() -> void:
+	_storefront_entrance_cache.clear()
+	queue_redraw()
+
+
+func refresh_player_layer() -> void:
+	if travel_layer != null:
+		travel_layer.refresh_from_state()
+		travel_layer.queue_redraw()
+
+
+func set_selected_storefront(storefront_id: String) -> void:
+	if selected_storefront_id == storefront_id:
+		return
+	selected_storefront_id = storefront_id
 	queue_redraw()
 
 
@@ -138,10 +175,24 @@ func _update_canvas_size() -> void:
 	var max_x := -INF
 	var max_y := -INF
 	for block in blocks:
-		min_x = minf(min_x, block.map_bounds.position.x)
-		min_y = minf(min_y, block.map_bounds.position.y)
-		max_x = maxf(max_x, block.map_bounds.end.x)
-		max_y = maxf(max_y, block.map_bounds.end.y)
+		if block.grid_cells.is_empty():
+			min_x = minf(min_x, block.map_bounds.position.x)
+			min_y = minf(min_y, block.map_bounds.position.y)
+			max_x = maxf(max_x, block.map_bounds.end.x)
+			max_y = maxf(max_y, block.map_bounds.end.y)
+		else:
+			for cell in block.grid_cells:
+				var cell_position := Vector2(cell) * MapGridGeometry.CELL_SIZE
+				min_x = minf(min_x, cell_position.x)
+				min_y = minf(min_y, cell_position.y)
+				max_x = maxf(max_x, cell_position.x + MapGridGeometry.CELL_SIZE)
+				max_y = maxf(max_y, cell_position.y + MapGridGeometry.CELL_SIZE)
+	for cell in road_cells:
+		var road_position := Vector2(cell) * MapGridGeometry.CELL_SIZE
+		min_x = minf(min_x, road_position.x)
+		min_y = minf(min_y, road_position.y)
+		max_x = maxf(max_x, road_position.x + MapGridGeometry.CELL_SIZE)
+		max_y = maxf(max_y, road_position.y + MapGridGeometry.CELL_SIZE)
 	if road_graph != null:
 		for raw_node in road_graph.nodes.values():
 			if raw_node is RoadNode:
@@ -151,10 +202,18 @@ func _update_canvas_size() -> void:
 				max_x = maxf(max_x, node.position.x)
 				max_y = maxf(max_y, node.position.y)
 	for storefront in storefronts:
-		min_x = minf(min_x, storefront.map_position.x)
-		min_y = minf(min_y, storefront.map_position.y)
-		max_x = maxf(max_x, storefront.map_position.x)
-		max_y = maxf(max_y, storefront.map_position.y)
+		if storefront.grid_cells.is_empty():
+			min_x = minf(min_x, storefront.map_position.x)
+			min_y = minf(min_y, storefront.map_position.y)
+			max_x = maxf(max_x, storefront.map_position.x)
+			max_y = maxf(max_y, storefront.map_position.y)
+		else:
+			for cell in storefront.grid_cells:
+				var cell_position := Vector2(cell) * MapGridGeometry.CELL_SIZE
+				min_x = minf(min_x, cell_position.x)
+				min_y = minf(min_y, cell_position.y)
+				max_x = maxf(max_x, cell_position.x + MapGridGeometry.CELL_SIZE)
+				max_y = maxf(max_y, cell_position.y + MapGridGeometry.CELL_SIZE)
 	if is_inf(min_x) or is_inf(min_y):
 		min_x = 0.0
 		min_y = 0.0
@@ -182,6 +241,19 @@ func _get_draw_offset() -> Vector2:
 	)
 
 
+func _on_canvas_resized() -> void:
+	_label_layout_valid = false
+	queue_redraw()
+	if travel_layer != null:
+		travel_layer.queue_redraw()
+
+
+func _invalidate_static_layout_cache() -> void:
+	_label_layout_valid = false
+	_cached_label_layout.clear()
+	_storefront_entrance_cache.clear()
+
+
 func _gui_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton:
 		return
@@ -195,6 +267,10 @@ func _gui_input(event: InputEvent) -> void:
 	if clicked_storefront != null:
 		storefront_clicked.emit(clicked_storefront.id)
 		return
+	var clicked_cell := _find_internal_road_cell_at_screen(mouse_event.position)
+	if not clicked_cell.is_empty():
+		navigable_cell_clicked.emit(str(clicked_cell.get("block_id", "")), clicked_cell.get("cell", Vector2i(-1, -1)))
+		return
 
 	var clicked_block := _find_block_at_screen(mouse_event.position)
 	if clicked_block == null:
@@ -204,7 +280,11 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _find_storefront_at_screen(screen_pos: Vector2) -> StorefrontData:
+	var map_pos := _screen_to_map(screen_pos)
 	for sf in storefronts:
+		for cell in sf.grid_cells:
+			if Rect2(Vector2(cell) * MapGridGeometry.CELL_SIZE, Vector2.ONE * MapGridGeometry.CELL_SIZE).has_point(map_pos):
+				return sf
 		var sf_screen := _map_to_screen(sf.map_position)
 		if sf_screen.distance_to(screen_pos) <= STOREFRONT_CLICK_RADIUS_SCREEN_PX:
 			return sf
@@ -219,6 +299,13 @@ func _find_block_at_screen(screen_pos: Vector2) -> BlockData:
 		if block.has_map_point(map_pos):
 			return block
 	return null
+
+
+func _find_internal_road_cell_at_screen(screen_pos: Vector2) -> Dictionary:
+	var cell := Vector2i(floori(_screen_to_map(screen_pos).x / MapGridGeometry.CELL_SIZE), floori(_screen_to_map(screen_pos).y / MapGridGeometry.CELL_SIZE))
+	for block in blocks:
+		if block.internal_road_cells.has(cell): return {"block_id": block.id, "cell": cell}
+	return {}
 
 
 func _screen_to_map(screen_pos: Vector2) -> Vector2:
@@ -236,45 +323,14 @@ func _draw() -> void:
 	_draw_awareness_overlay()
 	_draw_survey_areas()
 	_draw_storefronts()
-	_draw_player_travel()
+	_draw_player_homes()
 
 
-func _draw_player_travel() -> void:
-	var player := GameManager.player_state
-	if not player.is_character_created:
-		return
+func _draw_player_homes() -> void:
 	for home in player_homes:
 		var home_position := _map_to_screen(home.get("map_position", Vector2.ZERO))
 		draw_rect(Rect2(home_position - Vector2(4, 4), Vector2(8, 8)), Color(0.35, 0.75, 1.0, 0.95), true)
 		draw_rect(Rect2(home_position - Vector2(4, 4), Vector2(8, 8)), Color(0.05, 0.12, 0.2, 0.9), false, 1.0)
-	var position := player.current_map_position
-	if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active and ScheduleManager.current_action.action_id == "move_to_block":
-		var quote: Dictionary = ScheduleManager.current_action.context.get("travel_quote", {})
-		var points: Array[Vector2] = []
-		for node_id in quote.get("route_node_ids", []):
-			var node: RoadNode = road_graph.nodes.get(str(node_id), null) if road_graph != null else null
-			if node != null:
-				points.append(node.position)
-		if points.size() >= 2:
-			for index in range(1, points.size()):
-				draw_line(_map_to_screen(points[index - 1]), _map_to_screen(points[index]), Color(0.2, 0.9, 1.0, 0.9), 3.0, true)
-			var ratio := clampf((TimeManager.total_game_seconds - ScheduleManager.current_action.start_game_seconds) / maxf(1.0, ScheduleManager.current_action.duration_hours * 3600.0), 0.0, 1.0)
-			position = _interpolate_route(points, ratio)
-	draw_circle(_map_to_screen(position), 6.5, Color(1.0, 0.25, 0.35, 1.0))
-	draw_circle(_map_to_screen(position), 6.5, Color(0.15, 0.02, 0.05, 0.95), false, 1.5)
-
-
-func _interpolate_route(points: Array[Vector2], ratio: float) -> Vector2:
-	if points.is_empty(): return Vector2.ZERO
-	var total := 0.0
-	for index in range(1, points.size()): total += points[index - 1].distance_to(points[index])
-	var remaining := total * ratio
-	for index in range(1, points.size()):
-		var segment := points[index - 1].distance_to(points[index])
-		if remaining <= segment:
-			return points[index - 1].lerp(points[index], remaining / maxf(segment, 0.001))
-		remaining -= segment
-	return points.back()
 
 
 func _draw_city_regions() -> void:
@@ -292,17 +348,11 @@ func _draw_city_regions() -> void:
 
 
 func _draw_roads() -> void:
+	for cell in road_cells:
+		var road_data: Dictionary = road_cells[cell]
+		draw_rect(_map_cell_rect(cell), MapGridGeometry.get_road_color(str(road_data.get("class", "local"))), true)
 	if road_graph == null:
 		return
-	for segment in road_graph.segments:
-		var from_node: RoadNode = road_graph.nodes.get(segment.from_node_id, null)
-		var to_node: RoadNode = road_graph.nodes.get(segment.to_node_id, null)
-		if from_node == null or to_node == null:
-			continue
-		var exposure_alpha := lerpf(0.35, 0.9, clampf(segment.exposure / 1.2, 0.0, 1.0))
-		var road_color := Color(ROAD_COLOR.r, ROAD_COLOR.g, ROAD_COLOR.b, exposure_alpha)
-		var width := 1.5 + clampf(segment.accessibility, 0.0, 1.0) * 2.0
-		draw_line(_map_to_screen(from_node.position), _map_to_screen(to_node.position), road_color, width, true)
 	for node in road_graph.nodes.values():
 		if node is RoadNode:
 			draw_circle(_map_to_screen((node as RoadNode).position), 2.5, ROAD_NODE_COLOR)
@@ -310,23 +360,27 @@ func _draw_roads() -> void:
 
 func _draw_blocks() -> void:
 	for block in blocks:
-		var rect := Rect2(
-			_map_to_screen(block.map_bounds.position),
-			block.map_bounds.size * map_scale
-		)
 		var color: Color = BLOCK_TYPE_COLORS.get(block.block_type, Color(1, 1, 1, 0.3))
-		draw_rect(rect, color, true)
-		draw_rect(rect, Color(0, 0, 0, 0.4), false, 1.0)
-
-		if selected_block_ids.has(block.id):
-			draw_rect(rect, BLOCK_SELECTED_COLOR, false, 4.0)
-			draw_rect(rect.grow(-3.0), Color(1.0, 0.9, 0.2, 0.12), true)
+		if block.grid_cells.is_empty():
+			_draw_block_rect(block, color)
+		else:
+			for cell in block.grid_cells:
+				var cell_rect := _map_cell_rect(cell)
+				draw_rect(cell_rect, color, true)
+				draw_rect(cell_rect, Color(0, 0, 0, 0.4), false, 1.0)
+				if selected_block_ids.has(block.id):
+					draw_rect(cell_rect.grow(1.0), BLOCK_SELECTED_COLOR, false, 2.0)
+					draw_rect(cell_rect.grow(-1.0), Color(1.0, 0.9, 0.2, 0.12), true)
 
 		draw_string(
-			ThemeDB.fallback_font, rect.position + Vector2(4, 14),
+			ThemeDB.fallback_font, _map_to_screen(block.center_position) + Vector2(4, 14),
 			"%s(%d级)" % [block.name, block.tier],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 10
 		)
+		for cell in block.internal_road_cells:
+			var internal_rect := _map_cell_rect(cell)
+			draw_rect(internal_rect, Color(0.73, 0.70, 0.56, 0.96), true)
+			draw_rect(internal_rect, Color(0.15, 0.14, 0.10, 0.8), false, 1.0)
 
 
 func _draw_awareness_overlay() -> void:
@@ -341,12 +395,13 @@ func _draw_awareness_overlay() -> void:
 		var coverage := float(awareness_overlay_coverage.get(block.id, 0.0))
 		if coverage <= 0.0:
 			continue
-		var rect := Rect2(_map_to_screen(block.map_bounds.position), block.map_bounds.size * map_scale)
 		var awareness := clampf(float(awareness_overlay_values.get(block.id, 0.0)) / 100.0, 0.0, 1.0)
-		draw_rect(rect, Color(1.0, 0.5 + awareness * 0.35, 0.1, 0.08 + awareness * 0.20), true)
-		draw_rect(rect, Color(1.0, 0.84, 0.28, 0.5 + coverage * 0.45), false, 1.5 + coverage * 2.0)
+		for cell in block.grid_cells:
+			var cell_rect := _map_cell_rect(cell)
+			draw_rect(cell_rect, Color(1.0, 0.5 + awareness * 0.35, 0.1, 0.08 + awareness * 0.20), true)
+			draw_rect(cell_rect, Color(1.0, 0.84, 0.28, 0.5 + coverage * 0.45), false, 1.5 + coverage * 2.0)
 		var info := "覆盖 %.0f%%  |  知名 %.1f" % [coverage * 100.0, awareness * 100.0]
-		draw_string(ThemeDB.fallback_font, rect.position + Vector2(4.0, rect.size.y - 5.0), info, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.93, 0.65, 0.98))
+		draw_string(ThemeDB.fallback_font, _map_to_screen(block.center_position) + Vector2(4.0, 12.0), info, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.93, 0.65, 0.98))
 
 
 func _draw_survey_areas() -> void:
@@ -361,10 +416,15 @@ func _draw_storefronts() -> void:
 	## not_viewed的门面完全不画——对应"未被发现前不可见/不可选"的设计。
 	var labels := get_storefront_label_layout()
 	for sf in storefronts:
-		var color := Color.WHITE
-		var screen_pos := _map_to_screen(sf.map_position)
-		draw_circle(screen_pos, 6.0, color)
-		draw_circle(screen_pos, 6.0, Color(0, 0, 0, 0.6), false, 1.5)
+		var color := _get_storefront_color(sf)
+		for cell in sf.grid_cells:
+			var cell_rect := _map_cell_rect(cell)
+			draw_rect(cell_rect, Color(color.r, color.g, color.b, 0.55), true)
+			draw_rect(cell_rect, color, false, 1.5)
+		_draw_storefront_frontage_edges(sf, color)
+		_draw_storefront_entrance_marker(sf)
+		if sf.id == selected_storefront_id:
+			_draw_storefront_selection_outline(sf)
 	for item in labels:
 		var rect: Rect2 = item.get("rect", Rect2())
 		var label_color: Color = item.get("color", Color.WHITE)
@@ -382,11 +442,113 @@ func _draw_storefronts() -> void:
 		)
 
 
+func _draw_storefront_selection_outline(storefront: StorefrontData) -> void:
+	var cells: Dictionary = {}
+	for cell in storefront.grid_cells:
+		cells[cell] = true
+	for cell in storefront.grid_cells:
+		var rect := _map_cell_rect(cell)
+		if not cells.has(cell + Vector2i.UP):
+			draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(1.0, 0.86, 0.15, 1.0), 3.5, true)
+		if not cells.has(cell + Vector2i.DOWN):
+			draw_line(Vector2(rect.position.x, rect.end.y), rect.end, Color(1.0, 0.86, 0.15, 1.0), 3.5, true)
+		if not cells.has(cell + Vector2i.LEFT):
+			draw_line(rect.position, Vector2(rect.position.x, rect.end.y), Color(1.0, 0.86, 0.15, 1.0), 3.5, true)
+		if not cells.has(cell + Vector2i.RIGHT):
+			draw_line(Vector2(rect.end.x, rect.position.y), rect.end, Color(1.0, 0.86, 0.15, 1.0), 3.5, true)
+
+
+func _draw_storefront_frontage_edges(storefront: StorefrontData, color: Color) -> void:
+	var direction := _frontage_direction(storefront.frontage_side)
+	var cells: Dictionary = {}
+	for cell in storefront.grid_cells:
+		cells[cell] = true
+	for cell in storefront.grid_cells:
+		if cells.has(cell + direction):
+			continue
+		var rect := _map_cell_rect(cell)
+		var from := rect.position
+		var to := rect.end
+		match storefront.frontage_side:
+			"north": to = Vector2(rect.end.x, rect.position.y)
+			"south": from = Vector2(rect.position.x, rect.end.y)
+			"west": to = Vector2(rect.position.x, rect.end.y)
+			"east": from = Vector2(rect.end.x, rect.position.y)
+		draw_line(from, to, Color(color.r, color.g, color.b, 1.0), 2.0, true)
+
+
+func _draw_storefront_entrance_marker(storefront: StorefrontData) -> void:
+	var entrance: Dictionary = {}
+	if _storefront_entrance_cache.has(storefront.id):
+		entrance = _storefront_entrance_cache[storefront.id]
+	else:
+		entrance = MapNavigationGrid.get_storefront_entrance(storefront)
+		_storefront_entrance_cache[storefront.id] = entrance
+	if entrance.is_empty():
+		return
+	var cell: Vector2i = entrance.get("cell", Vector2i(-1, -1))
+	if cell == Vector2i(-1, -1):
+		return
+	var offset := int(entrance.get("facade_start", entrance.get("facade_offset", 0)))
+	var width := maxi(1, int(entrance.get("entrance_width", StorefrontLayoutGeometry.ENTRANCE_WIDTH_CELLS)))
+	var min_cell := storefront.grid_cells[0]
+	var max_cell := storefront.grid_cells[0]
+	for occupied in storefront.grid_cells:
+		min_cell = Vector2i(mini(min_cell.x, occupied.x), mini(min_cell.y, occupied.y))
+		max_cell = Vector2i(maxi(max_cell.x, occupied.x), maxi(max_cell.y, occupied.y))
+	var first_city_index := floori(float(offset) / StorefrontLayoutGeometry.CELLS_PER_CITY_CELL)
+	var last_city_index := floori(float(offset + width - 1) / StorefrontLayoutGeometry.CELLS_PER_CITY_CELL)
+	for city_index in range(first_city_index, last_city_index + 1):
+		var marker_cell := _frontage_city_cell(str(entrance.get("side", storefront.frontage_side)), city_index, min_cell, max_cell)
+		if not storefront.grid_cells.has(marker_cell):
+			continue
+		var local_start := maxi(0, offset - city_index * StorefrontLayoutGeometry.CELLS_PER_CITY_CELL)
+		var local_end := mini(StorefrontLayoutGeometry.CELLS_PER_CITY_CELL, offset + width - city_index * StorefrontLayoutGeometry.CELLS_PER_CITY_CELL)
+		_draw_entrance_edge_segment(_map_cell_rect(marker_cell), str(entrance.get("side", storefront.frontage_side)), float(local_start) / StorefrontLayoutGeometry.CELLS_PER_CITY_CELL, float(local_end) / StorefrontLayoutGeometry.CELLS_PER_CITY_CELL)
+
+
+func _frontage_city_cell(side: String, along: int, min_cell: Vector2i, max_cell: Vector2i) -> Vector2i:
+	match side:
+		"north": return Vector2i(clampi(min_cell.x + along, min_cell.x, max_cell.x), min_cell.y)
+		"east": return Vector2i(max_cell.x, clampi(min_cell.y + along, min_cell.y, max_cell.y))
+		"west": return Vector2i(min_cell.x, clampi(min_cell.y + along, min_cell.y, max_cell.y))
+		_: return Vector2i(clampi(min_cell.x + along, min_cell.x, max_cell.x), max_cell.y)
+
+
+func _draw_entrance_edge_segment(rect: Rect2, side: String, start_ratio: float, end_ratio: float) -> void:
+	var from := rect.position
+	var to := rect.end
+	match side:
+		"north":
+			from = Vector2(lerpf(rect.position.x, rect.end.x, start_ratio), rect.position.y)
+			to = Vector2(lerpf(rect.position.x, rect.end.x, end_ratio), rect.position.y)
+		"south":
+			from = Vector2(lerpf(rect.position.x, rect.end.x, start_ratio), rect.end.y)
+			to = Vector2(lerpf(rect.position.x, rect.end.x, end_ratio), rect.end.y)
+		"west":
+			from = Vector2(rect.position.x, lerpf(rect.position.y, rect.end.y, start_ratio))
+			to = Vector2(rect.position.x, lerpf(rect.position.y, rect.end.y, end_ratio))
+		"east":
+			from = Vector2(rect.end.x, lerpf(rect.position.y, rect.end.y, start_ratio))
+			to = Vector2(rect.end.x, lerpf(rect.position.y, rect.end.y, end_ratio))
+	draw_line(from, to, Color(0.12, 0.88, 1.0, 1.0), 5.0, true)
+
+
+func _frontage_direction(frontage_side: String) -> Vector2i:
+	match frontage_side:
+		"north": return Vector2i.UP
+		"west": return Vector2i.LEFT
+		"east": return Vector2i.RIGHT
+		_: return Vector2i.DOWN
+
+
 func get_storefront_label_text(storefront_name: String) -> String:
 	return storefront_name if storefront_name.length() <= 4 else storefront_name.left(4) + "…"
 
 
 func get_storefront_label_layout() -> Array[Dictionary]:
+	if _label_layout_valid:
+		return _cached_label_layout
 	var layout: Array[Dictionary] = []
 	var occupied_rects: Array[Rect2] = []
 	for storefront in storefronts:
@@ -419,7 +581,26 @@ func get_storefront_label_layout() -> Array[Dictionary]:
 				"color": Color.WHITE,
 			})
 			break
-	return layout
+	_cached_label_layout = layout
+	_label_layout_valid = true
+	return _cached_label_layout
+
+
+func _map_cell_rect(cell: Vector2i) -> Rect2:
+	return Rect2(_map_to_screen(Vector2(cell) * MapGridGeometry.CELL_SIZE), Vector2.ONE * MapGridGeometry.CELL_SIZE * map_scale)
+
+
+func _draw_block_rect(block: BlockData, color: Color) -> void:
+	var rect := Rect2(_map_to_screen(block.map_bounds.position), block.map_bounds.size * map_scale)
+	draw_rect(rect, color, true)
+	draw_rect(rect, Color(0, 0, 0, 0.4), false, 1.0)
+	if selected_block_ids.has(block.id):
+		draw_rect(rect, BLOCK_SELECTED_COLOR, false, 4.0)
+
+
+func _get_storefront_color(storefront: StorefrontData) -> Color:
+	var state := str(GameManager.player_state.storefront_diligence.get(storefront.id, ""))
+	return STOREFRONT_STATE_COLORS.get(state, Color(0.65, 1.0, 0.78, 0.9))
 
 
 func _label_rect_overlaps(candidate: Rect2, occupied_rects: Array[Rect2]) -> bool:

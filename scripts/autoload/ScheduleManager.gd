@@ -37,16 +37,16 @@ func reset_for_new_game() -> void:
 
 
 func get_save_dict() -> Dictionary:
-	if current_action == null or not current_action.is_active or current_action.action_id != "move_to_block":
+	if current_action == null or not current_action.is_active or (current_action.action_id != "move_to_block" and current_action.action_id != "move_to_map_cell"):
 		return {}
 	return {"action_id": current_action.action_id, "target_id": current_action.target_id, "start_game_seconds": current_action.start_game_seconds, "duration_hours": current_action.duration_hours, "work_hours_before": current_action.work_hours_before, "context": current_action.context.duplicate(true)}
 
 
 func apply_save_dict(data: Dictionary) -> void:
-	if data.is_empty() or str(data.get("action_id", "")) != "move_to_block":
+	if data.is_empty() or (str(data.get("action_id", "")) != "move_to_block" and str(data.get("action_id", "")) != "move_to_map_cell"):
 		return
 	current_action = CurrentActionState.new()
-	current_action.action_id = "move_to_block"
+	current_action.action_id = str(data.get("action_id", "move_to_block"))
 	current_action.target_id = str(data.get("target_id", ""))
 	current_action.start_game_seconds = float(data.get("start_game_seconds", TimeManager.total_game_seconds))
 	current_action.duration_hours = float(data.get("duration_hours", 0.0))
@@ -231,6 +231,33 @@ func start_travel(target_block_id: String, mode: String, storefront_id: String =
 	schedule_changed.emit()
 	return {"can": true, "reason": "已选择%s出发，预计 %.2f 小时" % [MovementConfig.get_mode_name(mode), float(quote.get("hours", 0.0))], "duration_hours": quote.get("hours", 0.0)}
 
+func get_travel_quote_to_cell(block_id: String, target_cell: Vector2i, mode: String) -> Dictionary:
+	var block := GameManager.get_block(block_id)
+	if block == null or not block.grid_cells.has(target_cell): return {"can": false, "reason": "target cell is outside its block"}
+	var grid := GameManager.get_navigation_grid()
+	if not grid.internal_cells.has(target_cell): return {"can": false, "reason": "target cell is not an internal road"}
+	return MovementConfig.get_grid_travel_quote(grid.shortest_path(GameManager.player_state.current_map_cell, target_cell), mode, GameManager.player_state.owned_vehicles, GameManager.player_state.cash, GameManager.player_state.energy)
+
+
+func get_travel_quote_to_storefront(storefront_id: String, mode: String) -> Dictionary:
+	var grid := GameManager.get_navigation_grid()
+	var entrance: Dictionary = grid.storefront_entrances.get(storefront_id, {})
+	if entrance.is_empty(): return {"can": false, "reason": "storefront has no entrance"}
+	return MovementConfig.get_grid_travel_quote(grid.shortest_path(GameManager.player_state.current_map_cell, entrance.cell), mode, GameManager.player_state.owned_vehicles, GameManager.player_state.cash, GameManager.player_state.energy)
+
+
+func start_travel_to_cell(block_id: String, target_cell: Vector2i, mode: String, storefront_id: String = "") -> Dictionary:
+	if current_action != null and current_action.is_active: return {"can": false, "reason": "an action is already active"}
+	var quote := get_travel_quote_to_storefront(storefront_id, mode) if not storefront_id.is_empty() else get_travel_quote_to_cell(block_id, target_cell, mode)
+	if not bool(quote.get("can", false)): return quote
+	GameManager.player_state.cash -= float(quote.get("cost", 0.0))
+	var context := {"travel_mode": mode, "travel_quote": quote.duplicate(true), "destination_kind": "storefront" if not storefront_id.is_empty() else "cell", "destination_cell": {"x": target_cell.x, "y": target_cell.y}, "storefront_id": storefront_id}
+	_begin_current_action("move_to_map_cell", block_id, [], null, TimeManager.get_current_hour_int(), context)
+	TimeManager.set_speed(TimeManager.Speed.X1)
+	schedule_changed.emit()
+	return {"can": true, "reason": "travel started", "duration_hours": quote.get("hours", 0.0)}
+
+
 func _check_preconditions(
 		action: ActionDefinition,
 		start_hour: int,
@@ -310,7 +337,11 @@ func _check_preconditions(
 		if GameManager.player_state.current_block_id != storefront.block_id:
 			return {"can": false, "reason_code": "player_not_at_target_block", "reason": "请先前往门面所在区块"}
 		var intel := GameManager.get_storefront_intel(target_id)
-		if action.action_effect_type == "visit_storefront" and bool(intel.get("visited", false)):
+		if action.action_effect_type == "visit_storefront" and bool(intel.get("visited", false)) and not bool(intel.get("visited_during_business_hours", false)):
+			var revisit_store := GameManager.get_npc_store_for_storefront(target_id)
+			if revisit_store == null or not revisit_store.is_business_open:
+				return {"can": false, "reason_code": "storefront_not_open", "reason": "请在营业时再次到访以查看店内。"}
+		if action.action_effect_type == "visit_storefront" and bool(intel.get("visited", false)) and bool(intel.get("visited_during_business_hours", false)):
 			return {"can": false, "reason_code": "already_visited", "reason": "这间门面已经到访过"}
 		if action.action_effect_type != "visit_storefront":
 			if not bool(intel.get("visited", false)):
@@ -419,10 +450,14 @@ func remove_action_from_schedule(hour: int) -> bool:
 func stop_current_action() -> void:
 	if current_action == null or not current_action.is_active:
 		return
-	if current_action.action_id == "move_to_block":
-		return
 	current_action.stopped_by_player = true
 	var elapsed_hours: float = (TimeManager.total_game_seconds - current_action.start_game_seconds) / 3600.0
+	if current_action.action_id == "move_to_map_cell" or current_action.action_id == "move_to_block":
+		var arrival_elapsed := _movement_elapsed_to_next_arrival(current_action, elapsed_hours)
+		TimeManager.advance_action_time((arrival_elapsed - elapsed_hours) * 3600.0)
+		if current_action == null or not current_action.is_active:
+			return
+		elapsed_hours = arrival_elapsed
 	if current_action.continuous_mode:
 		_advance_continuous_action_to_elapsed(elapsed_hours)
 		if current_action == null or not current_action.is_active:
@@ -497,11 +532,12 @@ func _begin_current_action(
 		current_action.continuous_mode = true
 		var research_start := start_hour if start_hour >= 0 else TimeManager.get_current_hour_int()
 		current_action.duration_hours = float(maxi(1, action.allowed_hour_range.y - research_start))
+		current_action.context["research_walk_cells"] = _build_research_walk_cells(target_ids, current_action.start_game_seconds)
 		_schedule_next_region_research_discovery_check(TimeManager.total_game_seconds)
 	elif action.action_effect_type == "deep_inspection":
 		current_action.continuous_mode = true
 		current_action.duration_hours = _get_effective_duration_hours(action, [], start_hour, target_id)
-	elif action.action_effect_type == "move_to_block":
+	elif action.action_effect_type == "move_to_block" or action.action_effect_type == "move_to_map_cell":
 		current_action.duration_hours = float(context.get("travel_quote", {}).get("hours", _get_move_to_block_duration_hours(target_id)))
 		current_action.continuous_mode = false
 	else:
@@ -771,8 +807,9 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 
 		if elapsed_hours > 0.0:
 			weighted_effect_mult /= elapsed_hours
-		if action.action_effect_type == "move_to_block":
-			total_cost = float(current_action.context.get("travel_quote", {}).get("energy_cost", 0.0))
+		if action.action_effect_type == "move_to_block" or action.action_effect_type == "move_to_map_cell":
+			var movement_ratio := clampf(elapsed_hours / maxf(current_action.duration_hours, 0.0001), 0.0, 1.0)
+			total_cost = float(current_action.context.get("travel_quote", {}).get("energy_cost", 0.0)) * movement_ratio
 		if action.energy_recovery_per_hour > 0.0:
 			player.apply_energy_delta(total_recovery)
 		else:
@@ -791,13 +828,21 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 						progress_ratio = elapsed_hours / current_action.duration_hours
 					hour_effect_applied.emit(action.id, elapsed_hours, progress_ratio, weighted_effect_mult)
 					if action.action_effect_type == "move_to_block":
-						if current_action.target_id != "" and GameManager.get_block(current_action.target_id) != null:
+						if not current_action.stopped_by_player and current_action.target_id != "" and GameManager.get_block(current_action.target_id) != null:
 							GameManager.player_state.set_current_block(current_action.target_id)
 							var arrived_storefront := GameManager.get_storefront(str(current_action.context.get("storefront_id", "")))
 							if arrived_storefront != null:
 								GameManager.player_state.current_location_kind = "storefront"
 								GameManager.player_state.current_storefront_id = arrived_storefront.id
 								GameManager.player_state.current_map_position = arrived_storefront.map_position
+					elif action.action_effect_type == "move_to_map_cell":
+						var destination_cell := _movement_cell_at_elapsed(current_action, elapsed_hours)
+						GameManager.player_state.set_current_map_cell(destination_cell)
+						var arrived_storefront := GameManager.get_storefront(str(current_action.context.get("storefront_id", ""))) if not current_action.stopped_by_player else null
+						if arrived_storefront != null:
+							GameManager.record_storefront_arrival(arrived_storefront.id)
+						GameManager.player_state.current_location_kind = "storefront" if arrived_storefront != null else ("road" if GameManager.get_block_at_map_cell(destination_cell) == null else "cell")
+						GameManager.player_state.current_storefront_id = arrived_storefront.id if arrived_storefront != null else ""
 					elif action.action_effect_type == "region_research":
 						var block_effect_result := _apply_region_research_effect(current_action.target_ids, elapsed_hours)
 						if not block_effect_result.is_empty() and not block_effect_result.success:
@@ -858,6 +903,66 @@ func _finalize_current_action(elapsed_hours: float) -> void:
 	## 所有行动的结束都是时间流逝的明确停止点，包括玩家手动结束。
 	TimeManager.set_speed(TimeManager.Speed.PAUSED)
 	schedule_changed.emit()
+
+
+func _movement_cell_at_elapsed(action_state: CurrentActionState, elapsed_hours: float) -> Vector2i:
+	var route: Array = action_state.context.get("travel_quote", {}).get("route_cells", [])
+	if route.is_empty():
+		var raw_destination: Dictionary = action_state.context.get("destination_cell", {})
+		return Vector2i(int(raw_destination.get("x", -1)), int(raw_destination.get("y", -1)))
+	var ratio := 1.0 if action_state.duration_hours <= 0.0 else clampf(elapsed_hours / action_state.duration_hours, 0.0, 1.0)
+	var index := floori(ratio * float(maxi(0, route.size() - 1)) + 0.0001)
+	var raw_cell: Dictionary = route[clampi(index, 0, route.size() - 1)]
+	return Vector2i(int(raw_cell.get("x", -1)), int(raw_cell.get("y", -1)))
+
+
+func _movement_elapsed_to_next_arrival(action_state: CurrentActionState, elapsed_hours: float) -> float:
+	var quote: Dictionary = action_state.context.get("travel_quote", {})
+	var route_size := (quote.get("route_cells", []) as Array).size()
+	if route_size <= 1:
+		route_size = (quote.get("route_node_ids", []) as Array).size()
+	if route_size <= 1 or action_state.duration_hours <= 0.0:
+		return clampf(elapsed_hours, 0.0, action_state.duration_hours)
+	var edge_count := route_size - 1
+	var edge_progress := clampf(elapsed_hours / action_state.duration_hours * edge_count, 0.0, float(edge_count))
+	var arrived_edges := ceili(edge_progress - 0.0001)
+	return float(clampi(arrived_edges, 0, edge_count)) / float(edge_count) * action_state.duration_hours
+
+
+func _build_research_walk_cells(block_ids: Array[String], start_seconds: float) -> Array[Dictionary]:
+	var candidates: Dictionary = {}
+	var road_cells := MapGridGeometry.build_road_cells(GameManager.road_graph)
+	for block_id in block_ids:
+		var block := GameManager.get_block(block_id)
+		if block == null:
+			continue
+		for cell in block.internal_road_cells:
+			candidates[cell] = true
+			for direction in MapNavigationGrid.CARDINALS:
+				var outside := cell + direction
+				if road_cells.has(outside):
+					candidates[outside] = true
+	if candidates.is_empty():
+		return []
+	var cells: Array[Vector2i] = []
+	for raw_cell in candidates.keys():
+		cells.append(raw_cell)
+	cells.sort_custom(func(a: Vector2i, b: Vector2i): return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(start_seconds) + TimeManager.current_day * 997 + hash("|".join(block_ids))
+	var current: Vector2i = cells[rng.randi_range(0, cells.size() - 1)]
+	var route: Array[Dictionary] = [{"x": current.x, "y": current.y}]
+	for _step in range(24):
+		var next_cells: Array[Vector2i] = []
+		for direction in MapNavigationGrid.CARDINALS:
+			if candidates.has(current + direction):
+				next_cells.append(current + direction)
+		if next_cells.is_empty() or rng.randf() < 0.28:
+			route.append({"x": current.x, "y": current.y})
+			continue
+		current = next_cells[rng.randi_range(0, next_cells.size() - 1)]
+		route.append({"x": current.x, "y": current.y})
+	return route
 
 func _apply_understanding_effect(effect_type: String, target_id: String, elapsed_hours: float) -> Dictionary:
 	match effect_type:

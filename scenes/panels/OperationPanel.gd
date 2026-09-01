@@ -25,6 +25,9 @@ signal store_opened
 @onready var root_box: VBoxContainer = $VBox
 var decision_box: VBoxContainer
 var interrupt_box: VBoxContainer
+var _feed_entries: Array[String] = []
+var _feed_labels: Array[Label] = []
+var _feed_dirty := false
 
 const CUSTOMER_FEED_MAX_LINES: int = 20
 
@@ -37,6 +40,12 @@ func _ready() -> void:
 	decision_box.name = "DecisionBox"
 	root_box.add_child(decision_box)
 	root_box.move_child(decision_box, customer_feed.get_parent().get_index())
+	for index in range(CUSTOMER_FEED_MAX_LINES):
+		var feed_label := Label.new()
+		feed_label.hide()
+		customer_feed.add_child(feed_label)
+		_feed_labels.append(feed_label)
+	visibility_changed.connect(_on_visibility_changed)
 	EventManager.decision_raised.connect(func(_event: ActiveGameEvent) -> void: _refresh_decisions())
 	EventManager.interrupt_raised.connect(func(_event: ActiveGameEvent) -> void: _refresh_interrupts())
 	EventManager.event_finalized.connect(func(_event: ActiveGameEvent) -> void:
@@ -60,6 +69,7 @@ func _ready() -> void:
 	TimeManager.clock_updated.connect(_on_clock_updated)
 	TimeManager.customer_event.connect(_on_customer_event)
 	EventManager.notice_raised.connect(_on_event_notice_raised)
+	GameManager.active_store_changed.connect(_on_active_store_changed)
 	refresh_display()
 
 func _refresh_decisions() -> void:
@@ -142,25 +152,8 @@ func _on_close_business_pressed() -> void:
 	refresh_display()
 
 func _on_customer_event(product_name: String, purchased: bool, reason: String, event_game_seconds: float) -> void:
-	var event_line := Label.new()
 	var time_text := _format_event_time(event_game_seconds)
-	event_line.text = "%s  %s" % [time_text, (product_name + "：一位顾客带着它离开了柜台") if purchased else (product_name + "：" + reason)]
-	customer_feed.add_child(event_line)
-	while customer_feed.get_child_count() > CUSTOMER_FEED_MAX_LINES:
-		var oldest_event := customer_feed.get_child(0)
-		customer_feed.remove_child(oldest_event)
-		oldest_event.queue_free()
-	return
-	var line := Label.new()
-	if purchased:
-		line.text = "🟢 %s：成交一单" % product_name
-	else:
-		line.text = "⚪ %s：%s" % [product_name, reason]
-	customer_feed.add_child(line)
-	while customer_feed.get_child_count() > CUSTOMER_FEED_MAX_LINES:
-		var oldest := customer_feed.get_child(0)
-		customer_feed.remove_child(oldest)
-		oldest.queue_free()
+	_append_feed_line("%s  %s" % [time_text, (product_name + "：一位顾客带着它离开了柜台") if purchased else (product_name + "：" + reason)])
 
 func _on_slot_completed(_day: int, _slot: String, results: Array) -> void:
 	if results.is_empty() and GameManager.last_settlement_error != "":
@@ -175,6 +168,8 @@ func _on_day_completed(day: int, summary: Dictionary) -> void:
 
 
 func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
+	if not is_visible_in_tree():
+		return
 	_refresh_live_metrics(GameManager.store_state)
 
 func refresh_display() -> void:
@@ -305,13 +300,40 @@ func _format_live_seconds(value: float) -> String:
 
 
 func _append_business_log(message: String) -> void:
-	var line := Label.new()
-	line.text = _format_event_time(TimeManager.total_game_seconds) + "  " + message
-	customer_feed.add_child(line)
-	while customer_feed.get_child_count() > CUSTOMER_FEED_MAX_LINES:
-		var oldest := customer_feed.get_child(0)
-		customer_feed.remove_child(oldest)
-		oldest.queue_free()
+	_append_feed_line(_format_event_time(TimeManager.total_game_seconds) + "  " + message)
+
+
+func _append_feed_line(text: String) -> void:
+	_feed_entries.append(text)
+	if _feed_entries.size() > CUSTOMER_FEED_MAX_LINES:
+		_feed_entries.pop_front()
+	_feed_dirty = true
+	if is_visible_in_tree():
+		_refresh_feed_labels()
+
+
+func _refresh_feed_labels() -> void:
+	for index in range(_feed_labels.size()):
+		var has_entry := index < _feed_entries.size()
+		_feed_labels[index].visible = has_entry
+		if has_entry:
+			_feed_labels[index].text = _feed_entries[index]
+	_feed_dirty = false
+
+
+func _on_visibility_changed() -> void:
+	if not is_visible_in_tree():
+		return
+	if _feed_dirty:
+		_refresh_feed_labels()
+	refresh_display()
+
+
+func _on_active_store_changed(_store_id: String) -> void:
+	_feed_entries.clear()
+	_feed_dirty = true
+	if is_visible_in_tree():
+		_refresh_feed_labels()
 
 
 func _format_event_time(game_seconds: float) -> String:

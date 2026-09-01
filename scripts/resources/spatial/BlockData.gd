@@ -12,6 +12,8 @@ extends Resource
 ## 地图边界：调查区相交判定用。
 @export var map_bounds: Rect2 = Rect2()
 @export var grid_cells: Array[Vector2i] = []
+## One-cell pedestrian lanes inside this block. They never carry road-class data.
+@export var internal_road_cells: Array[Vector2i] = []
 @export var grid_cell_size: float = 3.5
 ## 区块中心点：门店距离计算、调查区距离权重计算的锚点。
 @export var center_position: Vector2 = Vector2.ZERO

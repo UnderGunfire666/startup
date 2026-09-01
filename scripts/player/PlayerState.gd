@@ -54,6 +54,8 @@ var focused_city_region_id: String = ""
 var current_block_id: String = ""
 var home_id: String = ""
 var current_map_position: Vector2 = Vector2.ZERO
+## Authoritative city-map location. Persisted positions always resolve to a block cell.
+var current_map_cell: Vector2i = Vector2i(-1, -1)
 var current_location_kind: String = "home"
 var current_storefront_id: String = ""
 var owned_vehicles: Array[String] = []
@@ -88,6 +90,7 @@ func reset_to_defaults() -> void:
 	current_block_id = ""
 	home_id = ""
 	current_map_position = Vector2.ZERO
+	current_map_cell = Vector2i(-1, -1)
 	current_location_kind = "home"
 	current_storefront_id = ""
 	owned_vehicles.clear()
@@ -224,7 +227,21 @@ func set_current_block(block_id: String) -> bool:
 	current_location_kind = "block"
 	current_storefront_id = ""
 	if block != null:
-		current_map_position = block.center_position
+		var cell := Vector2i(floori(block.center_position.x / MapGridGeometry.CELL_SIZE), floori(block.center_position.y / MapGridGeometry.CELL_SIZE))
+		set_current_map_cell(cell)
+	return true
+
+
+func set_current_map_cell(cell: Vector2i) -> bool:
+	var block := GameManager.get_block_at_map_cell(cell)
+	if block == null and not GameManager.get_navigation_grid().walkable_cells.has(cell):
+		return false
+	current_map_cell = cell
+	current_block_id = block.id if block != null else ""
+	current_map_position = (Vector2(cell) + Vector2(0.5, 0.5)) * MapGridGeometry.CELL_SIZE
+	if block == null:
+		current_location_kind = "road"
+		current_storefront_id = ""
 	return true
 
 
@@ -233,7 +250,14 @@ func set_home(home: Dictionary) -> bool:
 		return false
 	home_id = str(home.get("id", ""))
 	current_block_id = str(home.get("block_id", ""))
-	current_map_position = home.get("map_position", Vector2.ZERO)
+	var home_cells: Array = home.get("grid_cells", [])
+	var entrance: Vector2i = home.get("entrance_cell", Vector2i(-1, -1))
+	current_map_cell = home_cells[0] if not home_cells.is_empty() else Vector2i(-1, -1)
+	for cell in home_cells:
+		if abs(cell.x - entrance.x) + abs(cell.y - entrance.y) == 1:
+			current_map_cell = cell
+			break
+	current_map_position = (Vector2(current_map_cell) + Vector2(0.5, 0.5)) * MapGridGeometry.CELL_SIZE
 	current_location_kind = "home"
 	current_storefront_id = ""
 	return true
@@ -371,6 +395,7 @@ func to_save_dict() -> Dictionary:
 		"current_block_id": current_block_id,
 		"home_id": home_id,
 		"current_map_position": {"x": current_map_position.x, "y": current_map_position.y},
+		"current_map_cell": {"x": current_map_cell.x, "y": current_map_cell.y},
 		"current_location_kind": current_location_kind,
 		"current_storefront_id": current_storefront_id,
 		"owned_vehicles": owned_vehicles,
@@ -431,6 +456,8 @@ static func from_save_dict(data: Dictionary) -> PlayerState:
 	p.home_id = str(data.get("home_id", ""))
 	var map_raw: Dictionary = data.get("current_map_position", {})
 	p.current_map_position = Vector2(float(map_raw.get("x", 0.0)), float(map_raw.get("y", 0.0)))
+	var cell_raw: Dictionary = data.get("current_map_cell", {})
+	p.current_map_cell = Vector2i(int(cell_raw.get("x", floori(p.current_map_position.x / MapGridGeometry.CELL_SIZE))), int(cell_raw.get("y", floori(p.current_map_position.y / MapGridGeometry.CELL_SIZE))))
 	p.current_location_kind = str(data.get("current_location_kind", "home"))
 	p.current_storefront_id = str(data.get("current_storefront_id", ""))
 	for vehicle_id in data.get("owned_vehicles", []):
@@ -458,7 +485,7 @@ func _migrate_legacy_storefront_intel() -> void:
 		return
 	for storefront_id in storefront_diligence.keys():
 		if str(storefront_diligence.get(storefront_id, "not_viewed")) != "not_viewed":
-			storefront_intel[str(storefront_id)] = {"visited": true, "menu_reviewed": false, "order_records": [], "traffic_observations": []}
+			storefront_intel[str(storefront_id)] = {"visited": true, "visited_during_business_hours": false, "menu_reviewed": false, "order_records": [], "traffic_observations": []}
 
 
 func _migrate_legacy_research_progress() -> void:

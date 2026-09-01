@@ -31,6 +31,7 @@ const FACADE_TYPE_NAMES := {
 var current_storefront_id := ""
 var current_store: Store = null
 var is_read_only := false
+var is_facade_only := false
 var selected_equipment_instance_id := ""
 var selected_placement_instance_id := ""
 var selected_facade_type := ""
@@ -72,9 +73,10 @@ func _ready() -> void:
 	facade_3d_canvas.placement_drop_requested.connect(_on_facade_drop_requested)
 
 
-func open_for_storefront(storefront_id: String, store: Store = null, read_only: bool = false) -> void:
-	current_store = store if store != null else GameManager.store_state
+func open_for_storefront(storefront_id: String, store: Store = null, read_only: bool = false, facade_only: bool = false) -> void:
+	current_store = store if store != null else (Store.new() if facade_only else GameManager.store_state)
 	is_read_only = read_only
+	is_facade_only = facade_only
 	var storefront := GameManager.get_storefront(storefront_id)
 	if current_store == null or storefront == null:
 		return
@@ -82,15 +84,23 @@ func open_for_storefront(storefront_id: String, store: Store = null, read_only: 
 	layout_geometry = StorefrontLayoutGeometry.from_storefront(storefront)
 	grid_size = layout_geometry.grid_size
 	facade_grid_size = layout_geometry.get_facade_grid_size()
-	if not is_read_only:
+	if not is_read_only and not is_facade_only:
 		_migrate_legacy_layout_grid(storefront)
 		_initialize_default_facade_entrance(storefront)
+	if is_facade_only:
+		var entrance := StoreFacadePlacement.new()
+		entrance.type = "entrance"
+		entrance.cell = layout_geometry.get_default_entrance_cell(storefront.default_entrance_offset)
+		current_store.facade_layout.clear()
+		current_store.facade_layout.append(entrance)
 	title_label.text = "%s · %s" % [storefront.name, "店铺布局预览" if is_read_only else "店铺编辑"]
 	selected_equipment_instance_id = ""
 	selected_placement_instance_id = ""
 	selected_facade_type = ""
 	selected_facade_placement = null
-	layout_tabs.current_tab = 0
+	for tab in range(layout_tabs.get_tab_count()):
+		layout_tabs.set_tab_hidden(tab, is_facade_only and tab != 2)
+	layout_tabs.current_tab = 2 if is_facade_only else 0
 	_refresh_equipment_list()
 	_refresh_canvas()
 	_refresh_facade_components()

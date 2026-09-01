@@ -80,6 +80,9 @@ static func get_blocks() -> Array[BlockData]:
 		for raw_cell in item.get("grid_cells", []):
 			if raw_cell is Dictionary:
 				block.grid_cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
+		for raw_cell in item.get("internal_road_cells", []):
+			if raw_cell is Dictionary:
+				block.internal_road_cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
 		if not block.grid_cells.is_empty():
 			block.rebuild_bounds_from_grid_cells()
 		block.road_entry_node_id = str(item.get("road_entry_node_id", ""))
@@ -138,8 +141,14 @@ static func get_blocks() -> Array[BlockData]:
 static func get_player_homes() -> Array:
 	var result: Array = []
 	for entry in _load_json_array(DATA_DIR + "player_homes.json"):
-		var home: Dictionary = {"id": str(entry.get("id", "")), "name": str(entry.get("name", "")), "block_id": str(entry.get("block_id", "")), "road_entry_node_id": str(entry.get("road_entry_node_id", "")), "map_position": _dict_to_vector2(entry.get("map_position", {}))}
-		if not str(home.get("id", "")).is_empty() and not str(home.get("block_id", "")).is_empty() and not str(home.get("road_entry_node_id", "")).is_empty():
+		var cells: Array[Vector2i] = []
+		for raw_cell in entry.get("grid_cells", []):
+			if raw_cell is Dictionary:
+				cells.append(Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0))))
+		var entrance_raw: Dictionary = entry.get("entrance_cell", {})
+		var entrance := Vector2i(int(entrance_raw.get("x", -1)), int(entrance_raw.get("y", -1)))
+		var home: Dictionary = {"id": str(entry.get("id", "")), "name": str(entry.get("name", "")), "block_id": str(entry.get("block_id", "")), "grid_cells": cells, "entrance_cell": entrance, "map_position": _grid_cells_center(cells)}
+		if not str(home.get("id", "")).is_empty() and not str(home.get("block_id", "")).is_empty() and not cells.is_empty() and entrance != Vector2i(-1, -1):
 			result.append(home)
 	return result
 
@@ -351,6 +360,15 @@ static func _dict_to_vector2(raw: Dictionary) -> Vector2:
 		float(raw.get("x", 0.0)),
 		float(raw.get("y", 0.0))
 	)
+
+
+static func _grid_cells_center(cells: Array[Vector2i]) -> Vector2:
+	if cells.is_empty():
+		return Vector2.ZERO
+	var total := Vector2.ZERO
+	for cell in cells:
+		total += (Vector2(cell) + Vector2(0.5, 0.5)) * MapGridGeometry.CELL_SIZE
+	return total / float(cells.size())
 
 static func _to_string_array(raw: Array) -> Array[String]:
 	var result: Array[String] = []

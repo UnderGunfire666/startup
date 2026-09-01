@@ -12,6 +12,7 @@ extends PanelContainer
 	$MarginContainer/RootVBox/HourScroll/HourList
 
 var _last_displayed_hour: int = -1
+var _schedule_ui_dirty := false
 
 const EXCLUDED_FROM_LIST: Array[String] = [
 	"region_research",
@@ -19,10 +20,24 @@ const EXCLUDED_FROM_LIST: Array[String] = [
 
 func _ready() -> void:
 	TimeManager.clock_updated.connect(_on_clock_updated)
-	ScheduleManager.schedule_changed.connect(_refresh_all)
+	ScheduleManager.schedule_changed.connect(_on_schedule_state_changed)
+	visibility_changed.connect(_on_visibility_changed)
 
 	_build_start_hour_options()
 	_refresh_all()
+
+
+func _on_schedule_state_changed() -> void:
+	_schedule_ui_dirty = true
+	if is_visible_in_tree():
+		_refresh_all()
+		_schedule_ui_dirty = false
+
+
+func _on_visibility_changed() -> void:
+	if is_visible_in_tree() and _schedule_ui_dirty:
+		_refresh_all()
+		_schedule_ui_dirty = false
 
 
 func refresh() -> void:
@@ -30,6 +45,8 @@ func refresh() -> void:
 
 
 func _on_clock_updated(hour: int, _m: int, _s: int, _l: String) -> void:
+	if not is_visible_in_tree():
+		return
 	_refresh_day_label()
 	if hour != _last_displayed_hour:
 		_last_displayed_hour = hour

@@ -4,18 +4,14 @@ extends RefCounted
 var road_graph: RoadGraph = RoadGraph.new()
 var blocks: Array[BlockData] = []
 var storefronts: Array[StorefrontData] = []
+var player_homes: Array[Dictionary] = []
 var _block_move_snapshots: Dictionary = {}
 const GRID_CELL_SIZE: float = 3.5
 const STOREFRONT_AREA_PER_GRID_CELL: float = GRID_CELL_SIZE * GRID_CELL_SIZE
 const STOREFRONT_MAX_USABLE_AREA_RATIO: float = 0.85
 const STOREFRONT_AWARENESS_BASE_CELLS: float = 10.0
 const STOREFRONT_AWARENESS_PER_EXTRA_CELL: float = 2.0
-const ROAD_CLASS_DATA := {
-	"alley": {"width": 1, "accessibility": 0.55, "exposure": 0.45},
-	"local": {"width": 2, "accessibility": 0.75, "exposure": 0.65},
-	"secondary": {"width": 4, "accessibility": 0.9, "exposure": 0.9},
-	"arterial": {"width": 6, "accessibility": 1.0, "exposure": 1.15},
-}
+const ROAD_CLASS_DATA := MapGridGeometry.ROAD_CLASS_DATA
 const ROAD_CLASS_LABELS := {"alley": "小巷", "local": "支路", "secondary": "次干路", "arterial": "主干路"}
 var road_cells: Dictionary = {}
 
@@ -50,6 +46,8 @@ static func from_static_data() -> MapAuthoringDocument:
 		document.blocks.append(block)
 	for source_storefront in GameData.get_storefronts():
 		document.storefronts.append(source_storefront.duplicate() as StorefrontData)
+	for source_home in GameData.get_player_homes():
+		document.player_homes.append(source_home.duplicate(true))
 	document._ensure_storefront_grid_cells()
 	document._ensure_storefront_block_assignments()
 	return document
@@ -99,6 +97,71 @@ func remove_storefront(storefront_id: String) -> bool:
 			storefronts.remove_at(index)
 			return true
 	return false
+
+
+func create_player_home(home_id: String, home_name: String, cells: Array[Vector2i]) -> Dictionary:
+	if home_id.is_empty() or home_name.strip_edges().is_empty() or cells.is_empty() or _get_player_home(home_id) != null or not _cells_are_connected(cells):
+		return {}
+	var block := _find_block_containing_cells(cells, "")
+	if block == null or not _home_cells_valid(cells, home_id):
+		return {}
+	var home := {"id": home_id, "name": home_name.strip_edges(), "block_id": block.id, "grid_cells": cells.duplicate(), "entrance_cell": Vector2i(-1, -1), "map_position": _grid_cells_center(cells)}
+	if not _refresh_home_entrance(home):
+		return {}
+	player_homes.append(home)
+	return home
+
+
+func remove_player_home(home_id: String) -> bool:
+	for index in range(player_homes.size() - 1, -1, -1):
+		if str(player_homes[index].get("id", "")) == home_id:
+			player_homes.remove_at(index)
+			return true
+	return false
+
+
+func add_cells_to_player_home(home_id: String, cells: Array[Vector2i]) -> bool:
+	var home := _get_player_home(home_id)
+	if home.is_empty() or cells.is_empty(): return false
+	var existing_cells: Array[Vector2i] = home.get("grid_cells", [])
+	var combined: Array[Vector2i] = existing_cells.duplicate()
+	for cell in cells:
+		if not combined.has(cell): combined.append(cell)
+	if combined.size() == existing_cells.size() or not _cells_are_connected(combined) or not _home_cells_valid(combined, home_id): return false
+	var block := _find_block_containing_cells(combined, "")
+	if block == null: return false
+	home["grid_cells"] = combined; home["block_id"] = block.id; home["map_position"] = _grid_cells_center(combined)
+	return _refresh_home_entrance(home)
+
+
+func set_internal_road_cells(block_id: String, cells: Array[Vector2i]) -> bool:
+	var block := _get_block(block_id)
+	if block == null or cells.is_empty() or not _cells_are_connected(cells): return false
+	for cell in cells:
+		if not block.grid_cells.has(cell) or _cell_belongs_to_storefront(cell, "") or _cell_belongs_to_home(cell, ""):
+			return false
+	var previous := block.internal_road_cells
+	block.internal_road_cells = cells.duplicate()
+	for home in player_homes:
+		if str(home.get("block_id", "")) == block_id and not _refresh_home_entrance(home):
+			block.internal_road_cells = previous
+			return false
+	if not MapDataValidator.validate(road_graph, blocks, storefronts).is_empty():
+		block.internal_road_cells = previous
+		for home in player_homes:
+			if str(home.get("block_id", "")) == block_id: _refresh_home_entrance(home)
+		return false
+	return true
+
+
+func toggle_internal_road_cells(block_id: String, cells: Array[Vector2i]) -> bool:
+	var block := _get_block(block_id)
+	if block == null or cells.is_empty(): return false
+	var updated: Array[Vector2i] = block.internal_road_cells.duplicate()
+	for cell in cells:
+		if updated.has(cell): updated.erase(cell)
+		else: updated.append(cell)
+	return set_internal_road_cells(block_id, updated)
 
 
 func move_road_node(node_id: String, position: Vector2) -> bool:
@@ -336,6 +399,7 @@ func create_storefront_from_cells(storefront_id: String, storefront_name: String
 	storefront.grid_cells = cells.duplicate()
 	storefront.map_position = _grid_cells_center(cells)
 	storefront.awareness_radius = get_default_storefront_awareness_radius(cells.size())
+	storefront.competition_radius = storefront.awareness_radius
 	_set_storefront_block(storefront, block)
 	storefronts.append(storefront)
 	assign_storefront_nearest_road(storefront.id)
@@ -372,10 +436,10 @@ func add_cells_to_storefront(storefront_id: String, cells: Array[Vector2i]) -> b
 	return true
 
 
-func update_storefront_properties(storefront_id: String, storefront_name: String, monthly_rent_wan: float, area: float, hourly_capacity: int, notes: String, awareness_radius: float = -1.0, awareness_exposure_modifier: float = -1.0, footprint_area: float = -1.0) -> bool:
+func update_storefront_properties(storefront_id: String, storefront_name: String, monthly_rent_wan: float, area: float, hourly_capacity: int, notes: String, awareness_radius: float = -1.0, awareness_exposure_modifier: float = -1.0, footprint_area: float = -1.0, competition_radius: float = -1.0) -> bool:
 	var storefront := _get_storefront(storefront_id)
 	var resolved_footprint: float = storefront.footprint_area if storefront != null and footprint_area < 0.0 else footprint_area
-	if storefront == null or storefront_name.strip_edges().is_empty() or monthly_rent_wan < 0.0 or area <= 0.0 or hourly_capacity <= 0 or awareness_radius < -1.0 or awareness_exposure_modifier < -1.0 or resolved_footprint < STOREFRONT_AREA_PER_GRID_CELL or not is_equal_approx(resolved_footprint / STOREFRONT_AREA_PER_GRID_CELL, roundf(resolved_footprint / STOREFRONT_AREA_PER_GRID_CELL)) or area > resolved_footprint * STOREFRONT_MAX_USABLE_AREA_RATIO:
+	if storefront == null or storefront_name.strip_edges().is_empty() or monthly_rent_wan < 0.0 or area <= 0.0 or hourly_capacity <= 0 or awareness_radius < -1.0 or awareness_exposure_modifier < -1.0 or competition_radius < -1.0 or resolved_footprint < STOREFRONT_AREA_PER_GRID_CELL or not is_equal_approx(resolved_footprint / STOREFRONT_AREA_PER_GRID_CELL, roundf(resolved_footprint / STOREFRONT_AREA_PER_GRID_CELL)) or area > resolved_footprint * STOREFRONT_MAX_USABLE_AREA_RATIO:
 		return false
 	storefront.name = storefront_name.strip_edges()
 	storefront.monthly_rent_wan = monthly_rent_wan
@@ -388,6 +452,8 @@ func update_storefront_properties(storefront_id: String, storefront_name: String
 		storefront.awareness_radius_manual_override = not is_equal_approx(awareness_radius, get_default_storefront_awareness_radius(storefront.grid_cells.size()))
 	if awareness_exposure_modifier >= 0.0:
 		storefront.awareness_exposure_modifier = awareness_exposure_modifier
+	if competition_radius >= 0.0:
+		storefront.competition_radius = competition_radius
 	return true
 
 
@@ -767,6 +833,46 @@ func _grid_cells_center(cells: Array[Vector2i]) -> Vector2:
 	return Rect2(Vector2(min_cell) * GRID_CELL_SIZE, Vector2(max_cell - min_cell + Vector2i.ONE) * GRID_CELL_SIZE).get_center()
 
 
+func _get_player_home(home_id: String) -> Dictionary:
+	for home in player_homes:
+		if str(home.get("id", "")) == home_id:
+			return home
+	return {}
+
+
+func _cell_belongs_to_storefront(cell: Vector2i, ignored_id: String) -> bool:
+	for storefront in storefronts:
+		if storefront.id != ignored_id and storefront.grid_cells.has(cell): return true
+	return false
+
+
+func _cell_belongs_to_home(cell: Vector2i, ignored_id: String) -> bool:
+	for home in player_homes:
+		if str(home.get("id", "")) != ignored_id and (home.get("grid_cells", []) as Array).has(cell): return true
+	return false
+
+
+func _home_cells_valid(cells: Array[Vector2i], ignored_id: String) -> bool:
+	for cell in cells:
+		if road_cells.has(cell) or _cell_belongs_to_storefront(cell, "") or _cell_belongs_to_home(cell, ignored_id): return false
+	return true
+
+
+func _refresh_home_entrance(home: Dictionary) -> bool:
+	var block := _get_block(str(home.get("block_id", "")))
+	if block == null: return false
+	var candidates: Array[Vector2i] = []
+	for road_cell in block.internal_road_cells:
+		for home_cell in home.get("grid_cells", []):
+			if absi(road_cell.x - home_cell.x) + absi(road_cell.y - home_cell.y) == 1:
+				candidates.append(road_cell)
+				break
+	if candidates.is_empty(): return false
+	candidates.sort_custom(func(a: Vector2i, b: Vector2i): return a.y < b.y or (a.y == b.y and a.x < b.x))
+	home["entrance_cell"] = candidates[0]
+	return true
+
+
 func validate() -> Array[String]:
 	_ensure_storefront_grid_cells()
 	_ensure_storefront_block_assignments()
@@ -793,6 +899,10 @@ func validate() -> Array[String]:
 			errors.append("storefront %s overlaps a road or another storefront" % storefront.id)
 		elif _find_block_containing_cells(storefront.grid_cells, storefront.city_region_id) == null:
 			errors.append("storefront %s is not fully inside one block" % storefront.id)
+	for home in player_homes:
+		var cells: Array[Vector2i] = home.get("grid_cells", [])
+		if cells.is_empty() or not _cells_are_connected(cells) or not _home_cells_valid(cells, str(home.get("id", ""))) or _find_block_containing_cells(cells, "") == null or not _refresh_home_entrance(home):
+			errors.append("home %s has invalid occupied cells or entrance" % str(home.get("id", "")))
 	return errors
 
 
@@ -806,7 +916,7 @@ func export_roads_data() -> Dictionary:
 func export_map_data() -> Dictionary:
 	var errors := validate()
 	if not errors.is_empty():
-		return {"success": false, "errors": errors, "roads": [], "blocks": [], "storefronts": []}
+		return {"success": false, "errors": errors, "roads": [], "blocks": [], "storefronts": [], "player_homes": []}
 	var serialized_blocks: Array[Dictionary] = []
 	for block in blocks:
 		serialized_blocks.append({
@@ -816,6 +926,7 @@ func export_map_data() -> Dictionary:
 			"center_position": {"x": block.center_position.x, "y": block.center_position.y},
 			"grid_cell_size": block.grid_cell_size,
 			"grid_cells": _serialize_grid_cells(block.grid_cells),
+			"internal_road_cells": _serialize_grid_cells(block.internal_road_cells),
 			"block_type": block.block_type, "tier": block.tier, "area": block.area,
 			"development_factor": block.development_factor, "accessibility": block.accessibility,
 			"active_time_profile": block.active_time_profile.duplicate(true),
@@ -841,6 +952,7 @@ func export_map_data() -> Dictionary:
 			"accessibility_modifier": storefront.accessibility_modifier,
 			"awareness_radius": storefront.awareness_radius,
 			"awareness_radius_manual_override": storefront.awareness_radius_manual_override,
+			"competition_radius": storefront.competition_radius,
 			"awareness_exposure_modifier": storefront.awareness_exposure_modifier,
 			"monthly_rent_wan": storefront.monthly_rent_wan, "area": storefront.area, "footprint_area": storefront.footprint_area,
 			"decoration_level": storefront.decoration_level, "storefront_flow": storefront.storefront_flow,
@@ -850,9 +962,13 @@ func export_map_data() -> Dictionary:
 			"is_occupied": storefront.is_occupied,
 			"occupant_name": storefront.occupant_name,
 		})
+	var serialized_homes: Array[Dictionary] = []
+	for home in player_homes:
+		var entrance: Vector2i = home.get("entrance_cell", Vector2i(-1, -1))
+		serialized_homes.append({"id": str(home.get("id", "")), "name": str(home.get("name", "")), "block_id": str(home.get("block_id", "")), "grid_cells": _serialize_grid_cells(home.get("grid_cells", [])), "entrance_cell": {"x": entrance.x, "y": entrance.y}})
 	return {
 		"success": true, "errors": [], "roads": _serialize_roads(),
-		"blocks": serialized_blocks, "storefronts": serialized_storefronts,
+		"blocks": serialized_blocks, "storefronts": serialized_storefronts, "player_homes": serialized_homes,
 	}
 
 
@@ -866,6 +982,7 @@ func export_json_files() -> Dictionary:
 			"roads.json": JSON.stringify(exported.get("roads", []), "\t"),
 			"blocks.json": JSON.stringify(exported.get("blocks", []), "\t"),
 			"storefronts.json": JSON.stringify(exported.get("storefronts", []), "\t"),
+			"player_homes.json": JSON.stringify(exported.get("player_homes", []), "\t"),
 		},
 	}
 
@@ -890,12 +1007,17 @@ static func from_exported_map_data(data: Dictionary) -> Dictionary:
 			continue
 		var cells := document._deserialize_grid_cells(entry.get("grid_cells", []))
 		var block := BlockData.new()
-		block.id = str(entry.get("id", "")); block.name = str(entry.get("name", "")); block.city_region_id = str(entry.get("city_region_id", "")); block.road_entry_node_id = str(entry.get("road_entry_node_id", "")); block.block_type = str(entry.get("block_type", "residential")); block.tier = int(entry.get("tier", 1)); block.grid_cell_size = float(entry.get("grid_cell_size", GRID_CELL_SIZE)); block.grid_cells = cells; block.area = float(entry.get("area", cells.size() * GRID_CELL_SIZE * GRID_CELL_SIZE)); block.rebuild_bounds_from_grid_cells(); document.blocks.append(block)
+		block.id = str(entry.get("id", "")); block.name = str(entry.get("name", "")); block.city_region_id = str(entry.get("city_region_id", "")); block.road_entry_node_id = str(entry.get("road_entry_node_id", "")); block.block_type = str(entry.get("block_type", "residential")); block.tier = int(entry.get("tier", 1)); block.grid_cell_size = float(entry.get("grid_cell_size", GRID_CELL_SIZE)); block.grid_cells = cells; block.internal_road_cells = document._deserialize_grid_cells(entry.get("internal_road_cells", [])); block.area = float(entry.get("area", cells.size() * GRID_CELL_SIZE * GRID_CELL_SIZE)); block.rebuild_bounds_from_grid_cells(); document.blocks.append(block)
 	for entry in data.get("storefronts", []):
 		if not entry is Dictionary:
 			continue
 		var storefront := StorefrontData.new()
-		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.frontage_side = str(entry.get("frontage_side", "south")); storefront.default_entrance_offset = int(entry.get("default_entrance_offset", -1)); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.is_occupied = bool(entry.get("is_occupied", false)); storefront.occupant_name = str(entry.get("occupant_name", "")); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.footprint_area = float(entry.get("footprint_area", float(maxi(1, storefront.grid_cells.size())) * STOREFRONT_AREA_PER_GRID_CELL)); storefront.area = minf(float(entry.get("area", storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)), storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO); storefront.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false)); storefront.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", get_default_storefront_awareness_radius(storefront.grid_cells.size())))) if storefront.awareness_radius_manual_override else get_default_storefront_awareness_radius(storefront.grid_cells.size()); storefront.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0))); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
+		storefront.id = str(entry.get("id", "")); storefront.name = str(entry.get("name", "")); storefront.city_region_id = str(entry.get("city_region_id", "")); storefront.region_id = str(entry.get("region_id", "")); storefront.road_segment_id = str(entry.get("road_segment_id", "")); storefront.frontage_side = str(entry.get("frontage_side", "south")); storefront.default_entrance_offset = int(entry.get("default_entrance_offset", -1)); storefront.block_id = str(entry.get("block_id", "")); storefront.monthly_rent_wan = float(entry.get("monthly_rent_wan", 1.0)); storefront.is_occupied = bool(entry.get("is_occupied", false)); storefront.occupant_name = str(entry.get("occupant_name", "")); storefront.grid_cells = document._deserialize_grid_cells(entry.get("grid_cells", [])); storefront.footprint_area = float(entry.get("footprint_area", float(maxi(1, storefront.grid_cells.size())) * STOREFRONT_AREA_PER_GRID_CELL)); storefront.area = minf(float(entry.get("area", storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO)), storefront.footprint_area * STOREFRONT_MAX_USABLE_AREA_RATIO); storefront.awareness_radius_manual_override = bool(entry.get("awareness_radius_manual_override", false)); storefront.awareness_radius = maxf(0.0, float(entry.get("awareness_radius", get_default_storefront_awareness_radius(storefront.grid_cells.size())))) if storefront.awareness_radius_manual_override else get_default_storefront_awareness_radius(storefront.grid_cells.size()); storefront.competition_radius = maxf(0.0, float(entry.get("competition_radius", storefront.awareness_radius))); storefront.awareness_exposure_modifier = maxf(0.0, float(entry.get("awareness_exposure_modifier", 1.0))); storefront.map_position = document._grid_cells_center(storefront.grid_cells) if not storefront.grid_cells.is_empty() else Vector2.ZERO; document.storefronts.append(storefront)
+	for entry in data.get("player_homes", []):
+		if not entry is Dictionary: continue
+		var cells := document._deserialize_grid_cells(entry.get("grid_cells", []))
+		var raw_entrance: Dictionary = entry.get("entrance_cell", {})
+		document.player_homes.append({"id": str(entry.get("id", "")), "name": str(entry.get("name", "")), "block_id": str(entry.get("block_id", "")), "grid_cells": cells, "entrance_cell": Vector2i(int(raw_entrance.get("x", -1)), int(raw_entrance.get("y", -1))), "map_position": document._grid_cells_center(cells)})
 	if bool(data.get("reflow_for_road_width", false)):
 		document._reflow_imported_map_for_road_width()
 	document._normalize_storefront_grid_cells_for_area()
@@ -1114,24 +1236,7 @@ func _paint_road_width(cell: Vector2i, width: int, road_class: String, segment_i
 
 
 func _paint_road_segment(from: Vector2, to: Vector2, width: int, road_class: String, segment_id: String) -> void:
-	var direction := to - from
-	var squared_length := direction.length_squared()
-	if squared_length <= 0.0:
-		return
-	var from_cell := Vector2i(floori(from.x / GRID_CELL_SIZE), floori(from.y / GRID_CELL_SIZE))
-	var to_cell := Vector2i(floori(to.x / GRID_CELL_SIZE), floori(to.y / GRID_CELL_SIZE))
-	for path_cell in _raster_line(from_cell, to_cell):
-		var start_offset := -int(width / 2)
-		for x in range(path_cell.x + start_offset, path_cell.x + start_offset + width):
-			for y in range(path_cell.y + start_offset, path_cell.y + start_offset + width):
-				var occupied_cell := Vector2i(x, y)
-				# Keep flat caps at endpoint intersections. Width painting must not
-				# turn the cells beyond either endpoint into road cells.
-				var center := (Vector2(occupied_cell) + Vector2(0.5, 0.5)) * GRID_CELL_SIZE
-				var progress := (center - from).dot(direction)
-				if progress <= 0.0 or progress >= squared_length:
-					continue
-				road_cells[occupied_cell] = {"class": road_class, "segment_id": segment_id}
+	MapGridGeometry.paint_road_segment(road_cells, from, to, width, road_class, segment_id)
 
 
 func _cells_touch_road(cells: Array[Vector2i]) -> bool:
@@ -1176,20 +1281,7 @@ func _can_connect_road_class(node_id: String, road_class: String) -> bool:
 
 
 func _rebuild_road_cells() -> void:
-	var class_by_segment: Dictionary = {}
-	for cell in road_cells:
-		var road_data: Dictionary = road_cells[cell]
-		class_by_segment[str(road_data.get("segment_id", ""))] = str(road_data.get("class", "local"))
-	road_cells.clear()
-	for segment in road_graph.segments:
-		var from_node: RoadNode = road_graph.nodes.get(segment.from_node_id, null)
-		var to_node: RoadNode = road_graph.nodes.get(segment.to_node_id, null)
-		if from_node == null or to_node == null:
-			continue
-		var fallback_class := segment.road_class if ROAD_CLASS_DATA.has(segment.road_class) else "local"
-		var road_class := str(class_by_segment.get(segment.id, fallback_class))
-		var road_data: Dictionary = ROAD_CLASS_DATA.get(road_class, ROAD_CLASS_DATA["local"])
-		_paint_road_segment(from_node.position, to_node.position, int(road_data.width), road_class, segment.id)
+	road_cells = MapGridGeometry.build_road_cells(road_graph)
 
 
 func _has_road_segment(segment_id: String) -> bool:

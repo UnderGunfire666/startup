@@ -20,6 +20,7 @@ func _ready() -> void:
 	_test_event_popup_exclusivity()
 	_test_character_without_store()
 	_test_store_created()
+	_test_customer_feed_uses_fixed_pool()
 	_test_decision_box()
 	_test_interrupt_box()
 	_test_second_store_switch()
@@ -109,6 +110,16 @@ func _test_store_created() -> void:
 	var procurement_status: Label = _procurement_panel.get_node("MarginContainer/VBox/StatusLabel")
 	_check(not operation_status.text.contains("尚未创建开店企划"), "OperationPanel不应继续显示无企划状态")
 	_check(procurement_status.text != "请先在「我的店铺」创建开店企划。", "ProcurementPanel不应继续显示无企划状态")
+
+
+func _test_customer_feed_uses_fixed_pool() -> void:
+	print("\n── 固定容量经营动态 ──")
+	var customer_feed: VBoxContainer = _operation_panel.get_node("VBox/CustomerFeedScroll/CustomerFeed")
+	for index in range(30):
+		_operation_panel._on_customer_event("测试商品%d" % index, true, "", TimeManager.total_game_seconds + index)
+	_check(customer_feed.get_child_count() == 20, "经营动态预创建固定数量的文本节点")
+	_check(_operation_panel._feed_entries.size() == 20, "经营动态数据缓冲只保留最近20条")
+	_check(_operation_panel._feed_entries[0].contains("测试商品10") and _operation_panel._feed_entries.back().contains("测试商品29"), "固定缓冲按原顺序保留最近事件")
 
 
 func _test_decision_box() -> void:

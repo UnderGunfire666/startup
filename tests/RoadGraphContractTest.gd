@@ -13,6 +13,7 @@ func _ready() -> void:
 	_test_map_authoring_report()
 	_test_map_canvas_road_preview()
 	_test_map_authoring_document()
+	_test_storefront_entrance_geometry()
 	_test_road_based_movement_duration()
 	print("========== Road Graph Test: %d passed / %d failed ==========" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)
@@ -98,6 +99,27 @@ func _test_map_reference_validation() -> void:
 func _test_runtime_map_links() -> void:
 	var errors := MapDataValidator.validate(GameManager.road_graph, GameManager.all_blocks, GameManager.all_storefronts)
 	_assert(errors.is_empty(), "runtime map road links validate for all current blocks and storefronts")
+	var authoring_document := MapAuthoringDocument.from_static_data()
+	_assert(GameManager.road_graph.nodes.size() == authoring_document.road_graph.nodes.size(), "runtime graph retains exactly the editor's static road node count")
+	_assert(GameManager.road_graph.segments.size() == authoring_document.road_graph.segments.size(), "runtime graph retains exactly the editor's static road segment count")
+	var runtime_node_ids: Dictionary = {}
+	for node_id in GameManager.road_graph.nodes:
+		runtime_node_ids[node_id] = true
+	var authoring_node_ids: Dictionary = {}
+	for node_id in authoring_document.road_graph.nodes:
+		authoring_node_ids[node_id] = true
+	_assert(runtime_node_ids == authoring_node_ids, "runtime and editor road node IDs are identical")
+	var runtime_segment_ids: Dictionary = {}
+	var has_runtime_link := false
+	for segment in GameManager.road_graph.segments:
+		runtime_segment_ids[segment.id] = true
+		has_runtime_link = has_runtime_link or segment.id.begins_with("link_")
+	_assert(not has_runtime_link, "runtime graph does not add uneditable link segments")
+	var authoring_segment_ids: Dictionary = {}
+	for segment in authoring_document.road_graph.segments:
+		authoring_segment_ids[segment.id] = true
+	_assert(runtime_segment_ids == authoring_segment_ids, "runtime and editor road segment IDs are identical")
+	_assert(MapGridGeometry.build_road_cells(GameManager.road_graph) == authoring_document.road_cells, "runtime and editor road grid cells are identical")
 
 func _test_static_map_links() -> void:
 	_assert(MapDataValidator.validate(GameData.get_road_graph(), GameData.get_blocks(), GameData.get_storefronts()).is_empty(), "all current static map road links validate without runtime fallback")
@@ -169,6 +191,23 @@ func _test_road_based_movement_duration() -> void:
 		segment.to_node_id = str(edge[2])
 		graph.add_segment(segment)
 	_assert(is_equal_approx(MovementConfig.get_travel_hours(from_block, to_block, graph), 0.2), "movement uses road shortest path instead of straight-line distance")
+
+
+func _test_storefront_entrance_geometry() -> void:
+	for side in ["north", "south", "east", "west"]:
+		var storefront := StorefrontData.new()
+		storefront.id = "entrance_" + side
+		storefront.frontage_side = side
+		storefront.default_entrance_offset = 7
+		if side == "north" or side == "south":
+			storefront.grid_cells = [Vector2i(10, 10), Vector2i(11, 10)]
+		else:
+			storefront.grid_cells = [Vector2i(10, 10), Vector2i(10, 11)]
+		var entrance := MapNavigationGrid.get_storefront_entrance(storefront)
+		_assert(str(entrance.get("side", "")) == side, "storefront entrance preserves %s frontage side" % side)
+		_assert(int(entrance.get("facade_offset", -1)) == 7 and int(entrance.get("entrance_width", 0)) == 2, "storefront entrance exposes facade offset and width for %s marker" % side)
+		var expected_cell := Vector2i(11, 10) if side == "north" or side == "south" else Vector2i(10, 11)
+		_assert(entrance.get("cell", Vector2i(-1, -1)) == expected_cell, "storefront entrance maps %s offset to the matching city cell" % side)
 
 func _assert(condition: bool, message: String) -> void:
 	if condition:

@@ -8,6 +8,7 @@ func _ready() -> void:
 	print("========== Live Operations Contract Test ==========")
 	_test_player_skills_are_multi_value_and_saved()
 	_test_order_event_reports_completion_time()
+	_test_ui_customer_events_only_forward_active_player_store()
 	_test_presence_and_staffing_refresh_current_simulation()
 	print("========== Test finished: %d passed / %d failed ==========" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)
@@ -33,6 +34,29 @@ func _test_order_event_reports_completion_time() -> void:
 	sim.process_arrival_at(120.0)
 	_assert_true(bool(event.get("purchased", false)), "customer event reports a completed sale")
 	_assert_true(is_equal_approx(float(event.get("time", -1.0)), 210.0), "sale event time is service completion time, not arrival time")
+
+
+func _test_ui_customer_events_only_forward_active_player_store() -> void:
+	GameManager.start_new_game()
+	GameManager.create_character({"player_name": "Event Filter Tester", "gender": "female", "age": 28, "difficulty_id": "normal", "preset_id": "", "trait_ids": []})
+	GameManager.create_new_store("Visible Store")
+	var player_sim := CustomerSimulator.new()
+	var npc_sim := CustomerSimulator.new()
+	player_sim.setup(0, 3600.0, 1.0, 60.0, 300.0, 10, 10.0, 2.0, 0.0)
+	npc_sim.setup(0, 3600.0, 1.0, 60.0, 300.0, 10, 10.0, 2.0, 0.0)
+	GameManager.active_simulations = [
+		{"store_id": GameManager.active_store_id, "sim": player_sim},
+		{"store_id": "npc_hidden_store", "sim": npc_sim},
+	]
+	TimeManager._connected_simulation_ids.clear()
+	TimeManager._attach_customer_event_forwarding()
+	var forwarded := {"count": 0}
+	var listener := func(_product_name: String, _purchased: bool, _reason: String, _event_seconds: float) -> void: forwarded["count"] = int(forwarded.get("count", 0)) + 1
+	TimeManager.customer_event.connect(listener)
+	npc_sim.customer_event.emit(true, "", 10.0)
+	player_sim.customer_event.emit(true, "", 20.0)
+	TimeManager.customer_event.disconnect(listener)
+	_assert_true(int(forwarded.get("count", 0)) == 1, "UI customer feed forwards only the active player store")
 
 
 func _test_presence_and_staffing_refresh_current_simulation() -> void:

@@ -38,3 +38,20 @@ static func get_travel_hours(from_block: BlockData, to_block: BlockData, road_gr
 	if from_block == null or to_block == null: return -1.0
 	if from_block.id == to_block.id: return 0.0
 	return float(get_travel_quote(from_block.road_entry_node_id, to_block.road_entry_node_id, road_graph, WALK, [], INF, INF).get("hours", -1.0))
+
+
+static func get_grid_travel_quote(route_cells: Array[Vector2i], mode: String, owned_vehicles: Array[String], cash: float, energy: float) -> Dictionary:
+	var mode_data := get_mode_data(mode)
+	if mode_data.is_empty(): return {"can": false, "reason": "unknown travel mode"}
+	var required_vehicle := str(mode_data.get("vehicle", ""))
+	if not required_vehicle.is_empty() and not owned_vehicles.has(required_vehicle): return {"can": false, "reason": "required vehicle unavailable"}
+	if route_cells.is_empty(): return {"can": false, "reason": "destination unreachable"}
+	var distance := float(maxi(0, route_cells.size() - 1)) * MapGridGeometry.CELL_SIZE
+	var hours := distance / float(mode_data.get("speed", 1.0))
+	var cost := distance * float(mode_data.get("cost_per_distance", 0.0))
+	var energy_cost := hours * float(mode_data.get("energy_per_hour", 0.0))
+	if cash + 0.001 < cost: return {"can": false, "reason": "cash insufficient", "distance": distance, "hours": hours, "cost": cost, "energy_cost": energy_cost}
+	if energy + 0.001 < energy_cost: return {"can": false, "reason": "energy insufficient", "distance": distance, "hours": hours, "cost": cost, "energy_cost": energy_cost}
+	var serialized: Array[Dictionary] = []
+	for cell in route_cells: serialized.append({"x": cell.x, "y": cell.y})
+	return {"can": true, "reason": "", "mode": mode, "distance": distance, "hours": hours, "cost": cost, "energy_cost": energy_cost, "route_cells": serialized}

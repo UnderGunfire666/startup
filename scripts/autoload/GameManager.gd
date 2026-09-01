@@ -25,6 +25,22 @@ var all_city_regions: Array[CityRegionData] = []
 var all_blocks: Array[BlockData] = []
 var all_player_homes: Array = []
 var road_graph: RoadGraph = RoadGraph.new()
+var _navigation_grid_cache: MapNavigationGrid = null
+
+func get_navigation_grid() -> MapNavigationGrid:
+	if _navigation_grid_cache == null:
+		_navigation_grid_cache = MapNavigationGrid.build(road_graph, all_blocks, all_storefronts, all_player_homes)
+	return _navigation_grid_cache
+
+
+func invalidate_navigation_grid() -> void:
+	_navigation_grid_cache = null
+
+func get_block_at_map_cell(cell: Vector2i) -> BlockData:
+	for block in all_blocks:
+		if block.grid_cells.has(cell):
+			return block
+	return null
 
 ## ── 多店重构阶段1 ────────────────────────────────────────────
 var stores: Array[Store] = []
@@ -36,6 +52,8 @@ var active_store_id: String = ""
 var _next_store_sequence: int = 0
 
 var active_simulations: Array[Dictionary] = []  # {store_id, service:CategoryServiceSimulator, params, category, products}
+## Sorted by next arrival, then original simulation order for stable ties.
+var _arrival_queue: Array[Dictionary] = []
 
 ## 兼容属性：绝大多数现有代码沿用"store_state.xxx"的写法不用改，
 ## 它永远指向"当前激活的那家店"。角色创建完成前，stores为空，
@@ -58,41 +76,8 @@ func _ready() -> void:
 	all_blocks = GameData.get_blocks()
 	all_player_homes = GameData.get_player_homes()
 	road_graph = GameData.get_road_graph()
-	_build_runtime_road_links()
-
-
-func _build_runtime_road_links() -> void:
-	for block in all_blocks:
-		if not block.road_entry_node_id.is_empty() and road_graph.nodes.has(block.road_entry_node_id):
-			continue
-		var node_id := "entry_" + block.id
-		if not road_graph.nodes.has(node_id):
-			var node := RoadNode.new()
-			node.id = node_id
-			node.position = block.center_position
-			road_graph.add_node(node)
-		block.road_entry_node_id = node_id
-	for index in range(1, all_blocks.size()):
-		var segment := RoadSegment.new()
-		segment.id = "link_" + all_blocks[index - 1].id + "_" + all_blocks[index].id
-		segment.from_node_id = all_blocks[index - 1].road_entry_node_id
-		segment.to_node_id = all_blocks[index].road_entry_node_id
-		road_graph.add_segment(segment)
-	for storefront in all_storefronts:
-		if not storefront.road_segment_id.is_empty():
-			continue
-		var nearest_id := ""
-		var nearest_distance := INF
-		for segment in road_graph.segments:
-			var from_node: RoadNode = road_graph.nodes.get(segment.from_node_id, null)
-			var to_node: RoadNode = road_graph.nodes.get(segment.to_node_id, null)
-			if from_node == null or to_node == null:
-				continue
-			var distance := minf(storefront.map_position.distance_to(from_node.position), storefront.map_position.distance_to(to_node.position))
-			if distance < nearest_distance:
-				nearest_distance = distance
-				nearest_id = segment.id
-		storefront.road_segment_id = nearest_id
+	store_plan_updated.connect(func(_store_id: String) -> void: invalidate_navigation_grid())
+	invalidate_navigation_grid()
 
 
 func get_player_home(home_id: String) -> Dictionary:
@@ -539,10 +524,17 @@ func visit_storefront(storefront_id: String) -> Dictionary:
 	if player_state.current_block_id != storefront.block_id:
 		return {"success": false, "reason": "请先前往门面所在区块"}
 	var intel := player_state.get_storefront_intel(storefront_id)
+	var npc_store := get_npc_store_for_storefront(storefront_id)
+	if bool(intel.get("visited", false)) and npc_store != null and npc_store.is_business_open and not bool(intel.get("visited_during_business_hours", false)):
+		intel["visited_during_business_hours"] = true
+		player_state.set_storefront_intel(storefront_id, intel)
+		return {"success": true, "reason": "已在营业时到访，现可查看店内。"}
 	if bool(intel.get("visited", false)):
 		return {"success": true, "reason": "你已经到访过这间门面"}
 	var previous_belief := StorefrontIntelPresenter.describe_storefront(storefront, player_state)
 	intel["visited"] = true
+	npc_store = get_npc_store_for_storefront(storefront_id)
+	intel["visited_during_business_hours"] = bool(intel.get("visited_during_business_hours", false)) or (npc_store != null and npc_store.is_business_open)
 	intel["menu_reviewed"] = bool(intel.get("menu_reviewed", false))
 	intel["order_records"] = intel.get("order_records", [])
 	intel["traffic_observations"] = intel.get("traffic_observations", [])
@@ -552,6 +544,23 @@ func visit_storefront(storefront_id: String) -> Dictionary:
 	player_state.set_storefront_intel(storefront_id, intel)
 	player_state.add_storefront_intel_history({"kind": "visit", "storefront_id": storefront_id, "day": TimeManager.current_day, "hour": TimeManager.get_current_hour_int(), "message": "现场到访核验了门面外观与占用状态。"})
 	return {"success": true, "reason": "已记录现场所见"}
+
+
+func record_storefront_arrival(storefront_id: String) -> Dictionary:
+	var storefront := get_storefront(storefront_id)
+	if storefront == null:
+		return {"success": false, "reason": "门面不存在。"}
+	var intel := player_state.get_storefront_intel(storefront_id)
+	var npc_store := get_npc_store_for_storefront(storefront_id)
+	var arrived_during_business := npc_store != null and npc_store.is_open and npc_store.is_business_open
+	intel["visited"] = true
+	intel["visited_during_business_hours"] = bool(intel.get("visited_during_business_hours", false)) or arrived_during_business
+	intel["menu_reviewed"] = bool(intel.get("menu_reviewed", false))
+	intel["order_records"] = intel.get("order_records", [])
+	intel["traffic_observations"] = intel.get("traffic_observations", [])
+	player_state.set_storefront_intel(storefront_id, intel)
+	player_state.add_storefront_intel_history({"kind": "arrival", "storefront_id": storefront_id, "day": TimeManager.current_day, "hour": TimeManager.get_current_hour_int(), "business_open": arrived_during_business, "message": "抵达门面入口。"})
+	return {"success": true, "business_open": arrived_during_business}
 
 
 func review_storefront_menu(storefront_id: String) -> Dictionary:
@@ -1059,6 +1068,7 @@ func set_ingredient_stock(ingredient_id: String, amount: float) -> void:
 
 
 func _sync_data_objects() -> void:
+	invalidate_navigation_grid()
 	var store := get_active_store()
 	if store == null:
 		current_storefront = null
@@ -1685,6 +1695,7 @@ func open_store() -> Dictionary:
 func start_new_game() -> void:
 	stores = []
 	npc_stores = []
+	invalidate_navigation_grid()
 	TimeManager.reset()
 	var source_storefronts := GameData.get_storefronts()
 	for storefront in all_storefronts:
@@ -1701,13 +1712,16 @@ func start_new_game() -> void:
 	current_storefront = null
 	last_settlement_error = ""
 	active_simulations.clear()
+	_arrival_queue.clear()
 	ScheduleManager.reset_for_new_game()
 	EventManager.reset_for_new_game()
 
 
 func begin_slot_simulation() -> void:
 	active_simulations.clear()
+	_arrival_queue.clear()
 	_begin_slot_simulation_for_stores(get_all_open_stores())
+	_rebuild_arrival_queue()
 
 
 ## Slot setup is intentionally global: natural demand is finite per
@@ -2094,6 +2108,10 @@ func _begin_slot_simulation_for_store(store: Store) -> void:
 
 
 func advance_slot_simulation(elapsed_seconds: float) -> void:
+	_advance_arrival_queue(elapsed_seconds)
+
+
+func _advance_slot_simulation_legacy(elapsed_seconds: float) -> void:
 	## 所有商品共用一个按到达时间排序的订单流；这样共享原料由真实先后顺序竞争。
 	while true:
 		var next_entry: Dictionary = {}
@@ -2123,6 +2141,77 @@ func advance_slot_simulation(elapsed_seconds: float) -> void:
 		var category_service: CategoryServiceSimulator = next_entry.get("category_service", null)
 		if category_service != null:
 			category_service.sync_from_state(next_sim.shared_service_state)
+
+
+func _advance_arrival_queue(elapsed_seconds: float) -> void:
+	while not _arrival_queue.is_empty():
+		var next_entry: Dictionary = _arrival_queue[0]
+		if _get_entry_next_arrival(next_entry) > elapsed_seconds:
+			break
+		_arrival_queue.pop_front()
+		var next_service: CategoryServiceSimulator = next_entry.get("service", null)
+		if next_service != null:
+			if not next_service.process_next_arrival_if_due(elapsed_seconds):
+				_reinsert_arrival_entry(next_entry)
+				break
+			_reinsert_arrival_entry(next_entry)
+			continue
+		var next_sim: CustomerSimulator = next_entry.get("sim", null)
+		if next_sim == null or not next_sim.process_next_arrival_if_due(elapsed_seconds):
+			_reinsert_arrival_entry(next_entry)
+			break
+		var category_service: CategoryServiceSimulator = next_entry.get("category_service", null)
+		if category_service != null:
+			category_service.sync_from_state(next_sim.shared_service_state)
+		_reinsert_arrival_entry(next_entry)
+
+
+func _rebuild_arrival_queue() -> void:
+	_arrival_queue.clear()
+	for index in range(active_simulations.size()):
+		var entry := active_simulations[index]
+		entry["_simulation_order"] = index
+		if _entry_has_pending_arrival(entry):
+			_arrival_queue.append(entry)
+	_arrival_queue.sort_custom(_arrival_entry_less)
+
+
+func _reinsert_arrival_entry(entry: Dictionary) -> void:
+	if not _entry_has_pending_arrival(entry):
+		return
+	var low := 0
+	var high := _arrival_queue.size()
+	while low < high:
+		var middle := floori(float(low + high) * 0.5)
+		if _arrival_entry_less(entry, _arrival_queue[middle]):
+			high = middle
+		else:
+			low = middle + 1
+	_arrival_queue.insert(low, entry)
+
+
+func _entry_has_pending_arrival(entry: Dictionary) -> bool:
+	var service: CategoryServiceSimulator = entry.get("service", null)
+	if service != null:
+		return service.next_arrival_at <= service.slot_duration_seconds
+	var sim: CustomerSimulator = entry.get("sim", null)
+	return sim != null and sim.next_arrival_at <= sim.slot_duration_seconds
+
+
+func _get_entry_next_arrival(entry: Dictionary) -> float:
+	var service: CategoryServiceSimulator = entry.get("service", null)
+	if service != null:
+		return service.next_arrival_at
+	var sim: CustomerSimulator = entry.get("sim", null)
+	return sim.next_arrival_at if sim != null else INF
+
+
+func _arrival_entry_less(a: Dictionary, b: Dictionary) -> bool:
+	var a_time := _get_entry_next_arrival(a)
+	var b_time := _get_entry_next_arrival(b)
+	if a_time != b_time:
+		return a_time < b_time
+	return int(a.get("_simulation_order", 0)) < int(b.get("_simulation_order", 0))
 
 
 func get_storefront_road_exposure(storefront: StorefrontData) -> float:
@@ -2300,6 +2389,7 @@ func refresh_active_store_staffing(store: Store) -> void:
 		sim.service_time_seconds = get_product_service_seconds(category, product, power)
 	if not has_live_entry and store.is_business_open:
 		_begin_slot_simulation_for_store(store)
+	_rebuild_arrival_queue()
 
 
 func get_store_operating_metrics(store: Store) -> Dictionary:
@@ -2479,6 +2569,7 @@ func finalize_slot_simulation(finished_hour: int = -1, finished_day: int = -1) -
 		_run_npc_daily_operations(day)
 
 	active_simulations.clear()
+	_arrival_queue.clear()
 	return results
 
 

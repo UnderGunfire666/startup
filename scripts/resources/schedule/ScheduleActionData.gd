@@ -21,8 +21,8 @@ static func get_actions() -> Array[ActionDefinition]:
 	))
 
 	list.append(_make_work(
-		"move_to_block", "前往区块", "行动", 0, 0.0,
-		Vector2i(5, 24), "move_to_block",
+		"move_to_map_cell", "前往地点", "行动", 0, 0.0,
+		Vector2i(5, 24), "move_to_map_cell",
 		{}
 	))
 

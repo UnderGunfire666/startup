@@ -26,6 +26,7 @@ var block_merge_target_input: LineEdit
 var storefront_merge_target_input: LineEdit
 var storefront_capacity_input: LineEdit
 var storefront_awareness_radius_input: LineEdit
+var storefront_competition_radius_input: LineEdit
 var storefront_awareness_exposure_input: LineEdit
 var export_text: TextEdit
 var map_canvas: MapAuthoringCanvas
@@ -50,6 +51,9 @@ var selection_offset_y_input: LineEdit
 var selected_grid_cells: Array[Vector2i] = []
 var selected_block_id := ""
 var selected_storefront_id := ""
+var selected_home_id := ""
+var home_id_input: LineEdit
+var home_name_input: LineEdit
 var block_editor_row: Control
 var block_simulation_row: Control
 var block_link_row: Control
@@ -98,11 +102,13 @@ func _build_interface() -> void:
 	map_canvas.node_moved.connect(_on_canvas_node_moved)
 	map_canvas.storefront_moved.connect(_on_canvas_storefront_moved)
 	map_canvas.storefront_selected.connect(_on_storefront_selected)
+	map_canvas.player_home_selected.connect(_on_player_home_selected)
 	map_canvas.additional_element_selected.connect(_on_additional_element_selected)
 	map_canvas.block_moved.connect(_on_canvas_block_moved)
 	map_canvas.grid_road_requested.connect(_on_grid_road_requested)
 	map_canvas.grid_cells_selected.connect(_on_grid_cells_selected)
 	map_canvas.grid_block_selected.connect(_on_grid_block_selected)
+	map_canvas.grid_internal_roads_requested.connect(_on_grid_internal_roads_requested)
 	map_canvas.road_node_selected.connect(_on_road_node_selected)
 	map_canvas.road_segment_selected.connect(_on_road_segment_selected)
 	map_canvas.selection_cleared.connect(_on_selection_cleared)
@@ -110,7 +116,7 @@ func _build_interface() -> void:
 	map_scroll.add_child(map_canvas)
 	workspace.add_child(map_scroll)
 	var mode_row := HFlowContainer.new()
-	for item in [["选择", MapAuthoringCanvas.EditMode.SELECT], ["绘制道路", MapAuthoringCanvas.EditMode.ROAD], ["框选区块", MapAuthoringCanvas.EditMode.BLOCK]]:
+	for item in [["选择", MapAuthoringCanvas.EditMode.SELECT], ["绘制道路", MapAuthoringCanvas.EditMode.ROAD], ["框选区块", MapAuthoringCanvas.EditMode.BLOCK], ["编辑内部路", MapAuthoringCanvas.EditMode.INTERNAL_ROAD]]:
 		var button := Button.new()
 		button.text = item[0]
 		button.pressed.connect(map_canvas.set_edit_mode.bind(item[1]))
@@ -147,6 +153,16 @@ func _build_interface() -> void:
 	delete_selection_button.text = "\u5220\u9664\u6846\u9009\u7f51\u683c"
 	delete_selection_button.pressed.connect(_on_delete_selected_cells_pressed)
 	for control in [_make_labeled_field("\u6c34\u5e73\u504f\u79fb", selection_offset_x_input), _make_labeled_field("\u5782\u76f4\u504f\u79fb", selection_offset_y_input), move_selection_button, copy_selection_button, delete_selection_button]:
+		selection_tools_row.add_child(control)
+	home_id_input = _make_input("home_id")
+	home_name_input = _make_input("住宅名称")
+	var create_home_button := Button.new()
+	create_home_button.text = "用框选网格创建住宅"
+	create_home_button.pressed.connect(_on_create_home_pressed)
+	var delete_home_button := Button.new()
+	delete_home_button.text = "删除选中住宅"
+	delete_home_button.pressed.connect(_on_delete_home_pressed)
+	for control in [_make_labeled_field("住宅 ID", home_id_input), _make_labeled_field("住宅名称", home_name_input), create_home_button, delete_home_button]:
 		selection_tools_row.add_child(control)
 	root.add_child(selection_tools_row)
 	block_editor_row = HFlowContainer.new()
@@ -289,6 +305,7 @@ func _build_interface() -> void:
 	storefront_footprint_input = _make_input("12.25")
 	storefront_capacity_input = _make_input("\u6bcf\u5c0f\u65f6\u5bb9\u91cf")
 	storefront_awareness_radius_input = _make_input("35")
+	storefront_competition_radius_input = _make_input("35")
 	storefront_awareness_exposure_input = _make_input("1.0")
 	var create_storefront_button := Button.new()
 	create_storefront_button.text = "\u7528\u6846\u9009\u7f51\u683c\u521b\u5efa\u95e8\u9762"
@@ -299,7 +316,7 @@ func _build_interface() -> void:
 	var delete_storefront_button := Button.new()
 	delete_storefront_button.text = "\u5220\u9664\u9009\u4e2d\u95e8\u9762"
 	delete_storefront_button.pressed.connect(_on_delete_storefront_pressed)
-	for control in [_make_labeled_field("\u95e8\u9762 ID", storefront_id_input), _make_labeled_field("\u95e8\u9762\u540d\u79f0", storefront_name_input), _make_labeled_field("\u6708\u79df\uff08\u4e07\u5143）", storefront_rent_input), _make_labeled_field("\u53ef\u7528\u9762\u79ef\uff08\u33a1）", storefront_area_input), _make_labeled_field("\u5360\u5730\u9762\u79ef\uff08\u33a1）", storefront_footprint_input), _make_labeled_field("\u7ebf\u4e0b\u5f71\u54cd\u534a\u5f84\uff08\u7c73）", storefront_awareness_radius_input), _make_labeled_field("\u77e5\u540d\u5ea6\u66dd\u5149\u4fee\u6b63", storefront_awareness_exposure_input), create_storefront_button, update_storefront_button, delete_storefront_button]:
+	for control in [_make_labeled_field("\u95e8\u9762 ID", storefront_id_input), _make_labeled_field("\u95e8\u9762\u540d\u79f0", storefront_name_input), _make_labeled_field("\u6708\u79df\uff08\u4e07\u5143）", storefront_rent_input), _make_labeled_field("\u53ef\u7528\u9762\u79ef\uff08\u33a1）", storefront_area_input), _make_labeled_field("\u5360\u5730\u9762\u79ef\uff08\u33a1）", storefront_footprint_input), _make_labeled_field("\u77e5\u540d\u5ea6\u4f20\u64ad\u534a\u5f84\uff08\u7c73）", storefront_awareness_radius_input), _make_labeled_field("\u7ade\u4e89\u8303\u56f4\u534a\u5f84\uff08\u7c73）", storefront_competition_radius_input), _make_labeled_field("\u77e5\u540d\u5ea6\u66dd\u5149\u4fee\u6b63", storefront_awareness_exposure_input), create_storefront_button, update_storefront_button, delete_storefront_button]:
 		storefront_editor_row.add_child(control)
 	root.add_child(storefront_editor_row)
 	storefront_editor_row.visible = false
@@ -551,6 +568,7 @@ func _on_storefront_selected(storefront_id: String) -> void:
 		storefront_area_input.text = str(storefront.area)
 		storefront_footprint_input.text = str(storefront.footprint_area)
 		storefront_awareness_radius_input.text = str(storefront.awareness_radius)
+		storefront_competition_radius_input.text = str(storefront.competition_radius)
 		storefront_awareness_exposure_input.text = str(storefront.awareness_exposure_modifier)
 		for index in range(storefront_option.item_count):
 			if str(storefront_option.get_item_metadata(index)) == storefront_id:
@@ -559,6 +577,38 @@ func _on_storefront_selected(storefront_id: String) -> void:
 		map_canvas.set_selected_storefront(storefront_id)
 		_set_status("\u95e8\u9762 %s\uff1a\u6240\u5c5e\u533a\u5757 %s\uff0c\u5360\u7528 %d \u683c\uff0c\u4e34\u8857 %s" % [storefront.name, storefront.block_id, storefront.grid_cells.size(), storefront.road_segment_id])
 		return
+
+
+func _on_player_home_selected(home_id: String) -> void:
+	selected_home_id = home_id
+	selected_block_id = ""
+	selected_storefront_id = ""
+	_set_editor_visibility(false, false)
+	for home in document.player_homes:
+		if str(home.get("id", "")) == home_id:
+			home_id_input.text = home_id
+			home_name_input.text = str(home.get("name", ""))
+			_set_status("已选中住宅：" + str(home.get("name", home_id)))
+			return
+
+
+func _on_create_home_pressed() -> void:
+	var home := document.create_player_home(home_id_input.text.strip_edges(), home_name_input.text.strip_edges(), selected_grid_cells)
+	if home.is_empty():
+		_set_status("无法创建住宅：占格必须连续、位于单一区块、避开道路和门面，并相邻内部道路。")
+		return
+	selected_grid_cells.clear()
+	map_canvas.set_selected_grid_cells(selected_grid_cells)
+	selected_home_id = str(home.get("id", ""))
+	map_canvas.refresh_canvas()
+	_set_status("住宅已创建。")
+
+
+func _on_delete_home_pressed() -> void:
+	if not selected_home_id.is_empty() and document.remove_player_home(selected_home_id):
+		selected_home_id = ""
+		map_canvas.refresh_canvas()
+		_set_status("住宅已删除。")
 
 
 func _on_canvas_block_moved(block_id: String) -> void:
@@ -594,7 +644,19 @@ func _on_grid_cells_selected(cells: Array[Vector2i]) -> void:
 			selected_grid_cells.append(cell)
 	map_canvas.set_selected_grid_cells(selected_grid_cells)
 	storefront_awareness_radius_input.text = str(MapAuthoringDocument.get_default_storefront_awareness_radius(selected_grid_cells.size()))
+	storefront_competition_radius_input.text = storefront_awareness_radius_input.text
 	_set_status("已选择 %d 个非道路网格。" % selected_grid_cells.size())
+
+
+func _on_grid_internal_roads_requested(cells: Array[Vector2i]) -> void:
+	if selected_block_id.is_empty():
+		_set_status("请先选择要编辑内部道路的区块。")
+		return
+	if document.toggle_internal_road_cells(selected_block_id, cells):
+		map_canvas.refresh_canvas()
+		_set_status("内部道路已更新。")
+	else:
+		_set_status("内部道路必须位于区块内、避开门面和住宅，并保持入口可达。")
 
 
 func _selection_offset() -> Vector2i:
@@ -777,7 +839,7 @@ func _on_create_storefront_pressed() -> void:
 	if storefront == null:
 		_set_status("\u65e0\u6cd5\u521b\u5efa\u95e8\u9762\uff1a\u8bf7\u4f7f\u7528\u540c\u4e00\u533a\u5757\u5185\u7684\u8fde\u901a\u7f51\u683c\u3002")
 		return
-	document.update_storefront_properties(storefront.id, storefront.name, storefront_rent_input.text.to_float(), maxf(0.1, storefront_area_input.text.to_float()), 20, "", storefront.awareness_radius, maxf(0.0, storefront_awareness_exposure_input.text.to_float()), storefront.footprint_area)
+	document.update_storefront_properties(storefront.id, storefront.name, storefront_rent_input.text.to_float(), maxf(0.1, storefront_area_input.text.to_float()), 20, "", storefront.awareness_radius, maxf(0.0, storefront_awareness_exposure_input.text.to_float()), storefront.footprint_area, maxf(0.0, storefront_competition_radius_input.text.to_float()))
 	selected_grid_cells.clear()
 	map_canvas.set_selected_grid_cells(selected_grid_cells)
 	_refresh_options()
@@ -787,7 +849,7 @@ func _on_create_storefront_pressed() -> void:
 
 func _on_update_storefront_pressed() -> void:
 	var storefront_id := _selected_id(storefront_option)
-	if document.update_storefront_properties(storefront_id, storefront_name_input.text, storefront_rent_input.text.to_float(), maxf(0.1, storefront_area_input.text.to_float()), 20, "", maxf(0.0, storefront_awareness_radius_input.text.to_float()), maxf(0.0, storefront_awareness_exposure_input.text.to_float()), storefront_footprint_input.text.to_float()):
+	if document.update_storefront_properties(storefront_id, storefront_name_input.text, storefront_rent_input.text.to_float(), maxf(0.1, storefront_area_input.text.to_float()), 20, "", maxf(0.0, storefront_awareness_radius_input.text.to_float()), maxf(0.0, storefront_awareness_exposure_input.text.to_float()), storefront_footprint_input.text.to_float(), maxf(0.0, storefront_competition_radius_input.text.to_float())):
 		_refresh_options()
 		map_canvas.refresh_canvas()
 

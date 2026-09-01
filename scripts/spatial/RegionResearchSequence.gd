@@ -79,8 +79,14 @@ func _advance() -> void:
 	var current_location := GameManager.player_state.current_block_id
 	var result: Dictionary
 	if current_location != target_id:
-		expected_action_id = "move_to_block"
-		result = ScheduleManager.start_action_now("move_to_block", target_id)
+		var target_cell := _get_nearest_reachable_cell(target_id)
+		if target_cell == Vector2i(-1, -1):
+			active = false
+			failed.emit("no_reachable_cell", "目标区块没有可到达方格")
+			changed.emit()
+			return
+		expected_action_id = "move_to_map_cell"
+		result = ScheduleManager.start_travel_to_cell(target_id, target_cell, MovementConfig.WALK)
 	else:
 		expected_action_id = "region_research"
 		result = ScheduleManager.start_action_now("region_research", "", [target_id])
@@ -92,6 +98,20 @@ func _advance() -> void:
 		changed.emit()
 		return
 	changed.emit()
+
+
+func _get_nearest_reachable_cell(block_id: String) -> Vector2i:
+	var grid := GameManager.get_navigation_grid()
+	var best := Vector2i(-1, -1)
+	var best_size := 999999
+	for cell in grid.internal_cells:
+		if str(grid.cell_blocks.get(cell, "")) != block_id:
+			continue
+		var path := grid.shortest_path(GameManager.player_state.current_map_cell, cell)
+		if not path.is_empty() and path.size() < best_size:
+			best = cell
+			best_size = path.size()
+	return best
 
 func _on_schedule_changed() -> void:
 	if not active or expected_action_id.is_empty():

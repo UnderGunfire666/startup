@@ -1,5 +1,5 @@
 extends Control
-signal storefront_interior_requested(storefront_id: String)
+signal storefront_interior_requested(storefront_id: String, store: Store, read_only: bool, facade_only: bool)
 signal storefront_details_requested(storefront_id: String)
 ## 地图页：鼠标点选一个或多个区块。
 ## Phase 2：调查行动直接绑定选中的 Block，不再通过 SurveyArea 启动调查。
@@ -8,6 +8,10 @@ signal storefront_details_requested(storefront_id: String)
 
 @onready var map_canvas: CityMapCanvas = $HBoxContainer/MapScrollContainer/MapCanvas
 @onready var instruction_label: Label = $HBoxContainer/SidePanel/InstructionLabel
+@onready var storefront_details_title: Label = $HBoxContainer/SidePanel/StorefrontDetails/Title
+@onready var storefront_details_body: Label = $HBoxContainer/SidePanel/StorefrontDetails/Body
+@onready var storefront_view_button: Button = $HBoxContainer/SidePanel/StorefrontDetails/ViewButton
+@onready var storefront_interior_button: Button = $HBoxContainer/SidePanel/StorefrontDetails/InteriorButton
 @onready var report_label: Label = $HBoxContainer/SidePanel/ReportScroll/ReportLabel
 @onready var status_label: Label = $HBoxContainer/SidePanel/StatusLabel
 @onready var clear_selection_button: Button = $HBoxContainer/SidePanel/ClearSelectionButton
@@ -26,6 +30,11 @@ signal storefront_details_requested(storefront_id: String)
 var _sequence_research: RegionResearchSequence = null
 var _travel_target_block_id := ""
 var _travel_target_storefront_id := ""
+var _travel_target_cell := Vector2i(-1, -1)
+var _selected_detail_storefront_id := ""
+var _last_storefront_detail_minute := -1
+var _last_action_instance_id := 0
+var _research_ui_dirty := false
 const RESEARCH_MODE_SELECTED_BLOCKS := 0
 const RESEARCH_MODE_SEQUENTIAL := 1
 const RESEARCH_FOCUS_LABELS := {
@@ -39,6 +48,9 @@ func _ready() -> void:
 	map_canvas.setup(GameManager.all_city_regions, GameManager.all_blocks, GameManager.road_graph, GameManager.all_player_homes)
 	map_canvas.selected_blocks_changed.connect(_on_selected_blocks_changed)
 	map_canvas.storefront_clicked.connect(_on_storefront_clicked)
+	map_canvas.navigable_cell_clicked.connect(_on_navigable_cell_clicked)
+	storefront_view_button.pressed.connect(_on_storefront_view_pressed)
+	storefront_interior_button.pressed.connect(_on_storefront_interior_pressed)
 	clear_selection_button.pressed.connect(_on_clear_selection_pressed)
 	travel_mode_option.item_selected.connect(func(_index: int): _refresh_travel_card())
 	start_travel_button.pressed.connect(_on_start_travel_pressed)
@@ -52,6 +64,8 @@ func _ready() -> void:
 	ScheduleManager.hour_effect_applied.connect(_on_action_progress_applied)
 	TimeManager.clock_updated.connect(_on_clock_updated)
 	EventManager.notice_raised.connect(_on_event_notice_raised)
+	GameManager.store_plan_updated.connect(_on_storefront_layout_changed)
+	visibility_changed.connect(_on_visibility_changed)
 
 	research_mode_option.clear()
 	research_mode_option.add_item("调查所选区块", RESEARCH_MODE_SELECTED_BLOCKS)
@@ -76,22 +90,27 @@ func _ready() -> void:
 
 
 func refresh() -> void:
+	_last_action_instance_id = ScheduleManager.current_action.get_instance_id() if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active else 0
 	_sync_research_focus_option()
 	map_canvas.refresh_storefronts(GameManager.all_storefronts)
+	map_canvas.refresh_player_layer()
 	_refresh_awareness_overlay()
 	_refresh_report()
 	_refresh_storefront_list()
 	_refresh_research_controls()
 	_refresh_travel_card()
+	_research_ui_dirty = false
+
+
+func _on_visibility_changed() -> void:
+	if is_visible_in_tree():
+		refresh()
 
 
 func _on_selected_blocks_changed(block_ids: Array[String]) -> void:
 	ScheduleManager.set_selected_map_block_ids(block_ids)
 	_refresh_report()
 	_refresh_research_controls()
-	if block_ids.size() == 1:
-		_travel_target_block_id = block_ids[0]
-		_travel_target_storefront_id = ""
 	_refresh_travel_card()
 
 
@@ -171,18 +190,45 @@ func _sync_research_focus_option() -> void:
 
 
 func _on_schedule_changed() -> void:
+	var action_instance_id := ScheduleManager.current_action.get_instance_id() if ScheduleManager.current_action != null and ScheduleManager.current_action.is_active else 0
+	var action_structure_changed := action_instance_id != _last_action_instance_id
+	_last_action_instance_id = action_instance_id
+	if not is_visible_in_tree():
+		_research_ui_dirty = true
+		return
+	if not action_structure_changed:
+		_research_ui_dirty = true
+		return
 	_sync_research_focus_option()
 	_refresh_report()
-	_refresh_storefront_list()
 	_refresh_research_controls()
+	_refresh_travel_card()
+	map_canvas.refresh_player_layer()
+	_research_ui_dirty = false
+	if not _selected_detail_storefront_id.is_empty():
+		_show_storefront_details(_selected_detail_storefront_id)
 	if ScheduleManager.current_action == null and not ScheduleManager.completed_entries_today.is_empty():
 		var last_entry: ScheduledActionEntry = ScheduleManager.completed_entries_today.back()
 
 
 func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
-	map_canvas.queue_redraw()
-	_refresh_research_controls()
-	_refresh_travel_card()
+	if _research_ui_dirty:
+		_sync_research_focus_option()
+		_refresh_report()
+		_refresh_research_controls()
+		_research_ui_dirty = false
+	var current_minute := floori(TimeManager.total_game_seconds / 60.0)
+	if current_minute != _last_storefront_detail_minute and not _selected_detail_storefront_id.is_empty():
+		_last_storefront_detail_minute = current_minute
+		_show_storefront_details(_selected_detail_storefront_id)
+
+
+func _on_storefront_layout_changed(_store_id: String) -> void:
+	# The map reads the active facade layout when drawing its entrance marker.
+	# A layout save therefore needs only a redraw, not a map reload.
+	map_canvas.refresh_storefront_layout()
+	if not _selected_detail_storefront_id.is_empty():
+		_show_storefront_details(_selected_detail_storefront_id)
 
 
 func _on_action_interrupt(reason_code: String, reason: String) -> void:
@@ -194,8 +240,7 @@ func _on_action_interrupt(reason_code: String, reason: String) -> void:
 
 func _on_action_progress_applied(action_id: String, _elapsed_hours: float, _progress_ratio: float, _effect_mult: float) -> void:
 	if action_id == "region_research":
-		_refresh_report()
-		_refresh_research_controls()
+		_research_ui_dirty = true
 
 
 func _on_sequence_changed() -> void:
@@ -272,8 +317,116 @@ func _on_storefront_clicked(storefront_id: String) -> void:
 	if storefront != null:
 		_travel_target_block_id = storefront.block_id
 		_travel_target_storefront_id = storefront.id
+		_travel_target_cell = Vector2i(-1, -1)
 		_refresh_travel_card()
-	storefront_details_requested.emit(storefront_id)
+	_show_storefront_details(storefront_id)
+
+
+func _show_storefront_details(storefront_id: String) -> void:
+	var storefront := GameManager.get_storefront(storefront_id)
+	if storefront == null:
+		return
+	_last_storefront_detail_minute = floori(TimeManager.total_game_seconds / 60.0)
+	map_canvas.set_selected_storefront(storefront_id)
+	_selected_detail_storefront_id = storefront_id
+	var intel := GameManager.get_storefront_intel(storefront_id)
+	var display := StorefrontIntelPresenter.describe_storefront(storefront, GameManager.player_state)
+	var npc_store := GameManager.get_npc_store_for_storefront(storefront.id)
+	var lines: Array[String] = []
+	lines.append(str(display.get("occupancy", "")))
+	lines.append(str(display.get("area", "")))
+	lines.append(str(display.get("appearance", "")))
+	if not storefront.notes.is_empty():
+		lines.append(storefront.notes)
+	lines.append(_get_storefront_business_status(npc_store))
+	if not bool(display.get("visited", false)):
+		lines.append("到访后可查看实际经营与更完整的门面信息。")
+	var can_view_interior := bool(intel.get("visited_during_business_hours", false))
+	if bool(display.get("visited", false)):
+		lines.append("可查看：门头、室内平面与 3D" if can_view_interior else "可查看：门头信息（到访时未营业）")
+	storefront_details_title.text = storefront.name
+	storefront_details_body.text = "\n".join(lines)
+	storefront_view_button.disabled = not bool(display.get("visited", false))
+	storefront_view_button.text = "查看门头"
+	storefront_interior_button.disabled = not can_view_interior or npc_store == null
+	storefront_interior_button.tooltip_text = "需曾在该店营业时抵达门面。" if storefront_interior_button.disabled else "查看室内平面与 3D 布置。"
+
+
+func _on_storefront_view_pressed() -> void:
+	var storefront := GameManager.get_storefront(_selected_detail_storefront_id)
+	if storefront == null:
+		return
+	var intel := GameManager.get_storefront_intel(storefront.id)
+	if not bool(intel.get("visited", false)):
+		return
+	storefront_interior_requested.emit(storefront.id, null, true, true)
+
+
+func _on_storefront_interior_pressed() -> void:
+	var storefront := GameManager.get_storefront(_selected_detail_storefront_id)
+	if storefront == null:
+		return
+	var intel := GameManager.get_storefront_intel(storefront.id)
+	var npc_store := GameManager.get_npc_store_for_storefront(storefront.id)
+	if npc_store == null or not bool(intel.get("visited_during_business_hours", false)):
+		return
+	storefront_interior_requested.emit(storefront.id, npc_store, true, false)
+
+
+func _get_storefront_business_status(npc_store: Store) -> String:
+	if npc_store == null or not npc_store.is_open:
+		return "营业状态：未开店"
+	var hours_text := _get_business_hours_text(npc_store)
+	var lines := ["店名：" + npc_store.name, "营业时间：" + hours_text]
+	var hour_now := TimeManager.get_hour_of_day()
+	var planned_range := _get_business_range_at_hour(npc_store, hour_now)
+	if npc_store.is_business_open:
+		lines.append("营业状态：营业中")
+		if not planned_range.is_empty():
+			lines.append("距离关门还有 " + _format_hours_remaining(float(planned_range.get("end", hour_now)) - hour_now))
+	else:
+		lines.append("营业状态：当前未营业")
+		if planned_range.is_empty():
+			var until_open := _get_hours_until_next_open(npc_store, hour_now)
+			if until_open >= 0.0:
+				lines.append("距离开门还有 " + _format_hours_remaining(until_open))
+	return "\n".join(lines)
+
+
+func _get_business_hours_text(store: Store) -> String:
+	var ranges: Array[String] = []
+	for hour_range in store.business_hour_ranges:
+		ranges.append("%02d:00-%02d:00" % [hour_range.x, hour_range.y])
+	return "、".join(ranges)
+
+
+func _get_business_range_at_hour(store: Store, hour: float) -> Dictionary:
+	for hour_range in store.business_hour_ranges:
+		if hour >= float(hour_range.x) and hour < float(hour_range.y):
+			return {"start": hour_range.x, "end": hour_range.y}
+	return {}
+
+
+func _get_hours_until_next_open(store: Store, hour: float) -> float:
+	var nearest := INF
+	for hour_range in store.business_hour_ranges:
+		var delta := float(hour_range.x) - hour
+		if delta < 0.0:
+			delta += 24.0
+		nearest = minf(nearest, delta)
+	return -1.0 if is_inf(nearest) else nearest
+
+
+func _format_hours_remaining(hours: float) -> String:
+	var total_minutes := maxi(0, ceili(hours * 60.0 - 0.0001))
+	return "%d小时%d分" % [total_minutes / 60, total_minutes % 60]
+
+
+func _on_navigable_cell_clicked(block_id: String, cell: Vector2i) -> void:
+	_travel_target_block_id = block_id
+	_travel_target_storefront_id = ""
+	_travel_target_cell = cell
+	_refresh_travel_card()
 
 
 func _refresh_travel_card() -> void:
@@ -287,7 +440,7 @@ func _refresh_travel_card() -> void:
 		return
 	var target := GameManager.get_block(_travel_target_block_id)
 	var mode := str(travel_mode_option.get_item_metadata(travel_mode_option.selected))
-	var quote := ScheduleManager.get_travel_quote(_travel_target_block_id, mode)
+	var quote := ScheduleManager.get_travel_quote_to_storefront(_travel_target_storefront_id, mode) if not _travel_target_storefront_id.is_empty() else ScheduleManager.get_travel_quote_to_cell(_travel_target_block_id, _travel_target_cell, mode)
 	var target_name := target.name if target != null else _travel_target_block_id
 	if not _travel_target_storefront_id.is_empty():
 		var storefront := GameManager.get_storefront(_travel_target_storefront_id)
@@ -299,7 +452,11 @@ func _refresh_travel_card() -> void:
 
 func _on_start_travel_pressed() -> void:
 	var mode := str(travel_mode_option.get_item_metadata(travel_mode_option.selected))
-	var result := ScheduleManager.start_travel(_travel_target_block_id, mode, _travel_target_storefront_id)
+	var target_cell := _travel_target_cell
+	if not _travel_target_storefront_id.is_empty():
+		var entrance: Dictionary = GameManager.get_navigation_grid().storefront_entrances.get(_travel_target_storefront_id, {})
+		target_cell = entrance.get("cell", Vector2i(-1, -1))
+	var result := ScheduleManager.start_travel_to_cell(_travel_target_block_id, target_cell, mode, _travel_target_storefront_id)
 	status_label.text = ("✅ " if bool(result.get("can", false)) else "⚠ ") + str(result.get("reason", "无法出发"))
 	_refresh_travel_card()
 
@@ -377,7 +534,7 @@ func _build_storefront_row(storefront: StorefrontData) -> Control:
 	visible_box.add_child(visible_label)
 	var visible_details := Button.new()
 	visible_details.text = "查看门面"
-	visible_details.pressed.connect(func(): storefront_details_requested.emit(storefront.id))
+	visible_details.pressed.connect(func(): _show_storefront_details(storefront.id))
 	visible_box.add_child(visible_details)
 	visible_box.add_child(HSeparator.new())
 	return visible_box
@@ -396,7 +553,7 @@ func _build_storefront_row(storefront: StorefrontData) -> Control:
 
 	var details_btn := Button.new()
 	details_btn.text = "查看门面"
-	details_btn.pressed.connect(func(): storefront_details_requested.emit(storefront.id))
+	details_btn.pressed.connect(func(): _show_storefront_details(storefront.id))
 	row.add_child(details_btn)
 
 	box.add_child(row)

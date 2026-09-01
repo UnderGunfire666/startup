@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c21ewdqh8jlkr" path="res://scenes/map/CityMapPanel.gd" id="1_panel"]
 [ext_resource type="Script" uid="uid://6c624q5egquv" path="res://scenes/map/CityMapCanvas.gd" id="2_canvas"]
+[ext_resource type="Script" path="res://scenes/map/CityMapTravelLayer.gd" id="3_travel_layer"]
 
 [node name="CityMapPanel" type="Control" unique_id=458384934]
 layout_mode = 3
@@ -21,17 +22,6 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="MapScrollContainer" type="ScrollContainer" parent="HBoxContainer" unique_id=1639071751]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="MapCanvas" type="Control" parent="HBoxContainer/MapScrollContainer" unique_id=1716583733]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-script = ExtResource("2_canvas")
-
 [node name="SidePanel" type="VBoxContainer" parent="HBoxContainer" unique_id=610076088]
 custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
@@ -42,6 +32,31 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = "点击地图上的区块进行选择；再次点击已选区块可取消选择。可同时选择多个区块。"
 autowrap_mode = 3
+
+[node name="StorefrontDetails" type="VBoxContainer" parent="HBoxContainer/SidePanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HBoxContainer/SidePanel/StorefrontDetails"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "门面详情"
+
+[node name="Body" type="Label" parent="HBoxContainer/SidePanel/StorefrontDetails"]
+custom_minimum_size = Vector2(0, 140)
+layout_mode = 2
+autowrap_mode = 3
+text = "点击地图中的门面以查看详情。"
+
+[node name="ViewButton" type="Button" parent="HBoxContainer/SidePanel/StorefrontDetails"]
+layout_mode = 2
+text = "查看门头"
+disabled = true
+
+[node name="InteriorButton" type="Button" parent="HBoxContainer/SidePanel/StorefrontDetails"]
+layout_mode = 2
+text = "查看店内布置"
+disabled = true
 
 [node name="HSeparator1" type="HSeparator" parent="HBoxContainer/SidePanel" unique_id=1787666556]
 layout_mode = 2
@@ -115,3 +130,24 @@ layout_mode = 2
 [node name="StatusLabel" type="Label" parent="HBoxContainer/SidePanel" unique_id=759840533]
 layout_mode = 2
 autowrap_mode = 3
+
+[node name="MapScrollContainer" type="ScrollContainer" parent="HBoxContainer" unique_id=1639071751]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MapCanvas" type="Control" parent="HBoxContainer/MapScrollContainer" unique_id=1716583733]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("2_canvas")
+
+[node name="TravelLayer" type="Control" parent="HBoxContainer/MapScrollContainer/MapCanvas"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_travel_layer")

@@ -19,6 +19,7 @@ var _last_hour: int = 0
 var _last_minute: int = 0
 var _last_second: int = 0
 var _last_period_label: String = ""
+var _schedule_ui_dirty := false
 const EXCLUDED_FROM_LIST: Array[String] = ["region_research"]
 
 func _ready() -> void:
@@ -33,11 +34,25 @@ func _ready() -> void:
 		if pressed: TimeManager.set_speed(TimeManager.Speed.X5))
 	stop_action_button.pressed.connect(_on_stop_pressed)
 	TimeManager.clock_updated.connect(_on_clock_updated)
-	ScheduleManager.schedule_changed.connect(_refresh_all)
-	ScheduleManager.map_block_selection_changed.connect(_refresh_all)
+	ScheduleManager.schedule_changed.connect(_on_schedule_state_changed)
+	ScheduleManager.map_block_selection_changed.connect(func(_block_ids: Array[String]) -> void: _on_schedule_state_changed())
 	ScheduleManager.action_interrupt.connect(_on_action_interrupt)
 	ScheduleManager.day_schedule_ended.connect(_on_day_schedule_ended)
+	visibility_changed.connect(_on_visibility_changed)
 	_refresh_all()
+
+
+func _on_schedule_state_changed() -> void:
+	_schedule_ui_dirty = true
+	if is_visible_in_tree():
+		_refresh_all()
+		_schedule_ui_dirty = false
+
+
+func _on_visibility_changed() -> void:
+	if is_visible_in_tree() and _schedule_ui_dirty:
+		_refresh_all()
+		_schedule_ui_dirty = false
 
 func _seed_clock_cache() -> void:
 	var hour_float := TimeManager.get_hour_of_day()
@@ -171,6 +186,8 @@ func _on_clock_updated(hour: int, minute: int, second: int, period_label: String
 	_last_minute = minute
 	_last_second = second
 	_last_period_label = period_label
+	if not is_visible_in_tree():
+		return
 	_update_day_hour_label()
 	_update_store_status_label()
 	_update_current_action_label()

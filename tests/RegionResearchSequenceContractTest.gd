@@ -58,12 +58,13 @@ func _test_sequential_research_flow() -> void:
 	_set_all_focus_progress(first_block.id, 100.0)
 	ScheduleManager._finalize_current_action(ScheduleManager.current_action.applied_hours)
 	_expect(GameManager.is_block_research_complete(first_block.id), "第一目标完成后六项进度均应达到100%")
-	_expect(ScheduleManager.current_action != null and ScheduleManager.current_action.action_id == "move_to_block", "第一目标完成后应自动开始前往第二目标")
+	_expect(ScheduleManager.current_action != null and ScheduleManager.current_action.action_id == "move_to_map_cell", "第一目标完成后应自动开始网格移动到第二目标")
 	_expect(GameManager.player_state.current_block_id == first_block.id, "移动完成前玩家位置不得提前改变")
 
 	var travel_hours := MovementConfig.get_travel_hours(first_block, second_block)
 	_expect(travel_hours > 0.0, "两个不同区块之间应存在移动时间")
 	var action_travel_hours := ScheduleManager.current_action.duration_hours
+	_expect(action_travel_hours > 0.0 and GameManager.get_navigation_grid().walkable_cells.has(GameManager.player_state.current_map_cell), "调查移动从可导航地图格出发")
 	TimeManager.total_game_seconds += (action_travel_hours + 0.001) * 3600.0
 	ScheduleManager.tick()
 	_expect(GameManager.player_state.current_block_id == second_block.id, "移动完成后玩家应到达第二目标区块")

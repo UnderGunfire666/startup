@@ -42,6 +42,9 @@ func _ready() -> void:
 	_setup_tab_titles()
 	store_sub_tabs.set_tab_title(6, "\u5458\u5de5\u4e0e\u6392\u73ed")
 	character_creation_panel.character_created.connect(_on_character_created)
+	character_status_panel.visibility_changed.connect(func() -> void:
+		if character_status_panel.is_visible_in_tree():
+			_refresh_character_panel())
 	TimeManager.clock_updated.connect(_on_clock_updated)
 	ScheduleManager.schedule_changed.connect(_on_schedule_changed)
 	category_manager_panel.category_changed.connect(_on_category_changed)
@@ -89,11 +92,13 @@ func _on_character_created() -> void:
 
 
 func _on_clock_updated(_hour: int, _minute: int, _second: int, _period_label: String) -> void:
-	_refresh_character_panel()
+	if character_status_panel.is_visible_in_tree() or character_creation_panel.is_visible_in_tree():
+		_refresh_character_panel()
 
 
 func _on_schedule_changed() -> void:
-	_refresh_character_panel()
+	if character_status_panel.is_visible_in_tree() or character_creation_panel.is_visible_in_tree():
+		_refresh_character_panel()
 
 func _refresh_all_panels() -> void:
 	_refresh_character_panel()
@@ -129,8 +134,8 @@ func _on_procurement_requested() -> void:
 func _on_store_opened() -> void:
 	_on_procurement_requested()
 
-func _on_storefront_interior_requested(storefront_id: String, store: Store = null, read_only: bool = false) -> void:
-	interior_layout_panel.open_for_storefront(storefront_id, store, read_only)
+func _on_storefront_interior_requested(storefront_id: String, store: Store = null, read_only: bool = false, facade_only: bool = false) -> void:
+	interior_layout_panel.open_for_storefront(storefront_id, store, read_only, facade_only)
 
 func _on_config_applied() -> void:
 	_refresh_category_panel()

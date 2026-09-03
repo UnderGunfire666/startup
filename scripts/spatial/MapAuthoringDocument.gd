@@ -588,6 +588,13 @@ func move_storefront(storefront_id: String, position: Vector2) -> bool:
 		storefront.block_local_position = original_local_position
 		return false
 	_set_storefront_block(storefront, containing_block)
+	if not MapDataValidator.validate(road_graph, blocks, storefronts).is_empty():
+		storefront.map_position = original_position
+		storefront.grid_cells = original_cells
+		storefront.road_segment_id = original_segment
+		storefront.block_id = original_block_id
+		storefront.block_local_position = original_local_position
+		return false
 	return true
 
 
@@ -614,12 +621,24 @@ func begin_block_move(block_id: String) -> bool:
 				"storefront": storefront,
 				"map_position": storefront.map_position,
 				"local_position": storefront.block_local_position,
+				"grid_cells": storefront.grid_cells.duplicate(),
+			})
+	var home_state: Array[Dictionary] = []
+	for home in player_homes:
+		if str(home.get("block_id", "")) == block_id:
+			home_state.append({
+				"home": home,
+				"grid_cells": (home.get("grid_cells", []) as Array).duplicate(),
+				"entrance_cell": home.get("entrance_cell", Vector2i(-1, -1)),
+				"map_position": home.get("map_position", Vector2.ZERO),
 			})
 	_block_move_snapshots[block_id] = {
 		"cells": block.grid_cells.duplicate(),
+		"internal_road_cells": block.internal_road_cells.duplicate(),
 		"bounds": block.map_bounds,
 		"center": block.center_position,
 		"storefronts": storefront_state,
+		"homes": home_state,
 	}
 	return true
 
@@ -644,6 +663,11 @@ func cancel_block_move(block_id: String) -> void:
 			if raw_cell is Vector2i:
 				restored_cells.append(raw_cell)
 		block.grid_cells = restored_cells
+		var restored_internal_roads: Array[Vector2i] = []
+		for raw_cell in snapshot.get("internal_road_cells", []):
+			if raw_cell is Vector2i:
+				restored_internal_roads.append(raw_cell)
+		block.internal_road_cells = restored_internal_roads
 		block.map_bounds = snapshot.get("bounds", Rect2())
 		block.center_position = snapshot.get("center", Vector2.ZERO)
 		for state in snapshot.get("storefronts", []):
@@ -651,6 +675,13 @@ func cancel_block_move(block_id: String) -> void:
 			if storefront != null:
 				storefront.map_position = state.get("map_position", Vector2.ZERO)
 				storefront.block_local_position = state.get("local_position", Vector2.ZERO)
+				storefront.grid_cells.assign(state.get("grid_cells", []))
+		for state in snapshot.get("homes", []):
+			var home: Dictionary = state.get("home", {})
+			if not home.is_empty():
+				home["grid_cells"] = (state.get("grid_cells", []) as Array).duplicate()
+				home["entrance_cell"] = state.get("entrance_cell", Vector2i(-1, -1))
+				home["map_position"] = state.get("map_position", Vector2.ZERO)
 	_block_move_snapshots.erase(block_id)
 
 
@@ -663,6 +694,7 @@ func move_block_preview(block_id: String, center_position: Vector2) -> bool:
 			var cell_offset := Vector2i(roundi(offset.x / block.grid_cell_size), roundi(offset.y / block.grid_cell_size))
 			for index in range(block.grid_cells.size()):
 				block.grid_cells[index] += cell_offset
+			_translate_block_contents(block, cell_offset)
 			block.rebuild_bounds_from_grid_cells()
 		else:
 			block.center_position = center_position
@@ -695,8 +727,29 @@ func _snap_block_to_road(block: BlockData) -> void:
 			shifted_cells.append(cell + offset)
 		if not _cells_overlap_road(shifted_cells) and _cells_touch_road(shifted_cells):
 			block.grid_cells = shifted_cells
+			_translate_block_contents(block, offset)
 			block.rebuild_bounds_from_grid_cells()
 			return
+
+
+func _translate_block_contents(block: BlockData, cell_offset: Vector2i) -> void:
+	if block == null or cell_offset == Vector2i.ZERO:
+		return
+	for index in range(block.internal_road_cells.size()):
+		block.internal_road_cells[index] += cell_offset
+	for home in player_homes:
+		if str(home.get("block_id", "")) != block.id:
+			continue
+		var cells: Array[Vector2i] = []
+		for raw_cell in home.get("grid_cells", []):
+			if raw_cell is Vector2i:
+				cells.append(raw_cell + cell_offset)
+		home["grid_cells"] = cells
+		var entrance: Vector2i = home.get("entrance_cell", Vector2i(-1, -1))
+		if entrance != Vector2i(-1, -1):
+			home["entrance_cell"] = entrance + cell_offset
+		if not cells.is_empty():
+			home["map_position"] = _grid_cells_center(cells)
 
 
 func _block_overlaps_road(block: BlockData) -> bool:
@@ -725,7 +778,7 @@ func _find_block_containing_storefront(storefront: StorefrontData) -> BlockData:
 
 func _find_block_containing_cells(cells: Array[Vector2i], city_region_id: String) -> BlockData:
 	for block in blocks:
-		if block.city_region_id != city_region_id:
+		if not city_region_id.is_empty() and block.city_region_id != city_region_id:
 			continue
 		var all_inside := true
 		for cell in cells:
@@ -796,7 +849,7 @@ func _storefront_cells_valid(cells: Array[Vector2i], ignored_storefront_id: Stri
 	if cells.is_empty():
 		return false
 	for cell in cells:
-		if road_cells.has(cell) or _cell_belongs_to_other_storefront(cell, ignored_storefront_id):
+		if road_cells.has(cell) or _cell_belongs_to_other_storefront(cell, ignored_storefront_id) or _cell_belongs_to_home(cell, ""):
 			return false
 	return true
 

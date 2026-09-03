@@ -9,6 +9,9 @@ var _cached_action_id: int = 0
 var _cached_route_points: Array[Vector2] = []
 var _cached_route_cumulative: Array[float] = []
 var _cached_route_total := 0.0
+var debug_draw_count := 0
+var debug_process_frame_count := 0
+var debug_route_cache_build_count := 0
 
 
 func _ready() -> void:
@@ -46,10 +49,12 @@ func _sync_processing() -> void:
 
 
 func _process(_delta: float) -> void:
+	debug_process_frame_count += 1
 	queue_redraw()
 
 
 func _draw() -> void:
+	debug_draw_count += 1
 	if map_canvas == null:
 		return
 	var player := GameManager.player_state
@@ -82,6 +87,7 @@ func _get_cached_route_points(action: CurrentActionState) -> Array[Vector2]:
 		return _cached_route_points
 	_clear_route_cache()
 	_cached_action_id = action_id
+	debug_route_cache_build_count += 1
 	var quote: Dictionary = action.context.get("travel_quote", {})
 	if action.action_id == "move_to_map_cell":
 		for raw_cell in quote.get("route_cells", []):
@@ -124,3 +130,11 @@ func _clear_route_cache() -> void:
 	_cached_route_points.clear()
 	_cached_route_cumulative.clear()
 	_cached_route_total = 0.0
+
+
+func reset_debug_counters(clear_route_cache: bool = false) -> void:
+	debug_draw_count = 0
+	debug_process_frame_count = 0
+	debug_route_cache_build_count = 0
+	if clear_route_cache:
+		_clear_route_cache()

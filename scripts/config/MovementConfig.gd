@@ -23,7 +23,9 @@ static func get_travel_quote(from_node_id: String, to_node_id: String, road_grap
 	if mode_data.is_empty(): return {"can": false, "reason": "未知出行方式"}
 	var required_vehicle := str(mode_data.get("vehicle", ""))
 	if not required_vehicle.is_empty() and not owned_vehicles.has(required_vehicle): return {"can": false, "reason": "未拥有%s" % ("自行车" if required_vehicle == BICYCLE else "汽车")}
-	var route: Array[String] = road_graph.get_shortest_path(from_node_id, to_node_id) if road_graph != null else []
+	var route: Array[String] = []
+	if road_graph != null:
+		route = road_graph.get_shortest_path(from_node_id, to_node_id)
 	if route.is_empty(): return {"can": false, "reason": "道路网络未连通", "fallback": true}
 	var distance := 0.0
 	for index in range(1, route.size()): distance += (road_graph.nodes[route[index - 1]] as RoadNode).position.distance_to((road_graph.nodes[route[index]] as RoadNode).position)

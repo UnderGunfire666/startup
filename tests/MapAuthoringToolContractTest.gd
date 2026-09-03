@@ -8,7 +8,10 @@ func _ready() -> void:
 	var panel: MapAuthoringPanel = preload("res://scenes/tools/MapAuthoringPanel.tscn").instantiate()
 	add_child(panel)
 	await get_tree().process_frame
-	_assert(panel.document.validate().is_empty(), "authoring tool loads a valid independent document")
+	var initial_errors := panel.document.validate()
+	if not initial_errors.is_empty():
+		print("Map authoring validation errors: %s" % [initial_errors])
+	_assert(initial_errors.is_empty(), "authoring tool loads a valid independent document")
 	panel.node_id_input.text = "tool_node"
 	panel.node_x_input.text = "60"
 	panel.node_y_input.text = "60"
@@ -23,15 +26,26 @@ func _ready() -> void:
 	_assert(panel.map_canvas.move_node_to_map("tool_node", Vector2(90, 90)), "authoring canvas moves a road node in the independent document")
 	var moved_node: RoadNode = panel.document.road_graph.nodes.get("tool_node", null)
 	_assert(moved_node != null and moved_node.position == panel.document.snap_world_to_grid_intersection(Vector2(90, 90)), "authoring canvas snaps dragged road nodes to grid intersections")
-	var storefront_target := Vector2(52.5, 50.75)
-	_assert(panel.map_canvas.move_storefront_to_map("sf_nw_grocery", storefront_target), "authoring canvas moves a storefront and finds a nearby road")
 	var moved_storefront := panel.document._get_storefront("sf_nw_grocery")
-	_assert(moved_storefront != null and moved_storefront.map_position == storefront_target and not moved_storefront.road_segment_id.is_empty(), "authoring canvas persists storefront position and road association")
+	var original_storefront_position := moved_storefront.map_position
+	var original_storefront_cells := moved_storefront.grid_cells.duplicate()
+	var original_storefront_segment := moved_storefront.road_segment_id
+	var invalid_storefront_target := Vector2(52.5, 50.75)
+	_assert(not panel.map_canvas.move_storefront_to_map("sf_nw_grocery", invalid_storefront_target), "authoring canvas rejects a storefront move that disconnects its entrance")
+	_assert(moved_storefront.map_position == original_storefront_position and moved_storefront.grid_cells == original_storefront_cells and moved_storefront.road_segment_id == original_storefront_segment, "rejected storefront movement restores position, cells, and road association")
 	var moved_block := panel.document.blocks[0]
 	var original_size := moved_block.map_bounds.size
 	var original_cell_count := moved_block.grid_cells.size()
+	var original_block_cell := moved_block.grid_cells[0]
+	var original_internal_road := moved_block.internal_road_cells[0]
+	var moved_home: Dictionary = panel.document._get_player_home("home_old_community")
+	var original_home_cell: Vector2i = moved_home.get("grid_cells", [Vector2i.ZERO])[0]
+	var original_home_entrance: Vector2i = moved_home.get("entrance_cell", Vector2i.ZERO)
 	_assert(panel.map_canvas.move_block_to_map(moved_block.id, Vector2(220, 180)), "authoring canvas moves a block in the independent document")
 	_assert(not moved_block.grid_cells.is_empty() and moved_block.grid_cells.size() == original_cell_count and moved_block.map_bounds.size == original_size, "polygon blocks preserve their selected cells and bounds when moved")
+	var block_cell_offset := moved_block.grid_cells[0] - original_block_cell
+	_assert(moved_block.internal_road_cells[0] == original_internal_road + block_cell_offset, "moving a block keeps its internal-road cells aligned")
+	_assert((moved_home.get("grid_cells", []) as Array)[0] == original_home_cell + block_cell_offset and moved_home.get("entrance_cell", Vector2i.ZERO) == original_home_entrance + block_cell_offset, "moving a block keeps its home cells and entrance aligned")
 	panel.map_canvas.set_zoom(2.0)
 	_assert(is_equal_approx(panel.map_canvas.grid_screen_size, 32.0), "authoring canvas supports grid zoom")
 	_assert(panel.document.add_grid_road("grid_test_road", Vector2i(200, 200), Vector2i(210, 200), "secondary"), "grid editor creates a road from two clicked grid nodes")
@@ -48,16 +62,20 @@ func _ready() -> void:
 	var polygon := panel.document.create_block_from_cells("grid_polygon", "Grid Polygon", "CR001", polygon_cells, "commercial", 2)
 	_assert(polygon != null and polygon.grid_cells.size() == 3, "grid editor creates a non-rectangular polygon block from selected cells")
 	if polygon != null:
+		polygon.internal_road_cells = [Vector2i(202, 203)]
 		_assert(polygon.has_map_point(panel.document.grid_to_world_center(Vector2i(202, 203))) and not polygon.has_map_point(panel.document.grid_to_world_center(Vector2i(203, 204))), "polygon block hit testing follows selected cells instead of its bounding rectangle")
 		var road_overlap := panel.document.create_block_from_cells("invalid_road_overlap", "Invalid", "CR001", [Vector2i(205, 200)], "commercial", 1)
 		_assert(road_overlap == null, "polygon blocks cannot include road-occupied cells")
+	var edited_errors := panel.document.validate()
+	if not edited_errors.is_empty():
+		print("Map authoring edited-document errors: %s" % [edited_errors])
 	panel._on_validate_pressed()
 	_assert(panel.status_label.text.contains("\u901a\u8fc7"), "authoring tool reports successful validation")
 	panel._on_export_pressed()
 	_assert(not panel.export_text.text.is_empty() and panel.export_text.text.contains("roads"), "authoring tool produces a JSON export preview")
 	var export_files := panel.document.export_json_files()
 	var files: Dictionary = export_files.get("files", {})
-	_assert(bool(export_files.get("success", false)) and files.has("roads.json") and files.has("blocks.json") and files.has("storefronts.json"), "authoring tool prepares all three JSON files before user-selected save")
+	_assert(bool(export_files.get("success", false)) and files.has("roads.json") and files.has("blocks.json") and files.has("storefronts.json") and files.has("player_homes.json"), "authoring tool prepares all four JSON files before user-selected save")
 	_test_canvas_selection_interactions(panel)
 	_test_storefront_competition_radius_round_trip(panel)
 	_test_export_directory(panel)
@@ -166,7 +184,7 @@ func _test_export_directory(panel: MapAuthoringPanel) -> void:
 	var exported := panel.document.export_json_files()
 	panel.pending_export_files = exported.get("files", {})
 	panel._on_export_directory_selected(directory)
-	_assert(FileAccess.file_exists(directory.path_join("roads.json")) and FileAccess.file_exists(directory.path_join("blocks.json")) and FileAccess.file_exists(directory.path_join("storefronts.json")), "authoring tool writes all JSON exports to the selected directory")
+	_assert(FileAccess.file_exists(directory.path_join("roads.json")) and FileAccess.file_exists(directory.path_join("blocks.json")) and FileAccess.file_exists(directory.path_join("storefronts.json")) and FileAccess.file_exists(directory.path_join("player_homes.json")), "authoring tool writes all four JSON exports to the selected directory")
 
 
 func _test_document_lifecycle_commands(panel: MapAuthoringPanel) -> void:

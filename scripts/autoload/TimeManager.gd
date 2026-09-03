@@ -27,6 +27,7 @@ var _last_emitted_hour: int = -1
 var _last_emitted_day: int = -1
 var _connected_simulation_ids: Dictionary = {}
 var _last_clock_emit_msec := -CLOCK_UI_INTERVAL_MSEC
+var debug_clock_emit_count := 0
 
 
 func _process(delta: float) -> void:
@@ -200,12 +201,18 @@ func _emit_clock(force: bool = false) -> void:
 	if not force and now_msec - _last_clock_emit_msec < CLOCK_UI_INTERVAL_MSEC:
 		return
 	_last_clock_emit_msec = now_msec
+	debug_clock_emit_count += 1
 	var seconds_in_day: float = fposmod(total_game_seconds, DAY_SECONDS)
 	var total_seconds: int = int(seconds_in_day)
 	var h := (total_seconds / 3600) % 24
 	var m := (total_seconds / 60) % 60
 	var s := total_seconds % 60
 	clock_updated.emit(h, m, s, _period_label(h))
+
+
+func reset_debug_clock_emit_count() -> void:
+	debug_clock_emit_count = 0
+	_last_clock_emit_msec = Time.get_ticks_msec()
 
 
 func _period_label(hour: int) -> String:

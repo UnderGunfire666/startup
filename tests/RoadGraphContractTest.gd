@@ -70,7 +70,7 @@ func _test_map_reference_validation() -> void:
 	a.id = "a"
 	var b := RoadNode.new()
 	b.id = "b"
-	b.position = Vector2(1, 0)
+	b.position = Vector2(10.5, 0)
 	graph.add_node(a)
 	graph.add_node(b)
 	var segment := RoadSegment.new()
@@ -81,13 +81,21 @@ func _test_map_reference_validation() -> void:
 	var block := BlockData.new()
 	block.id = "block_ok"
 	block.city_region_id = "test_region"
-	block.map_bounds = Rect2(-1, -1, 2, 2)
+	block.grid_cells = [
+		Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1),
+		Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2),
+	]
+	block.internal_road_cells = [Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1)]
+	block.rebuild_bounds_from_grid_cells()
 	block.road_entry_node_id = "a"
 	var storefront := StorefrontData.new()
 	storefront.id = "storefront_ok"
 	storefront.city_region_id = "test_region"
-	storefront.map_position = Vector2.ZERO
+	storefront.block_id = block.id
+	storefront.grid_cells = [Vector2i(2, 2)]
+	storefront.map_position = (Vector2(storefront.grid_cells[0]) + Vector2(0.5, 0.5)) * MapGridGeometry.CELL_SIZE
 	storefront.road_segment_id = "ab"
+	storefront.frontage_side = "north"
 	var blocks: Array[BlockData] = [block]
 	var storefronts: Array[StorefrontData] = [storefront]
 	_assert(MapDataValidator.validate(graph, blocks, storefronts).is_empty(), "valid block and storefront road references pass validation")

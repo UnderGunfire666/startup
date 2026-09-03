@@ -53,6 +53,7 @@ var content_bounds := Rect2(Vector2.ZERO, Vector2.ONE)
 var _cached_label_layout: Array[Dictionary] = []
 var _label_layout_valid := false
 var _storefront_entrance_cache: Dictionary = {}
+var debug_static_draw_count := 0
 
 var travel_layer: CityMapTravelLayer = null
 
@@ -317,6 +318,7 @@ func _map_to_screen(map_pos: Vector2) -> Vector2:
 
 
 func _draw() -> void:
+	debug_static_draw_count += 1
 	_draw_city_regions()
 	_draw_roads()
 	_draw_blocks()
@@ -324,6 +326,10 @@ func _draw() -> void:
 	_draw_survey_areas()
 	_draw_storefronts()
 	_draw_player_homes()
+
+
+func reset_debug_draw_count() -> void:
+	debug_static_draw_count = 0
 
 
 func _draw_player_homes() -> void:

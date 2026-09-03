@@ -129,13 +129,27 @@ func _test_decision_box() -> void:
 	var definition: GameEventDefinition = EventManager.definitions.get("store_activity_partnership")
 	var store: Store = GameManager.store_state
 	var event: ActiveGameEvent = EventManager._activate(definition, store.id, store.id)
-	_check(_operation_panel.decision_box.get_child_count() == 3, "营业事件应显示说明与两个决策按钮")
-	var accept_button: Button = null
-	for child in _operation_panel.decision_box.get_children():
-		if child is Button and (child as Button).text == "\u63a5\u53d7\u5408\u4f5c":
-			accept_button = child as Button
-			break
-	_check(accept_button != null, "营业事件应提供接受按钮")
+	_check(_operation_panel.decision_box.get_child_count() == 1 + event.options.size(), "营业事件应按定义显示说明与全部决策按钮")
+	var option_buttons: Dictionary = {}
+	for option in event.options:
+		var option_id := str(option.get("id", ""))
+		var option_label := str(option.get("label", option_id))
+		for child in _operation_panel.decision_box.get_children():
+			if child is Button and (child as Button).text.begins_with(option_label):
+				option_buttons[option_id] = child as Button
+				break
+	_check(option_buttons.size() == event.options.size(), "营业事件每个定义选项均应有对应按钮")
+	var accept_button: Button = option_buttons.get("accept", null)
+	_check(accept_button != null and not accept_button.disabled, "营业事件应提供可用的接受按钮")
+	for locked_id in ["terms", "written"]:
+		var locked_button: Button = option_buttons.get(locked_id, null)
+		var locked_option: Dictionary = {}
+		for option in event.options:
+			if str(option.get("id", "")) == locked_id:
+				locked_option = option
+				break
+		_check(locked_button != null and locked_button.disabled, "%s 特性选项应保持显示但不可用" % locked_id)
+		_check(locked_button != null and locked_button.tooltip_text == str(locked_option.get("locked_reason", "")), "%s 特性选项应显示锁定原因" % locked_id)
 	if accept_button != null:
 		accept_button.emit_signal("pressed")
 	_check(EventManager.pending_decisions.is_empty(), "点击决策按钮后待处理事件应被移除")

@@ -26,15 +26,21 @@ var all_blocks: Array[BlockData] = []
 var all_player_homes: Array = []
 var road_graph: RoadGraph = RoadGraph.new()
 var _navigation_grid_cache: MapNavigationGrid = null
+var debug_navigation_grid_build_count := 0
 
 func get_navigation_grid() -> MapNavigationGrid:
 	if _navigation_grid_cache == null:
 		_navigation_grid_cache = MapNavigationGrid.build(road_graph, all_blocks, all_storefronts, all_player_homes)
+		debug_navigation_grid_build_count += 1
 	return _navigation_grid_cache
 
 
 func invalidate_navigation_grid() -> void:
 	_navigation_grid_cache = null
+
+
+func reset_debug_navigation_grid_build_count() -> void:
+	debug_navigation_grid_build_count = 0
 
 func get_block_at_map_cell(cell: Vector2i) -> BlockData:
 	for block in all_blocks:

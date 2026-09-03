@@ -85,7 +85,12 @@ func _refresh_decisions() -> void:
 			var button := Button.new()
 			var option_id: String = str(option.get("id", ""))
 			button.text = str(option.get("label", option_id))
-			button.pressed.connect(_on_decision_option_pressed.bind(event.event_id, option_id))
+			button.disabled = not bool(option.get("available", true))
+			if button.disabled:
+				button.tooltip_text = str(option.get("locked_reason", "需要特定角色特性"))
+				button.text += "（" + button.tooltip_text + "）"
+			else:
+				button.pressed.connect(_on_decision_option_pressed.bind(event.event_id, option_id))
 			decision_box.add_child(button)
 
 

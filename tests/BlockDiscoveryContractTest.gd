@@ -156,8 +156,9 @@ func _test_active_period_discovery_formatting() -> void:
 			GameManager.player_state.discovery_history.clear()
 			var observed_at := float(hour) * 3600.0
 			var results: Array[Dictionary] = []
-			BlockDiscoveryManager._evaluate_time(block, 100.0, results, observed_at)
-			found_active_period = not results.is_empty() and str(results[0].get("message", "")).contains("活动供给")
+			for _tier in range(4):
+				BlockDiscoveryManager._evaluate_time(block, 100.0, results, observed_at)
+			found_active_period = not results.is_empty() and str(results.back().get("message", "")).contains("活动供给")
 			break
 		if found_active_period:
 			break
@@ -217,6 +218,7 @@ func _test_narrative_focus_messages() -> void:
 
 	GameManager.player_state.block_discovery_progress.erase(block.id)
 	GameManager.player_state.discovery_history.clear()
+	GameManager.player_state.block_research_progress.erase(block.id)
 	GameManager.player_state.block_understanding[block.id] = 25.0
 	var legacy_records := BlockDiscoveryManager.evaluate_research(block.id, 1.0)
 	var legacy_message := _find_discovery_message(legacy_records, "spending")

@@ -15,6 +15,7 @@ func _ready() -> void:
 	TimeManager.reset()
 	ScheduleManager.reset_for_new_game()
 
+	_test_legacy_spatial_state()
 	_test_build_state()
 	_test_save_and_load()
 	_cleanup()
@@ -24,6 +25,7 @@ func _ready() -> void:
 		print("🎉 Save Round-trip 全部通过")
 	else:
 		print("⚠ Save Round-trip 存在 %d 项失败" % _fail_count)
+	get_tree().quit(1 if _fail_count > 0 else 0)
 
 
 func _check(condition: bool, label: String) -> void:
@@ -33,6 +35,23 @@ func _check(condition: bool, label: String) -> void:
 	else:
 		_fail_count += 1
 		print("❌ %s" % label)
+
+
+func _test_legacy_spatial_state() -> void:
+	var legacy := {
+		"is_character_created": true,
+		"player_name": "Legacy Spatial Player",
+		"storefront_diligence": {"S004": "initial_viewed"},
+	}
+	GameManager.player_state = PlayerState.from_save_dict(legacy)
+	GameManager._ensure_player_home()
+	var home := GameManager.get_player_home(GameManager.player_state.home_id)
+	var home_cells: Array = home.get("grid_cells", [])
+	_check(not home.is_empty() and home_cells.has(GameManager.player_state.current_map_cell) and GameManager.player_state.current_location_kind == "home", "Legacy save without home position is normalized onto a valid default-home cell")
+	var entrance: Dictionary = GameManager.get_navigation_grid().home_entrances.get(GameManager.player_state.home_id, {})
+	_check(not entrance.is_empty(), "Migrated legacy home remains connected to the navigation grid without becoming a generic block cell")
+	var intel := GameManager.player_state.get_storefront_intel("S004")
+	_check(bool(intel.get("visited", false)) and not bool(intel.get("visited_during_business_hours", false)), "Legacy visited storefront unlocks facade information but keeps interior access locked")
 
 
 func _test_build_state() -> void:

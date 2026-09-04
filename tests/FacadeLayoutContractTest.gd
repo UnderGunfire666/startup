@@ -13,6 +13,7 @@ func _ready() -> void:
 	_test_texture_decals()
 	_test_store_layout_round_trip()
 	_test_legacy_store_compatibility()
+	_test_runtime_entrance_cache_invalidation()
 	print("========== 门面布局测试：%d 通过 / %d 失败 ==========" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -141,3 +142,39 @@ func _test_legacy_store_compatibility() -> void:
 	legacy_data.erase("facade_layout")
 	var restored := Store.from_save_dict(legacy_data)
 	_expect(restored.facade_layout.is_empty(), "不含门面布局字段的旧存档兼容加载")
+
+
+func _test_runtime_entrance_cache_invalidation() -> void:
+	GameManager.start_new_game()
+	var storefront: StorefrontData = null
+	for candidate in GameManager.all_storefronts:
+		var geometry := StorefrontLayoutGeometry.from_storefront(candidate)
+		if geometry.frontage_length > StorefrontLayoutGeometry.CELLS_PER_CITY_CELL:
+			storefront = candidate
+			break
+	_expect(storefront != null, "runtime map provides a storefront wide enough to move its entrance between city cells")
+	if storefront == null: return
+	var store := Store.new()
+	store.id = "entrance_cache_contract"
+	store.signed_storefront_id = storefront.id
+	store.selected_storefront_id = storefront.id
+	store.facade_layout.append(_placement("entrance", Vector2i(0, 1)))
+	store.facade_layout_initialized = true
+	GameManager.stores.append(store)
+	GameManager.invalidate_navigation_grid()
+	GameManager.reset_debug_navigation_grid_build_count()
+	var first_grid := GameManager.get_navigation_grid()
+	var first_cell: Vector2i = first_grid.storefront_entrances.get(storefront.id, {}).get("cell", Vector2i(-1, -1))
+	var canvas := CityMapCanvas.new()
+	canvas._storefront_entrance_cache[storefront.id] = {"cell": first_cell}
+	store.facade_layout[0].cell.x = StorefrontLayoutGeometry.CELLS_PER_CITY_CELL
+	GameManager.store_plan_updated.emit(store.id)
+	canvas.refresh_storefront_layout()
+	_expect(GameManager.debug_navigation_grid_build_count == 1 and canvas._storefront_entrance_cache.is_empty(), "layout commit invalidates navigation and clears the rendered entrance cache")
+	var second_grid := GameManager.get_navigation_grid()
+	var second_cell: Vector2i = second_grid.storefront_entrances.get(storefront.id, {}).get("cell", Vector2i(-1, -1))
+	_expect(second_grid != first_grid and GameManager.debug_navigation_grid_build_count == 2 and second_cell != first_cell, "next navigation query rebuilds exactly once and uses the moved facade entrance")
+	GameManager.get_navigation_grid()
+	_expect(GameManager.debug_navigation_grid_build_count == 2, "unchanged entrance reuses the rebuilt navigation cache")
+	canvas.free()
+	GameManager.start_new_game()

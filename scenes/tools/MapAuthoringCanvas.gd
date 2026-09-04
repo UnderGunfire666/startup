@@ -6,6 +6,7 @@ signal node_moved(node_id: String)
 signal storefront_moved(storefront_id: String)
 signal storefront_selected(storefront_id: String)
 signal player_home_selected(home_id: String)
+signal player_home_moved(home_id: String)
 signal block_moved(block_id: String)
 signal grid_road_requested(from_cell: Vector2i, to_cell: Vector2i)
 signal grid_cells_selected(cells: Array[Vector2i])
@@ -25,6 +26,7 @@ enum EditMode { SELECT, ROAD, BLOCK, INTERNAL_ROAD }
 var document: MapAuthoringDocument
 var _dragging_node_id := ""
 var _dragging_storefront_id := ""
+var _dragging_home_id := ""
 var _dragging_block_id := ""
 var edit_mode: EditMode = EditMode.SELECT
 var _grid_drag_start := Vector2i.ZERO
@@ -41,6 +43,8 @@ var selected_home_id := ""
 func set_selected_storefront(storefront_id: String) -> void:
 	selected_storefront_id = storefront_id
 	selected_storefront_ids.clear()
+	selected_block_ids.clear()
+	selected_home_id = ""
 	if not storefront_id.is_empty():
 		selected_storefront_ids.append(storefront_id)
 	queue_redraw()
@@ -65,13 +69,28 @@ func set_edit_mode(new_mode: EditMode) -> void:
 	_grid_dragging = false
 	_dragging_node_id = ""
 	_dragging_storefront_id = ""
+	_dragging_home_id = ""
 	_dragging_block_id = ""
 	queue_redraw()
 
 
 func setup(new_document: MapAuthoringDocument) -> void:
+	clear_selection()
 	document = new_document
 	refresh_canvas()
+
+
+func clear_selection() -> void:
+	_cancel_active_block_drag()
+	_dragging_node_id = ""
+	_dragging_storefront_id = ""
+	_dragging_home_id = ""
+	selected_storefront_id = ""
+	selected_storefront_ids.clear()
+	selected_block_ids.clear()
+	selected_home_id = ""
+	selected_grid_cells.clear()
+	queue_redraw()
 
 
 func refresh_canvas() -> void:
@@ -92,6 +111,15 @@ func move_storefront_to_map(storefront_id: String, map_position: Vector2) -> boo
 		edit_rejected.emit("门面必须位于区块内，已恢复原位置。")
 		return false
 	storefront_moved.emit(storefront_id)
+	queue_redraw()
+	return true
+
+
+func move_player_home_to_map(home_id: String, map_position: Vector2) -> bool:
+	if document == null or not document.move_player_home(home_id, map_position):
+		edit_rejected.emit("住宅必须保持连续、位于单一区块并与内部道路相邻，已恢复原位置。")
+		return false
+	player_home_moved.emit(home_id)
 	queue_redraw()
 	return true
 
@@ -132,6 +160,7 @@ func _gui_input(event: InputEvent) -> void:
 			selected_storefront_id = ""
 			selected_storefront_ids.clear()
 			selected_block_ids.clear()
+			selected_home_id = ""
 			selection_cleared.emit()
 			return
 		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
@@ -154,8 +183,13 @@ func _gui_input(event: InputEvent) -> void:
 				queue_redraw()
 			return
 		if mouse_button.pressed:
+			_dragging_home_id = ""
 			_dragging_node_id = _find_node_at_screen(mouse_button.position)
 			if not _dragging_node_id.is_empty():
+				selected_home_id = ""
+				selected_storefront_id = ""
+				selected_storefront_ids.clear()
+				selected_block_ids.clear()
 				road_node_selected.emit(_dragging_node_id)
 			if _dragging_node_id.is_empty():
 				_dragging_storefront_id = _find_storefront_at_screen(mouse_button.position)
@@ -166,20 +200,27 @@ func _gui_input(event: InputEvent) -> void:
 						additional_element_selected.emit(_dragging_storefront_id, true)
 					else:
 						selected_storefront_id = _dragging_storefront_id
+						selected_home_id = ""
 						selected_storefront_ids.clear()
 						selected_storefront_ids.append(_dragging_storefront_id)
 						selected_block_ids.clear()
 						storefront_selected.emit(_dragging_storefront_id)
 			if _dragging_node_id.is_empty() and _dragging_storefront_id.is_empty():
-				var home_id := _find_home_at_screen(mouse_button.position)
-				if not home_id.is_empty():
-					selected_home_id = home_id
+				_dragging_home_id = _find_home_at_screen(mouse_button.position)
+				if not _dragging_home_id.is_empty():
+					selected_home_id = _dragging_home_id
+					selected_storefront_id = ""
+					selected_storefront_ids.clear()
 					selected_block_ids.clear()
-					player_home_selected.emit(home_id)
+					player_home_selected.emit(_dragging_home_id)
 					queue_redraw()
 					return
 				var segment_id := _find_segment_at_screen(mouse_button.position)
 				if not segment_id.is_empty():
+					selected_home_id = ""
+					selected_storefront_id = ""
+					selected_storefront_ids.clear()
+					selected_block_ids.clear()
 					road_segment_selected.emit(segment_id)
 				elif _dragging_block_id.is_empty():
 					var empty_cells: Array[Vector2i] = []
@@ -193,6 +234,7 @@ func _gui_input(event: InputEvent) -> void:
 							selected_block_ids.append(_dragging_block_id)
 						additional_element_selected.emit(_dragging_block_id, false)
 					else:
+						selected_home_id = ""
 						selected_block_ids.clear()
 						selected_block_ids.append(_dragging_block_id)
 						selected_storefront_ids.clear()
@@ -200,6 +242,7 @@ func _gui_input(event: InputEvent) -> void:
 		else:
 			_dragging_node_id = ""
 			_dragging_storefront_id = ""
+			_dragging_home_id = ""
 			if not _dragging_block_id.is_empty():
 				var moved_block_id := _dragging_block_id
 				_dragging_block_id = ""
@@ -214,6 +257,9 @@ func _gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and not _dragging_storefront_id.is_empty() and (((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0):
 		var motion := event as InputEventMouseMotion
 		move_storefront_to_map(_dragging_storefront_id, _screen_to_world(motion.position))
+	elif event is InputEventMouseMotion and not _dragging_home_id.is_empty() and (((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0):
+		var motion := event as InputEventMouseMotion
+		move_player_home_to_map(_dragging_home_id, _screen_to_world(motion.position))
 	elif event is InputEventMouseMotion and not _dragging_block_id.is_empty() and (((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0):
 		var motion := event as InputEventMouseMotion
 		if document.move_block_preview(_dragging_block_id, _screen_to_world(motion.position)):

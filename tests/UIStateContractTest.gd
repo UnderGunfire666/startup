@@ -29,6 +29,7 @@ func _ready() -> void:
 		print("🎉 UI 状态契约全部通过")
 	else:
 		print("⚠ UI 状态契约存在失败")
+	get_tree().quit(1 if _fail_count > 0 else 0)
 
 
 func _mount_panels() -> void:

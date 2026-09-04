@@ -35,9 +35,11 @@ func _test_opening_stage_transition() -> void:
 		_assert_true(false, "active store exists")
 		return
 
-	GameManager.advance_storefront_diligence("S004", "initial_viewing")
-	GameManager.advance_storefront_diligence("S004", "full_diligence")
-	var storefront_result: Dictionary = GameManager.select_storefront("S004")
+	var storefront: StorefrontData = _find_empty_storefront()
+	_assert_true(storefront != null, "an empty storefront is available")
+	if storefront == null:
+		return
+	var storefront_result: Dictionary = GameManager.select_storefront(storefront.id)
 	_assert_true(bool(storefront_result.get("success", false)), "storefront selection succeeds")
 	_assert_true(store.pre_open_stage == Store.PreOpenStage.STORE_SETUP,
 		"storefront selection enters STORE_SETUP")
@@ -48,6 +50,13 @@ func _test_opening_stage_transition() -> void:
 	_assert_true(store.pre_open_stage == Store.PreOpenStage.STORE_SETUP,
 		"failed opening keeps STORE_SETUP")
 
+	var offer_set := GameManager.set_pending_lease_offer(
+		store.id, storefront.id, 1.0, 0, 0.0, "opening_stage_contract"
+	)
+	_assert_true(offer_set, "lease offer is recorded")
+	var signing_result: Dictionary = GameManager.sign_selected_storefront()
+	_assert_true(bool(signing_result.get("success", false)), "selected storefront is signed")
+
 	var category_result: Dictionary = GameManager.add_category_to_store("breakfast", ["P001"])
 	_assert_true(bool(category_result.get("success", false)), "category setup succeeds")
 	var purchase_result: Dictionary = GameManager.purchase_ingredients({
@@ -56,6 +65,18 @@ func _test_opening_stage_transition() -> void:
 		"oil": 2.0,
 	})
 	_assert_true(bool(purchase_result.get("success", false)), "ingredient purchase succeeds")
+	for equipment_id in ["steamer", "griddle"]:
+		var equipment_result: Dictionary = GameManager.purchase_equipment(equipment_id)
+		_assert_true(bool(equipment_result.get("success", false)), "%s purchase succeeds" % equipment_id)
+
+	var geometry := StorefrontLayoutGeometry.from_storefront(storefront)
+	var entrance := StoreFacadePlacement.new()
+	entrance.type = "entrance"
+	entrance.cell = geometry.get_default_entrance_cell(storefront.default_entrance_offset)
+	store.facade_layout = [entrance]
+	store.facade_layout_initialized = true
+	_assert_true(_place_owned_equipment(store, geometry, entrance),
+		"required equipment is placed without blocking the entrance")
 
 	store.pre_open_stage = Store.PreOpenStage.STOREFRONT_SELECTION
 	var wrong_stage_open_result: Dictionary = GameManager.open_store()
@@ -64,6 +85,14 @@ func _test_opening_stage_transition() -> void:
 	_assert_true(store.pre_open_stage == Store.PreOpenStage.STOREFRONT_SELECTION,
 		"rejected wrong-stage opening does not repair or advance pre_open_stage")
 	store.pre_open_stage = Store.PreOpenStage.STORE_SETUP
+
+	store.facade_layout.clear()
+	var missing_entrance_result: Dictionary = GameManager.open_store()
+	_assert_true(not bool(missing_entrance_result.get("success", false)),
+		"opening fails after the facade entrance is removed")
+	_assert_true(store.pre_open_stage == Store.PreOpenStage.STORE_SETUP,
+		"missing entrance failure keeps STORE_SETUP")
+	store.facade_layout.append(entrance)
 
 	var open_result: Dictionary = GameManager.open_store()
 	_assert_true(bool(open_result.get("success", false)), "opening succeeds when ready")
@@ -78,6 +107,65 @@ func _test_opening_stage_transition() -> void:
 	_assert_true(not bool(repeated_open_result.get("success", false)), "already-open store cannot open again")
 	_assert_true(store.pre_open_stage == Store.PreOpenStage.OPEN_FOR_BUSINESS,
 		"rejected repeated opening keeps OPEN_FOR_BUSINESS")
+
+
+func _find_empty_storefront() -> StorefrontData:
+	for storefront in GameManager.all_storefronts:
+		if not storefront.is_occupied:
+			return storefront
+	return null
+
+
+func _place_owned_equipment(
+		store: Store,
+		geometry: StorefrontLayoutGeometry,
+		entrance: StoreFacadePlacement
+) -> bool:
+	var blocked: Dictionary = {}
+	for cell in geometry.get_interior_entrance_cells(entrance):
+		blocked[cell] = true
+	for equipment in store.equipment:
+		var definition := GameManager.get_equipment(equipment.equipment_id)
+		if definition == null:
+			return false
+		var footprint := Vector2i.ONE
+		if definition.area > 2.5:
+			footprint = Vector2i(2, 2)
+		elif definition.area > 1.3:
+			footprint = Vector2i(2, 1)
+		var origin := _find_free_origin(geometry, footprint, blocked)
+		if origin.x < 0:
+			return false
+		var placement := StoreFurniturePlacement.new()
+		placement.instance_id = equipment.instance_id
+		placement.equipment_id = equipment.equipment_id
+		placement.cell = origin
+		store.furniture_layout.append(placement)
+		for cell in placement.get_footprint_cells(footprint):
+			blocked[cell] = true
+	return true
+
+
+func _find_free_origin(
+		geometry: StorefrontLayoutGeometry,
+		footprint: Vector2i,
+		blocked: Dictionary
+) -> Vector2i:
+	for y in range(geometry.grid_size.y):
+		for x in range(geometry.grid_size.x):
+			var origin := Vector2i(x, y)
+			var valid := true
+			for offset_y in range(footprint.y):
+				for offset_x in range(footprint.x):
+					var cell := origin + Vector2i(offset_x, offset_y)
+					if not geometry.is_available(cell) or blocked.has(cell):
+						valid = false
+						break
+				if not valid:
+					break
+			if valid:
+				return origin
+	return Vector2i(-1, -1)
 
 
 func _assert_true(condition: bool, message: String) -> void:

@@ -110,13 +110,18 @@ func _ensure_player_home() -> void:
 		home = get_player_home(str(preset.get("home_id", "")))
 		if home.is_empty():
 			home = get_default_player_home()
-		if not home.is_empty():
-			player_state.home_id = str(home.get("id", ""))
-			if player_state.current_block_id.is_empty():
-				player_state.set_home(home)
-			elif player_state.current_map_position == Vector2.ZERO:
-				var block := get_block(player_state.current_block_id)
-				player_state.current_map_position = block.center_position if block != null else home.get("map_position", Vector2.ZERO)
+	if home.is_empty():
+		return
+	player_state.home_id = str(home.get("id", ""))
+	var home_cells: Array = home.get("grid_cells", [])
+	var saved_cell_is_valid := home_cells.has(player_state.current_map_cell)
+	if player_state.current_location_kind == "home" and not saved_cell_is_valid:
+		player_state.set_home(home)
+	elif player_state.current_block_id.is_empty():
+		player_state.set_home(home)
+	elif player_state.current_map_position == Vector2.ZERO:
+		var block := get_block(player_state.current_block_id)
+		player_state.current_map_position = block.center_position if block != null else home.get("map_position", Vector2.ZERO)
 
 
 func create_character(data: Dictionary) -> Dictionary:

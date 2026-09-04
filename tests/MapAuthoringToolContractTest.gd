@@ -78,6 +78,9 @@ func _ready() -> void:
 	_assert(bool(export_files.get("success", false)) and files.has("roads.json") and files.has("blocks.json") and files.has("storefronts.json") and files.has("player_homes.json"), "authoring tool prepares all four JSON files before user-selected save")
 	_test_canvas_selection_interactions(panel)
 	_test_storefront_competition_radius_round_trip(panel)
+	_test_four_file_round_trip(panel)
+	_test_player_home_editing(panel)
+	_test_internal_road_atomic_rejection(panel)
 	_test_export_directory(panel)
 	_test_document_lifecycle_commands(panel)
 	panel.queue_free()
@@ -142,6 +145,13 @@ func _test_canvas_selection_interactions(panel: MapAuthoringPanel) -> void:
 	_click_canvas(canvas, block_screen, true)
 	_click_canvas(canvas, block_screen, false)
 	_assert(canvas.selected_block_ids.has(block.id) and panel.selected_block_id == block.id, "clicking a block updates block selection")
+	if not panel.document.player_homes.is_empty():
+		var home: Dictionary = panel.document.player_homes[0]
+		var home_cell: Vector2i = (home.get("grid_cells", []) as Array)[0]
+		var home_screen := (Vector2(home_cell) + Vector2(0.5, 0.5)) * canvas.grid_screen_size
+		_click_canvas(canvas, home_screen, true)
+		_assert(panel.selected_home_id == str(home.get("id", "")) and panel.selected_block_id.is_empty() and panel.selected_storefront_id.is_empty() and canvas.selected_block_ids.is_empty() and canvas.selected_storefront_ids.is_empty(), "home selection is mutually exclusive with block and storefront selection")
+		_click_canvas(canvas, home_screen, false)
 	var original_block_center := block.center_position
 	_click_canvas(canvas, block_screen, true)
 	var preview_motion := InputEventMouseMotion.new()
@@ -170,12 +180,84 @@ func _test_storefront_competition_radius_round_trip(panel: MapAuthoringPanel) ->
 	_assert(bool(restored_result.get("success", false)) and restored_storefront != null and is_equal_approx(restored_storefront.competition_radius, 70.0), "competition radius survives map export and import")
 	var legacy_export: Dictionary = exported.duplicate(true)
 	var legacy_storefronts: Array = legacy_export.get("storefronts", [])
-	if not legacy_storefronts.is_empty() and legacy_storefronts[0] is Dictionary:
-		legacy_storefronts[0].erase("competition_radius")
+	for legacy_entry in legacy_storefronts:
+		if legacy_entry is Dictionary and str(legacy_entry.get("id", "")) == storefront.id:
+			legacy_entry.erase("competition_radius")
+			break
 	var legacy_result := MapAuthoringDocument.from_exported_map_data(legacy_export)
 	var legacy_document: MapAuthoringDocument = legacy_result.get("document", null)
 	var legacy_storefront := legacy_document._get_storefront(storefront.id) if legacy_document != null else null
 	_assert(bool(legacy_result.get("success", false)) and legacy_storefront != null and is_equal_approx(legacy_storefront.competition_radius, legacy_storefront.awareness_radius), "legacy storefront maps default competition radius to awareness radius")
+
+
+func _test_four_file_round_trip(_panel: MapAuthoringPanel) -> void:
+	var formal_map := MapAuthoringDocument.from_static_data()
+	var first := formal_map.export_json_files()
+	var restored := MapAuthoringDocument.from_json_file_contents(first.get("files", {}))
+	var restored_document: MapAuthoringDocument = restored.get("document", null)
+	var second := restored_document.export_json_files() if restored_document != null else {}
+	_assert(bool(first.get("success", false)) and bool(restored.get("success", false)) and bool(second.get("success", false)), "four exported map JSON files reload through the canonical validator")
+	_assert(first.get("files", {}) == second.get("files", {}), "four-file export is byte-stable after reload and preserves every serialized field")
+
+
+func _test_player_home_editing(panel: MapAuthoringPanel) -> void:
+	var previous_document := panel.document
+	var document := MapAuthoringDocument.new()
+	var block := BlockData.new()
+	block.id = "home_contract_block"
+	block.name = "Home Contract Block"
+	block.city_region_id = "TEST"
+	for x in range(4):
+		for y in range(6):
+			block.grid_cells.append(Vector2i(x, y))
+	for y in range(6):
+		block.internal_road_cells.append(Vector2i(0, y))
+	block.rebuild_bounds_from_grid_cells()
+	document.blocks.append(block)
+	panel.document = document
+	panel.map_canvas.setup(document)
+	var candidate: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 2)]
+	var candidate_move_direction := Vector2i.DOWN
+	var created := document.create_player_home("contract_home", "Contract Home", candidate)
+	_assert(not created.is_empty(), "authoring document creates a connected multi-cell home with an automatic entrance")
+	if created.is_empty():
+		panel.document = previous_document
+		panel.map_canvas.setup(previous_document)
+		return
+	var home := document._get_player_home("contract_home")
+	var original := (home.get("grid_cells", []) as Array).duplicate()
+	_assert(not document.move_player_home("contract_home", Vector2(-1000, -1000)) and home.get("grid_cells", []) == original, "invalid home movement rolls back atomically")
+	var target := document._grid_cells_center(home.get("grid_cells", [])) + Vector2(candidate_move_direction) * MapAuthoringDocument.GRID_CELL_SIZE
+	var moved_successfully: bool = panel.map_canvas.move_player_home_to_map("contract_home", target) and home.get("grid_cells", []) != original
+	_assert(moved_successfully, "authoring canvas commits a valid independent home drag and recalculates its entrance")
+	candidate.assign(home.get("grid_cells", []))
+	var entrance: Vector2i = home.get("entrance_cell", Vector2i(-1, -1))
+	var keep_cell: Vector2i = candidate[0] if candidate[0].distance_squared_to(entrance) == 1 else candidate[1]
+	var remove_cell: Vector2i = candidate[1] if keep_cell == candidate[0] else candidate[0]
+	_assert(document.remove_cells_from_player_home("contract_home", [remove_cell]) and (home.get("grid_cells", []) as Array).size() == 1, "home footprint can be reduced while preserving a valid entrance")
+	var remaining := (home.get("grid_cells", []) as Array).duplicate()
+	_assert(not document.remove_cells_from_player_home("contract_home", remaining) and home.get("grid_cells", []) == remaining, "home reduction rejects deleting the complete footprint without mutation")
+	_assert(document.remove_player_home("contract_home"), "home can be deleted after move and resize validation")
+	panel.document = previous_document
+	panel.map_canvas.setup(previous_document)
+
+
+func _test_internal_road_atomic_rejection(panel: MapAuthoringPanel) -> void:
+	var restored := MapAuthoringDocument.from_exported_map_data(panel.document.export_map_data())
+	var document: MapAuthoringDocument = restored.get("document", null)
+	var rejected := false
+	if document != null:
+		for home in document.player_homes:
+			var block: BlockData = document._get_block(str(home.get("block_id", "")))
+			var entrance: Vector2i = home.get("entrance_cell", Vector2i(-1, -1))
+			if block == null or not block.internal_road_cells.has(entrance): continue
+			var before := block.internal_road_cells.duplicate()
+			var proposed := before.duplicate()
+			proposed.erase(entrance)
+			if not proposed.is_empty() and not document.set_internal_road_cells(block.id, proposed):
+				rejected = block.internal_road_cells == before and home.get("entrance_cell", Vector2i(-1, -1)) == entrance
+				break
+	_assert(rejected, "removing an internal-road cell required by a home or storefront is rejected with complete rollback")
 
 
 func _test_export_directory(panel: MapAuthoringPanel) -> void:
@@ -189,10 +271,18 @@ func _test_export_directory(panel: MapAuthoringPanel) -> void:
 
 func _test_document_lifecycle_commands(panel: MapAuthoringPanel) -> void:
 	panel._on_load_reference_map_pressed()
-	_assert(not panel.document.blocks.is_empty() and not panel.document.storefronts.is_empty(), "load-reference command replaces the authoring document")
+	_assert(not panel.document.blocks.is_empty() and not panel.document.storefronts.is_empty(), "load-reference command provides an authored document")
 	panel._on_export_pressed()
 	var preview := panel.export_text.text
+	panel.selected_home_id = "stale_home"
+	panel.selected_block_id = "stale_block"
+	panel.selected_storefront_id = "stale_storefront"
+	panel.map_canvas.selected_home_id = "stale_home"
+	panel.map_canvas.selected_block_ids = ["stale_block"]
+	panel.map_canvas.selected_storefront_ids = ["stale_storefront"]
 	panel._on_import_preview_pressed()
 	_assert(not preview.is_empty() and panel.status_label.text.contains("通过"), "import-preview command restores a validated exported document")
+	_assert(panel.selected_home_id.is_empty() and panel.selected_block_id.is_empty() and panel.selected_storefront_id.is_empty(), "successful import clears stale panel selections")
+	_assert(panel.map_canvas.selected_home_id.is_empty() and panel.map_canvas.selected_block_ids.is_empty() and panel.map_canvas.selected_storefront_ids.is_empty(), "successful import clears stale canvas selections")
 	panel._on_new_blank_map_pressed()
 	_assert(panel.document.blocks.is_empty() and panel.document.storefronts.is_empty() and panel.document.road_graph.nodes.is_empty(), "new-blank-map command resets all editable map content")

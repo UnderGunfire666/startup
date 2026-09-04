@@ -16,9 +16,13 @@ func _ready() -> void:
 	if block == null:
 		_finish()
 		return
+	for x in range(1, 7):
+		block.internal_road_cells.append(Vector2i(x, 1))
 
 	var first_cells: Array[Vector2i] = [Vector2i(2, 2)]
 	var first := document.create_storefront_from_cells("first", "First", "TEST_REGION", first_cells)
+	if first != null:
+		first.frontage_side = "north"
 	_assert(first != null and first.grid_cells.size() == 1, "a storefront occupies at least one grid cell")
 	var overlap_block_cells: Array[Vector2i] = [Vector2i(2, 2)]
 	_assert(document.create_block_from_cells("overlap_block", "Overlap", "TEST_REGION", overlap_block_cells, "commercial", 1) == null, "different blocks cannot overlap any grid cell")
@@ -31,6 +35,8 @@ func _ready() -> void:
 
 	var second_cells: Array[Vector2i] = [Vector2i(4, 2)]
 	var second := document.create_storefront_from_cells("second", "Second", "TEST_REGION", second_cells)
+	if second != null:
+		second.frontage_side = "north"
 	_assert(second != null, "a second non-overlapping storefront can be created")
 	var overlap_storefront_cells: Array[Vector2i] = [Vector2i(4, 2)]
 	_assert(not document.add_cells_to_storefront("first", overlap_storefront_cells), "storefronts cannot overlap occupied grid cells")

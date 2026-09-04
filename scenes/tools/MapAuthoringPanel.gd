@@ -103,6 +103,7 @@ func _build_interface() -> void:
 	map_canvas.storefront_moved.connect(_on_canvas_storefront_moved)
 	map_canvas.storefront_selected.connect(_on_storefront_selected)
 	map_canvas.player_home_selected.connect(_on_player_home_selected)
+	map_canvas.player_home_moved.connect(_on_canvas_player_home_moved)
 	map_canvas.additional_element_selected.connect(_on_additional_element_selected)
 	map_canvas.block_moved.connect(_on_canvas_block_moved)
 	map_canvas.grid_road_requested.connect(_on_grid_road_requested)
@@ -466,6 +467,7 @@ func _on_new_blank_map_pressed() -> void:
 	selected_grid_cells.clear()
 	selected_block_id = ""
 	selected_storefront_id = ""
+	selected_home_id = ""
 	_refresh_options()
 	_set_status("\u5df2\u521b\u5efa\u7a7a\u767d\u5730\u56fe\uff1b\u753b\u5e03\u56db\u8fb9\u4fdd\u7559 5 \u4e2a\u7f51\u683c\u7684\u7f16\u8f91\u7a7a\u95f4\u3002")
 
@@ -484,6 +486,7 @@ func _on_load_reference_map_pressed() -> void:
 	selected_grid_cells.clear()
 	selected_block_id = ""
 	selected_storefront_id = ""
+	selected_home_id = ""
 	_refresh_options()
 	_set_status("\u5df2\u4ece concept_city_grid_map.json \u8f7d\u5165\u5f69\u8272\u57ce\u533a\u793a\u4f8b\u3002")
 
@@ -509,6 +512,10 @@ func _on_import_preview_pressed() -> void:
 		return
 	document = result.get("document", document)
 	map_canvas.setup(document)
+	selected_grid_cells.clear()
+	selected_block_id = ""
+	selected_storefront_id = ""
+	selected_home_id = ""
 	_refresh_options()
 	_set_status("\u5bfc\u5165\u5e76\u6821\u9a8c\u901a\u8fc7\u3002")
 
@@ -547,6 +554,10 @@ func _on_canvas_storefront_moved(storefront_id: String) -> void:
 	_set_status("\u5df2\u79fb\u52a8\u95e8\u9762\u5e76\u91cd\u65b0\u5173\u8054\u6700\u8fd1\u9053\u8def\uff1a" + storefront_id)
 
 
+func _on_canvas_player_home_moved(home_id: String) -> void:
+	_set_status("已移动住宅并重新计算入口：" + home_id)
+
+
 func _on_additional_element_selected(element_id: String, is_storefront: bool) -> void:
 	var target_input := storefront_merge_target_input if is_storefront else block_merge_target_input
 	var ids: PackedStringArray = target_input.text.split(",", false)
@@ -557,6 +568,8 @@ func _on_additional_element_selected(element_id: String, is_storefront: bool) ->
 
 
 func _on_storefront_selected(storefront_id: String) -> void:
+	selected_home_id = ""
+	selected_block_id = ""
 	_set_editor_visibility(false, true)
 	for storefront in document.storefronts:
 		if storefront.id != storefront_id:
@@ -607,6 +620,7 @@ func _on_create_home_pressed() -> void:
 func _on_delete_home_pressed() -> void:
 	if not selected_home_id.is_empty() and document.remove_player_home(selected_home_id):
 		selected_home_id = ""
+		map_canvas.clear_selection()
 		map_canvas.refresh_canvas()
 		_set_status("住宅已删除。")
 
@@ -692,7 +706,12 @@ func _on_copy_selected_cells_pressed() -> void:
 func _on_delete_selected_cells_pressed() -> void:
 	if selected_grid_cells.is_empty():
 		return
-	if not selected_block_id.is_empty():
+	if not selected_home_id.is_empty():
+		if not document.remove_cells_from_player_home(selected_home_id, selected_grid_cells):
+			_set_status("无法缩减住宅：住宅必须保留连续占格并与内部道路相邻。")
+			return
+		map_canvas.refresh_canvas()
+	elif not selected_block_id.is_empty():
 		document.remove_cells_from_block(selected_block_id, selected_grid_cells)
 		map_canvas.refresh_canvas()
 	selected_grid_cells.clear()
@@ -703,6 +722,7 @@ func _on_selection_cleared() -> void:
 	selected_grid_cells.clear()
 	selected_block_id = ""
 	selected_storefront_id = ""
+	selected_home_id = ""
 	_set_editor_visibility(false, false)
 	map_canvas.set_selected_grid_cells(selected_grid_cells)
 	_set_status("已取消当前选择。")
@@ -723,6 +743,8 @@ func _on_create_grid_block_pressed() -> void:
 
 
 func _on_grid_block_selected(block_id: String) -> void:
+	selected_home_id = ""
+	selected_storefront_id = ""
 	_set_editor_visibility(true, false)
 	for block in document.blocks:
 		if block.id != block_id:
@@ -856,6 +878,8 @@ func _on_update_storefront_pressed() -> void:
 
 func _on_delete_storefront_pressed() -> void:
 	if document.remove_storefront(_selected_id(storefront_option)):
+		selected_storefront_id = ""
+		map_canvas.clear_selection()
 		_refresh_options()
 		map_canvas.refresh_canvas()
 
@@ -863,6 +887,7 @@ func _on_delete_storefront_pressed() -> void:
 func _on_delete_selected_block_pressed() -> void:
 	if document.remove_block(selected_block_id):
 		selected_block_id = ""
+		map_canvas.clear_selection()
 		_refresh_options()
 		map_canvas.refresh_canvas()
 		_set_status("区块已删除。")
@@ -883,11 +908,17 @@ func _on_delete_segment_pressed() -> void:
 
 
 func _on_road_node_selected(node_id: String) -> void:
+	selected_home_id = ""
+	selected_block_id = ""
+	selected_storefront_id = ""
 	node_id_input.text = node_id
 	_set_status("已选中道路节点：" + node_id)
 
 
 func _on_road_segment_selected(segment_id: String) -> void:
+	selected_home_id = ""
+	selected_block_id = ""
+	selected_storefront_id = ""
 	segment_id_input.text = segment_id
 	var current_class := document.get_road_class(segment_id)
 	for index in range(road_class_option.item_count):
